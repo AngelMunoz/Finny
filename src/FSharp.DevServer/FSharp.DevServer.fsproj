@@ -1,0 +1,32 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net5.0</TargetFramework>
+    <WarnOn>3390;$(WarnOn)</WarnOn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="Types.fs" />
+    <Compile Include="AppEvents.fs" />
+    <Compile Include="Commands.fs" />
+    <Compile Include="Server.fs" />
+    <Compile Include="Build.fs" />
+    <Compile Include="Program.fs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="AngleSharp" Version="0.16.0" />
+    <PackageReference Include="Argu" Version="6.1.1" />
+    <PackageReference Include="CliWrap" Version="3.3.2" />
+    <PackageReference Include="FSharp.Control.AsyncSeq" Version="3.0.3" />
+    <PackageReference Include="Ply" Version="0.3.1" />
+    <PackageReference Include="Saturn" Version="0.15.0" />
+    <PackageReference Include="SharpZipLib" Version="1.3.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Update="FSharp.Core" Version="5.0.1" />
+  </ItemGroup>
+
+</Project>
