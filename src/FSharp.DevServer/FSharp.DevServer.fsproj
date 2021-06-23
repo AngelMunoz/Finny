@@ -8,11 +8,15 @@
 
   <ItemGroup>
     <Compile Include="Types.fs" />
-    <Compile Include="AppEvents.fs" />
-    <Compile Include="Commands.fs" />
+    <Compile Include="Fable.fs" />
     <Compile Include="Server.fs" />
     <Compile Include="Build.fs" />
+    <Compile Include="Commands.fs" />
     <Compile Include="Program.fs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include=".editorconfig" />
   </ItemGroup>
 
   <ItemGroup>
@@ -26,7 +30,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Update="FSharp.Core" Version="5.0.1" />
+    <PackageReference Update="FSharp.Core" Version="5.0.2" />
   </ItemGroup>
 
 </Project>
