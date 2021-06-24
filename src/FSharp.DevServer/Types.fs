@@ -29,7 +29,7 @@ module Types =
 
     static member DefaultConfig() =
       { AutoStart = Some true
-        Project = None
+        Project = Some "./src/App.fsproj"
         Extension = Some ".fs.js"
         OutDir = Some "./public" }
 
@@ -51,12 +51,10 @@ module Types =
     { StaticFilesDir: string option
       IndexFile: string option
       EsbuildVersion: string option
-      FableProjectPath: string option
       OutDir: string option }
 
     static member DefaultConfig() =
       { StaticFilesDir = Some "./public"
         IndexFile = Some "index.html"
         EsbuildVersion = Some "0.12.9"
-        FableProjectPath = Some "./src/App.fsproj"
         OutDir = Some "./dist" }

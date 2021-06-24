@@ -4,6 +4,9 @@
     <OutputType>Exe</OutputType>
     <TargetFramework>net5.0</TargetFramework>
     <WarnOn>3390;$(WarnOn)</WarnOn>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>fds</ToolCommandName>
+    <PackageOutputPath>../../fdsDist</PackageOutputPath>
   </PropertyGroup>
 
   <ItemGroup>
