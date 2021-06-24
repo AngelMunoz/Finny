@@ -1,0 +1,25 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug Interactive Server",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build",
+            "program": "${workspaceFolder}/src/FSharp.DevServer/bin/Debug/net5.0/FSharp.DevServer.dll",
+            "args": [
+                "--fable-project",
+                "${workspaceFolder}/src/App/src/App.fsproj",
+                "--fable-out-dir",
+                "${workspaceFolder}/src/App/public",
+                "server"
+            ],
+            "cwd": "${workspaceFolder}",
+            "stopAtEntry": false,
+            "console": "integratedTerminal"
+        }
+    ]
+}
