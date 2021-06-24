@@ -44,7 +44,7 @@ module Server =
         }
 
       let withWebhostConfig (config: IWebHostBuilder) =
-        config.UseUrls($"http://{customHost}:{customPort}", $"https://{customHost}:{customPort}")
+        config.UseUrls($"http://{customHost}:{customPort - 1}", $"https://{customHost}:{customPort}")
 
       if useSSL then
         application {
@@ -66,7 +66,13 @@ module Server =
 
   let private stopServer () =
     match app with
-    | Some app -> app.StopAsync()
+    | Some actual ->
+      task {
+        do! actual.StopAsync()
+        actual.Dispose()
+        app <- None
+      }
+      :> Task
     | None -> Task.FromResult(()) :> Task
 
   let private startServer (config: DevServerConfig) =
@@ -74,13 +80,12 @@ module Server =
     | None ->
       let dev = devServer config
       app <- Some dev
-      dev.StartAsync()
+      task { return! dev.StartAsync() }
     | Some app ->
       task {
         do! stopServer ()
         return! app.StartAsync()
       }
-      :> Task
 
   let serverActions (serverConfig: DevServerConfig) (fableConfig: FableConfig) =
     fun (value: string) ->
@@ -92,7 +97,11 @@ module Server =
             do! startServer serverConfig |> Async.AwaitTask
           }
           |> Async.Start
-        | StopServer -> stopServer () |> Async.AwaitTask |> Async.Start
+
+          return ()
+        | StopServer ->
+          stopServer () |> Async.AwaitTask |> Async.Start
+          return ()
         | RestartServer ->
           async {
             do! stopServer () |> Async.AwaitTask
@@ -100,6 +109,8 @@ module Server =
             do! startServer serverConfig |> Async.AwaitTask
           }
           |> Async.Start
+
+          return ()
         | StartFable ->
           async {
             printfn "Starting Fable"
@@ -108,6 +119,8 @@ module Server =
             printfn $"Finished in {result.RunTime}"
           }
           |> Async.Start
+
+          return ()
         | StopFable ->
           printfn "Stoping Fable"
           stopFable ()
@@ -119,6 +132,7 @@ module Server =
 
             let! result = startFable fableConfig |> Async.AwaitTask
             printfn $"Finished in {result.RunTime}"
+            return ()
           }
           |> Async.Start
         | Clear -> Console.Clear()

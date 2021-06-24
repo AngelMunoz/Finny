@@ -1,7 +1,13 @@
 // Learn more about F# at http://docs.microsoft.com/dotnet/fsharp
 
 open System
+open System.Threading.Tasks
+
+open FSharp.Control.Tasks
+
 open Argu
+
+open FSharp.DevServer
 open FSharp.DevServer.Types
 
 type ServerArgs =
@@ -60,7 +66,7 @@ type DevServerArgs =
       | Fable_Extension _ ->
         "The extension to use with fable output files. Defaults to \".fs.js\", overrides the config file"
       | Fable_Out_Dir _ ->
-        "Where to output the fable compiled files. Defaults to \"./dist\", overrides the config file"
+        "Where to output the fable compiled files. Defaults to \"./public\", overrides the config file"
 
 
 let getServerOptions (serverargs: ServerArgs list) =
@@ -113,23 +119,30 @@ let getFableOptions (devServerArgs: DevServerArgs list) =
 
 [<EntryPoint>]
 let main argv =
-  let parser = ArgumentParser.Create<DevServerArgs>()
+  task {
+    let parser = ArgumentParser.Create<DevServerArgs>()
 
-  try
-    let parsed =
-      parser.ParseCommandLine(inputs = argv, raiseOnUsage = true)
+    try
+      let parsed =
+        parser.ParseCommandLine(inputs = argv, raiseOnUsage = true)
 
-    let fableConfig = getFableOptions (parsed.GetAllResults())
+      let fableConfig = getFableOptions (parsed.GetAllResults())
 
-    match parsed.TryGetSubCommand() with
-    | Some (Server items) ->
-      let serverConfig = getServerOptions (items.GetAllResults())
-      printfn "%A" (serverConfig, fableConfig)
-    | Some (Build items) ->
-      let buildConfig = getBuildOptions (items.GetAllResults())
-      printfn "%A" (buildConfig, fableConfig)
-    | _ -> parsed.Raise("No Commands Specified", showUsage = true)
-  with
-  | ex -> eprintfn "%s" ex.Message
+      match parsed.TryGetSubCommand() with
+      | Some (Server items) ->
+        let serverConfig = getServerOptions (items.GetAllResults())
+
+        do!
+          Commands.startInteractive (serverConfig, fableConfig)
+          |> Async.Ignore
+      | Some (Build items) ->
+        let buildConfig = getBuildOptions (items.GetAllResults())
+        do! Commands.startBuild (buildConfig, fableConfig) :> Task
+      | _ -> parsed.Raise("No Commands Specified", showUsage = true)
+    with
+    | ex -> eprintfn "%s" ex.Message
+  }
+  |> Async.AwaitTask
+  |> Async.RunSynchronously
 
   0 // return an integer exit code
