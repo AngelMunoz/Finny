@@ -38,7 +38,7 @@ module Fable =
         $"""{if isWatch then " watch " else " "}"""
 
       Cli
-        .Wrap(if isWindows then "dotnet.exe" else "")
+        .Wrap(if isWindows then "dotnet.exe" else "dotnet")
         .WithArguments($"fable{watch}{project} -o {outDir} -e {extension}")
         .WithStandardErrorPipe(PipeTarget.ToStream(Console.OpenStandardError()))
         .WithStandardOutputPipe(PipeTarget.ToStream(Console.OpenStandardOutput()))

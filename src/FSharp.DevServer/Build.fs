@@ -63,6 +63,7 @@ module Build =
       "./",
       ".fsdevserver",
       "package",
+      $"""{if isWindows then "" else "bin"}""",
       $"""esbuild{if isWindows then ".exe" else ""}"""
     )
 
@@ -93,6 +94,13 @@ module Build =
         return None
     }
 
+  let private chmodBinCmd() =
+    Cli
+      .Wrap("chmod")
+      .WithStandardErrorPipe(PipeTarget.ToStream(Console.OpenStandardError()))
+      .WithStandardOutputPipe(PipeTarget.ToStream(Console.OpenStandardOutput()))
+      .WithArguments($"+x {esbuildExec}")
+
   let private decompressFile (path: Task<string option>) =
     task {
       match! path with
@@ -104,6 +112,9 @@ module Build =
           TarArchive.CreateInputTarArchive(stream, Text.Encoding.UTF8)
 
         archive.ExtractContents(Path.Combine(Path.GetDirectoryName path))
+        if isWindows |> not then
+          let res = chmodBinCmd().ExecuteAsync()
+          do! res.Task :> Task
         return Some path
       | None -> return None
     }
