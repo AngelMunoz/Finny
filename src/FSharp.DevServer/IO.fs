@@ -25,6 +25,9 @@ module internal Json =
   let FromBytes<'T> (bytes: byte array) =
     JsonSerializer.Deserialize<'T>(ReadOnlySpan bytes, jsonOptions)
 
+  let ToText value =
+    JsonSerializer.Serialize(value, jsonOptions)
+
 [<RequireQualifiedAccessAttribute>]
 module internal Http =
   open Flurl.Http
@@ -144,8 +147,8 @@ module Fs =
       with
       | :? System.IO.FileNotFoundException ->
         return
-          { imports = Map.ofSeq (Seq.empty)
-            scopes = Map.ofSeq (Seq.empty) }
+          { imports = Map.ofSeq Seq.empty
+            scopes = Map.ofSeq Seq.empty }
       | ex -> return! ex |> Error
     }
 

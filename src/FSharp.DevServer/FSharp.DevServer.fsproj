@@ -11,10 +11,10 @@
 
   <ItemGroup>
     <Compile Include="Types.fs" />
+    <Compile Include="IO.fs" />
     <Compile Include="Fable.fs" />
     <Compile Include="Server.fs" />
     <Compile Include="Build.fs" />
-    <Compile Include="IO.fs" />
     <Compile Include="Commands.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>

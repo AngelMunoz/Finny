@@ -66,7 +66,9 @@ module Build =
       $"""esbuild{if isWindows then ".exe" else ""}"""
     )
 
-  let private tryDownloadEsBuild (esbuildVersion: string) : Task<string option> =
+  let private tryDownloadEsBuild
+    (esbuildVersion: string)
+    : Task<string option> =
     let binString = $"esbuild-{platformString}-{archString}"
 
     let url =
@@ -120,12 +122,22 @@ module Build =
     |> Async.AwaitTask
 
 
-  let private esbuildJsCmd (entryPoint: string) =
+  let private esbuildJsCmd (entryPoint: string, excludes: string seq) =
+    printfn "%A" excludes
+
+    let excludes =
+      if excludes |> Seq.length > 0 then
+        $" --external:{String.Join(',', excludes)} "
+      else
+        " "
+
     Cli
       .Wrap(esbuildExec)
       .WithStandardErrorPipe(PipeTarget.ToStream(Console.OpenStandardError()))
       .WithStandardOutputPipe(PipeTarget.ToStream(Console.OpenStandardOutput()))
-      .WithArguments($"{entryPoint} --bundle --minify --target=es2015 --format=esm --outdir=./dist")
+      .WithArguments(
+        $"{entryPoint} --bundle --target=es2015{excludes}--format=esm --outdir=./dist"
+      )
 
   let private esbuildCssCmd (entryPoint: string) =
     Cli
@@ -133,6 +145,9 @@ module Build =
       .WithStandardErrorPipe(PipeTarget.ToStream(Console.OpenStandardError()))
       .WithStandardOutputPipe(PipeTarget.ToStream(Console.OpenStandardOutput()))
       .WithArguments($"{entryPoint} --bundle --minify --outdir=./dist")
+
+  let private pathToFile (staticFilesDir: string) (file: string) =
+    Path.Combine(Path.GetFullPath staticFilesDir, file)
 
   let private getEntryPoints (type': ResourceType) (config: BuildConfig) =
     let context =
@@ -143,18 +158,18 @@ module Build =
 
     let indexFile = defaultArg config.IndexFile "index.html"
 
-    let pathToFile (file: string) =
-      Path.Combine(Path.GetFullPath staticFilesDir, file)
-
-    let content = File.ReadAllText(pathToFile indexFile)
+    let content =
+      File.ReadAllText(pathToFile staticFilesDir indexFile)
 
     let parser = context.GetService<IHtmlParser>()
     let doc = parser.ParseDocument content
 
     let els =
       match type' with
-      | ResourceType.CSS -> doc.QuerySelectorAll("[data-entry-point][rel=stylesheet]")
-      | ResourceType.JS -> doc.QuerySelectorAll("[data-entry-point][type=module]")
+      | ResourceType.CSS ->
+        doc.QuerySelectorAll("[data-entry-point][rel=stylesheet]")
+      | ResourceType.JS ->
+        doc.QuerySelectorAll("[data-entry-point][type=module]")
 
     let resourcePredicate (item: Dom.IAttr) : bool =
       match type' with
@@ -167,19 +182,61 @@ module Build =
         | Some attr -> attr.Value
         | None -> ""
 
-      pathToFile src
+      pathToFile staticFilesDir src
 
     els |> Seq.map getPathFromAttribute
 
+  let insertMapAndCopy config =
+    let staticFilesDir =
+      defaultArg config.StaticFilesDir "./public"
 
-  let private buildFiles (type': ResourceType) (files: string seq) =
+    let indexFile = defaultArg config.IndexFile "index.html"
+    let outDir = defaultArg config.OutDir "./dist"
+
+    let content =
+      File.ReadAllText(pathToFile staticFilesDir indexFile)
+
+    let context =
+      BrowsingContext.New(Configuration.Default)
+
+    let parser = context.GetService<IHtmlParser>()
+    let doc = parser.ParseDocument content
+    let script = doc.CreateElement("script")
+    script.SetAttribute("type", "importmap")
+
+    task {
+      match! Fs.getorCreateLockFile (Fs.Paths.GetFdsConfigPath()) with
+      | Ok lock ->
+        let map: ImportMap =
+          { imports =
+              lock
+              |> Map.map (fun _ value -> $"{Http.SKYPACK_CDN}{value.pin}")
+            scopes = Map.empty }
+
+        script.TextContent <- Json.ToText map
+        doc.Head.AppendChild script |> ignore
+        let content = doc.ToHtml()
+
+        File.WriteAllText($"{outDir}/{indexFile}", content)
+      | Error err ->
+        printfn $"Warn: [{err.Message}]"
+        ()
+    }
+
+
+  let private buildFiles
+    (type': ResourceType)
+    (files: string seq)
+    (excludes: string seq)
+    =
     task {
       if files |> Seq.length > 0 then
         let entrypoints = String.Join(' ', files)
 
         let cmd =
           match type' with
-          | ResourceType.JS -> esbuildJsCmd(entrypoints).ExecuteAsync()
+          | ResourceType.JS ->
+            esbuildJsCmd(entrypoints, excludes).ExecuteAsync()
           | ResourceType.CSS -> esbuildCssCmd(entrypoints).ExecuteAsync()
 
         printfn $"Starting esbuild with pid: [{cmd.ProcessId}]"
@@ -196,7 +253,7 @@ module Build =
     let outDir = defaultArg buildConfig.OutDir "./dist"
 
     let esbuildVersion =
-      defaultArg buildConfig.EsbuildVersion "0.12.9"
+      defaultArg buildConfig.EsbuildVersion "0.12.28"
 
     task {
       let cmdResult =
@@ -222,7 +279,23 @@ module Build =
       let cssFiles =
         getEntryPoints ResourceType.CSS buildConfig
 
-      do! Task.WhenAll(buildFiles ResourceType.JS jsFiles, buildFiles ResourceType.CSS cssFiles) :> Task
+      let! excludes =
+        task {
+          match! Fs.getorCreateLockFile (Fs.Paths.GetFdsConfigPath()) with
+          | Ok lock ->
+
+            return lock |> Map.toSeq |> Seq.map (fun (key, _) -> key)
+          | Error ex ->
+            printfn $"Warn: [{ex.Message}]"
+            return Seq.empty
+        }
+
+      do!
+        Task.WhenAll(
+          buildFiles ResourceType.JS jsFiles excludes,
+          buildFiles ResourceType.CSS cssFiles Seq.empty
+        )
+        :> Task
 
       let opts = EnumerationOptions()
       opts.RecurseSubdirectories <- true
@@ -232,6 +305,10 @@ module Build =
            (fun file ->
              not <| file.Contains(".fable")
              && not <| file.Contains(".js")
-             && not <| file.Contains(".css"))
-      |> Seq.iter (fun path -> File.Copy(path, $"{outDir}/{Path.GetFileName(path)}"))
+             && not <| file.Contains(".css")
+             && not <| file.Contains("index.html"))
+      |> Seq.iter
+           (fun path -> File.Copy(path, $"{outDir}/{Path.GetFileName(path)}"))
+
+      do! insertMapAndCopy buildConfig
     }
