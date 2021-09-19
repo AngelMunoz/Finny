@@ -1,10 +1,10 @@
 # FSharp.DevServer
 
-[esbuild]: https://
-[import maps]: https://
-[fable compiler]: https://
-[saturn]: https://
-[skypack cdn]: https://
+[esbuild]: https://esbuild.github.io/
+[import maps]: https://github.com/WICG/import-maps
+[fable compiler]: https://fable.io/
+[saturn]: https://saturnframework.org/
+[skypack cdn]: https://www.skypack.dev/
 
 This is an experimental project that aims to replace common and almost obligated nodejs tooling for greenfield projects using some state of the art technologies like
 
