@@ -3,8 +3,6 @@
 
 open System
 open FSharp.Control
-open FSharp.Control.Tasks
-open System.IO
 open FsToolkit.ErrorHandling
 
 open Types
