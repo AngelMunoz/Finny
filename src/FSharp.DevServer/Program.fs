@@ -1,12 +1,11 @@
 // Learn more about F# at http://docs.microsoft.com/dotnet/fsharp
 
-open System
 open System.Threading.Tasks
-
 open FSharp.Control.Tasks
 
 open Argu
 
+open FsToolkit.ErrorHandling
 open FSharp.DevServer
 open FSharp.DevServer.Types
 
@@ -43,11 +42,101 @@ type BuildArgs =
         "Use a specific esbuild version. defaults to \"0.12.9\""
       | Out_Dir _ -> "Where to output the files. Defaults to \"./dist\""
 
+
+type InitArgs =
+  | [<AltCommandLine("-p")>] Path of string
+
+  static member ToOptions(args: ParseResults<InitArgs>) : InitOptions =
+    { path = args.TryGetResult(Path) }
+
+  interface IArgParserTemplate with
+    member this.Usage: string =
+      match this with
+      | Path _ -> "Where to write the config file"
+
+type SearchArgs =
+  | [<AltCommandLine("-p")>] Package of string
+
+  static member ToOptions(args: ParseResults<SearchArgs>) : SearchOptions =
+    { package = args.TryGetResult(SearchArgs.Package) }
+
+  interface IArgParserTemplate with
+    member this.Usage: string =
+      match this with
+      | Package _ -> "The name of the package to search for."
+
+type ShowArgs =
+  | [<AltCommandLine("-p")>] Package of string
+
+  static member ToOptions(args: ParseResults<ShowArgs>) : ShowPackageOptions =
+    { package = args.TryGetResult(ShowArgs.Package) }
+
+  interface IArgParserTemplate with
+    member this.Usage: string =
+      match this with
+      | Package _ -> "The name of the package to show information about."
+
+type UninstallArgs =
+  | [<AltCommandLine("-p")>] Package of string
+
+  static member ToOptions
+    (args: ParseResults<UninstallArgs>)
+    : UninstallPackageOptions =
+    { package = args.TryGetResult(UninstallArgs.Package) }
+
+  interface IArgParserTemplate with
+    member this.Usage: string =
+      match this with
+      | Package _ ->
+        "The name of the package to remove from the import map this can also be aliased name."
+
+type InstallArgs =
+  | [<AltCommandLine("-p")>] Package of string
+  | [<AltCommandLine("-a")>] Alias of string option
+  | [<AltCommandLine("-s")>] Source of Source option
+
+  static member ToOptions
+    (args: ParseResults<InstallArgs>)
+    : InstallPackageOptions =
+    { package = args.TryGetResult(InstallArgs.Package)
+      alias =
+        args.TryGetResult(InstallArgs.Alias)
+        |> Option.flatten
+      source =
+        args.TryGetResult(InstallArgs.Source)
+        |> Option.flatten }
+
+  interface IArgParserTemplate with
+    member this.Usage: string =
+      match this with
+      | Package _ -> "The name of the package to show information about."
+      | Alias _ -> "Specifier for this particular module."
+      | Source _ ->
+        "The name of the source you want to install a package from. e.g. unpkg or skypack."
+
+type SetEnvArgs =
+  | [<AltCommandLine("-p")>] Env of Env
+
+  static member ToOptions(args: ParseResults<SetEnvArgs>) : SetEnvOptions =
+    { env = args.TryGetResult(Env) }
+
+  interface IArgParserTemplate with
+    member this.Usage: string =
+      match this with
+      | Env _ -> "Sets the export map for development/production."
+
 type DevServerArgs =
   | [<CliPrefix(CliPrefix.None); AltCommandLine("s")>] Server of
     ParseResults<ServerArgs>
   | [<CliPrefix(CliPrefix.None); AltCommandLine("b")>] Build of
     ParseResults<BuildArgs>
+  | [<CliPrefix(CliPrefix.None)>] Init of ParseResults<InitArgs>
+  | [<CliPrefix(CliPrefix.None); AltCommandLine("se")>] Search of
+    ParseResults<SearchArgs>
+  | [<CliPrefix(CliPrefix.None)>] Show of ParseResults<ShowArgs>
+  | [<CliPrefix(CliPrefix.None)>] Install of ParseResults<InstallArgs>
+  | [<CliPrefix(CliPrefix.None)>] Uninstall of ParseResults<UninstallArgs>
+  | [<AltCommandLine("-v")>] Version
   | [<AltCommandLine("-fa")>] Fable_Auto_start of bool option
   | [<AltCommandLine("-fp")>] Fable_Project of string option
   | [<AltCommandLine("-fe")>] Fable_Extension of string option
@@ -67,6 +156,24 @@ type DevServerArgs =
         "The extension to use with fable output files. Defaults to \".fs.js\", overrides the config file"
       | Fable_Out_Dir _ ->
         "Where to output the fable compiled files. Defaults to \"./public\", overrides the config file"
+      | Init _ -> "Creates basic files and directories to start using fds."
+      | Search _ -> "Searches a package in the skypack API."
+      | Show _ -> "Gets the skypack information about a package."
+      | Install _ -> "Generates an entry in the import map."
+      | Uninstall _ -> "Removes an entry in the import map."
+      | Version _ -> "Prints out the cli version to the console."
+
+let processExit (result: Task<Result<int, exn>>) =
+  task {
+    match! result with
+    | Ok exitCode -> return exitCode
+    | Error ex ->
+      match ex with
+      | CommandNotParsedException message -> eprintfn "%s" message
+      | others -> eprintfn $"%s{others.Message}, at %s{others.Source}"
+
+      return 1
+  }
 
 
 let getServerOptions (serverargs: ServerArgs list) =
@@ -119,7 +226,7 @@ let getFableOptions (devServerArgs: DevServerArgs list) =
 
 [<EntryPoint>]
 let main argv =
-  task {
+  taskResult {
     let parser = ArgumentParser.Create<DevServerArgs>()
 
     try
@@ -135,14 +242,48 @@ let main argv =
         do!
           Commands.startInteractive (serverConfig, fableConfig)
           |> Async.Ignore
+
+        return! Ok 0
+      | Some (Init subcmd) ->
+        return! subcmd |> InitArgs.ToOptions |> Commands.runInit
+      | Some (Search subcmd) ->
+        return!
+          subcmd
+          |> SearchArgs.ToOptions
+          |> Commands.runSearch
+      | Some (Show subcmd) ->
+        return! subcmd |> ShowArgs.ToOptions |> Commands.runShow
+      | Some (Install subcmd) ->
+        return!
+          subcmd
+          |> InstallArgs.ToOptions
+          |> Commands.runInstall
+      | Some (Uninstall subcmd) ->
+        return!
+          subcmd
+          |> UninstallArgs.ToOptions
+          |> Commands.runUninstall
+      | Some Version ->
+        printfn
+          "%A"
+          (System
+            .Reflection
+            .Assembly
+            .GetEntryAssembly()
+            .GetName()
+            .Version)
+
+        return! Ok 0
       | Some (Build items) ->
         let buildConfig = getBuildOptions (items.GetAllResults())
         do! Commands.startBuild (buildConfig, fableConfig) :> Task
-      | _ -> parsed.Raise("No Commands Specified", showUsage = true)
+        return! Ok 0
+      | err ->
+        parsed.Raise("No Commands Specified", showUsage = true)
+        return! CommandNotParsedException $"%A{err}" |> Error
     with
-    | ex -> eprintfn "%s" ex.Message
+    | ex -> return! ex |> Error
   }
+  |> processExit
   |> Async.AwaitTask
   |> Async.RunSynchronously
-
-  0 // return an integer exit code

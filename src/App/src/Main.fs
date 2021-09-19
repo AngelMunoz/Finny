@@ -6,4 +6,4 @@ open Sutil.DOM
 open Fable.Core.JsInterop
 
 // Start the app
-App.view () |> mountElement "fable-app"
+App.view () |> Program.mountElement "fable-app"

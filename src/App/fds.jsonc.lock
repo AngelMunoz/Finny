@@ -1,0 +1,7 @@
+{
+  "fsharp-components": {
+    "lookUp": "fsharp-components",
+    "pin": "/pin/fsharp-components@v0.0.4-vrcdq1fAiAHCYER7N99I/mode=imports/optimized/fsharp-components.js",
+    "import": "/-/fsharp-components@v0.0.4-vrcdq1fAiAHCYER7N99I/dist=es2020,mode=imports/optimized/fsharp-components.js"
+  }
+}

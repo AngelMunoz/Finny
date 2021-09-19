@@ -1,0 +1,7 @@
+{
+  "name": "sample-app",
+  "importMapPath": "./public/imports.importmap",
+  "dependencies": {
+    "fsharp-components": "https://cdn.skypack.dev/fsharp-components"
+  }
+}

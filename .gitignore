@@ -455,3 +455,8 @@ $RECYCLE.BIN/
 
 fdsDist
 dist
+out
+*.fs.js
+*.fs.js.map
+
+
