@@ -1,7 +1,20 @@
 {
-  "name": "sample-app",
-  "importMapPath": "./public/imports.importmap",
-  "dependencies": {
+  "devServer": {
+    "autoStart": true,
+    "port": 7331,
+    "staticFilesDir": "./public",
+    "useSSL": true
+  },
+  "build": {
+    "staticFilesDir": "./public",
+    "indexFile": "index.html",
+    "esbuildVersion": "0.12.28",
+    "target": "es2017",
+    "outDir": "./dist",
+    "format": "esm",
+    "minify": false
+  },
+  "packages": {
     "fsharp-components": "https://cdn.skypack.dev/fsharp-components"
   }
 }

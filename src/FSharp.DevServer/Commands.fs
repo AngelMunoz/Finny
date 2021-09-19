@@ -1,6 +1,5 @@
 ﻿namespace FSharp.DevServer
 
-
 open System
 open FSharp.Control
 open FsToolkit.ErrorHandling
@@ -17,8 +16,8 @@ module Commands =
     let devConfig, fableConfig = configuration
     let onStdinAsync = serverActions devConfig fableConfig
 
-    let autoStartServer = defaultArg devConfig.AutoStart true
-    let autoStartFable = defaultArg fableConfig.AutoStart true
+    let autoStartServer = defaultArg devConfig.autoStart true
+    let autoStartFable = defaultArg fableConfig.autoStart true
 
     asyncSeq {
       if autoStartServer then "start"
@@ -28,7 +27,6 @@ module Commands =
         let! value = Console.In.ReadLineAsync() |> Async.AwaitTask
         value
     }
-    |> AsyncSeq.distinctUntilChanged
     |> AsyncSeq.iterAsync onStdinAsync
 
   let startBuild (configuration: BuildConfig * FableConfig) =
@@ -85,9 +83,7 @@ module Commands =
         | None -> GetFdsConfigPath()
 
       let config =
-        { name = ""
-          importMapPath = "./wwwroot/imports.importmap" |> Some
-          dependencies = Map.ofSeq (Seq.empty<string * string>) |> Some }
+        FdsConfig.DefaultConfig(defaultArg options.withFable false)
 
       do! Fs.createFdsConfig path config
 
@@ -106,41 +102,31 @@ module Commands =
       return 0
     }
 
-  let runUninstall (options: UninstallPackageOptions) =
+  let runRemove (options: RemovePackageOptions) =
     taskResult {
       let name = defaultArg options.package ""
 
       if name = "" then
         return! PackageNotFoundException |> Error
 
-      let! opts = Fs.getFdsConfig (GetFdsConfigPath())
-
-      let! path =
-        match opts.importMapPath with
-        | Some path -> path |> Ok
-        | None -> MissingImportMapPathException |> Error
-
-      let! map = Fs.getOrCreateImportMap path
+      let! fdsConfig = Fs.getFdsConfig (GetFdsConfigPath())
       let! lockFile = Fs.getorCreateLockFile (GetFdsConfigPath())
 
-      let imports = map.imports |> Map.remove name
-
       let deps =
-        opts.dependencies
+        fdsConfig.packages
         |> Option.map (fun map -> map |> Map.remove name)
 
-      let map = { map with imports = imports }
-      let opts = { opts with dependencies = deps }
+      let opts = { fdsConfig with packages = deps }
+
       let lockFile = lockFile |> Map.remove name
 
-      do! Fs.writeImportMap path map
       do! Fs.writeLockFile (GetFdsConfigPath()) lockFile
       do! Fs.createFdsConfig (GetFdsConfigPath()) opts
 
       return 0
     }
 
-  let runInstall (options: InstallPackageOptions) =
+  let runAdd (options: AddPackageOptions) =
     taskResult {
       let! package, version =
         match options.package with
@@ -157,22 +143,25 @@ module Commands =
 
       let! info = Http.getPackageUrlInfo $"{package}{version}"
 
-      let! opts = Fs.getFdsConfig (GetFdsConfigPath())
+      let! fdsConfig = Fs.getFdsConfig (GetFdsConfigPath())
       let! lockFile = Fs.getorCreateLockFile (GetFdsConfigPath())
 
-      let dependencies =
-        opts.dependencies
-        |> Option.defaultValue (Map.ofList [])
-        |> Map.change
-             alias
-             (fun f ->
-               f
-               |> Option.map (fun _ -> $"{Http.SKYPACK_CDN}/{info.lookUp}")
-               |> Option.orElse (Some $"{Http.SKYPACK_CDN}/{info.lookUp}"))
+      let packages =
+        fdsConfig.packages
+        |> Option.map
+             (fun map ->
+               map
+               |> Map.change
+                    alias
+                    (fun f ->
+                      f
+                      |> Option.map
+                           (fun _ -> $"{Http.SKYPACK_CDN}/{info.lookUp}")
+                      |> Option.orElse (
+                        Some $"{Http.SKYPACK_CDN}/{info.lookUp}"
+                      )))
 
-      let opts =
-        { opts with
-            dependencies = Some dependencies }
+      let fdsConfig = { fdsConfig with packages = packages }
 
       let lockFile =
         lockFile
@@ -183,26 +172,7 @@ module Commands =
                |> Option.map (fun _ -> info)
                |> Option.orElse (Some info))
 
-      let! importMapPath =
-        match opts.importMapPath with
-        | Some path -> path |> Ok
-        | None -> MissingImportMapPathException |> Error
-
-      let! map = Fs.getOrCreateImportMap importMapPath
-
-      let imports =
-        map.imports
-        |> Map.change
-             alias
-             (fun v ->
-               v
-               |> Option.map (fun _ -> $"{Http.SKYPACK_CDN}/{info.lookUp}")
-               |> Option.orElse (Some $"{Http.SKYPACK_CDN}/{info.lookUp}"))
-
-      let map = { map with imports = imports }
-
-      do! Fs.createFdsConfig (GetFdsConfigPath()) opts
-      do! Fs.writeImportMap importMapPath map
+      do! Fs.createFdsConfig (GetFdsConfigPath()) fdsConfig
       do! Fs.writeLockFile (GetFdsConfigPath()) lockFile
 
       return 0

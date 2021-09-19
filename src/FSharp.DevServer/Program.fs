@@ -42,23 +42,25 @@ type BuildArgs =
         "Use a specific esbuild version. defaults to \"0.12.9\""
       | Out_Dir _ -> "Where to output the files. Defaults to \"./dist\""
 
-
 type InitArgs =
   | [<AltCommandLine("-p")>] Path of string
+  | [<AltCommandLine("-wf")>] With_Fable of bool option
 
   static member ToOptions(args: ParseResults<InitArgs>) : InitOptions =
-    { path = args.TryGetResult(Path) }
+    { path = args.TryGetResult(Path)
+      withFable = args.TryGetResult(With_Fable) |> Option.flatten }
 
   interface IArgParserTemplate with
     member this.Usage: string =
       match this with
       | Path _ -> "Where to write the config file"
+      | With_Fable _ -> "Include fable options in the config file"
 
 type SearchArgs =
   | [<AltCommandLine("-p")>] Package of string
 
   static member ToOptions(args: ParseResults<SearchArgs>) : SearchOptions =
-    { package = args.TryGetResult(SearchArgs.Package) }
+    { package = args.TryGetResult(Package) }
 
   interface IArgParserTemplate with
     member this.Usage: string =
@@ -69,20 +71,20 @@ type ShowArgs =
   | [<AltCommandLine("-p")>] Package of string
 
   static member ToOptions(args: ParseResults<ShowArgs>) : ShowPackageOptions =
-    { package = args.TryGetResult(ShowArgs.Package) }
+    { package = args.TryGetResult(Package) }
 
   interface IArgParserTemplate with
     member this.Usage: string =
       match this with
       | Package _ -> "The name of the package to show information about."
 
-type UninstallArgs =
+type RemoveArgs =
   | [<AltCommandLine("-p")>] Package of string
 
   static member ToOptions
-    (args: ParseResults<UninstallArgs>)
-    : UninstallPackageOptions =
-    { package = args.TryGetResult(UninstallArgs.Package) }
+    (args: ParseResults<RemoveArgs>)
+    : RemovePackageOptions =
+    { package = args.TryGetResult(Package) }
 
   interface IArgParserTemplate with
     member this.Usage: string =
@@ -90,21 +92,15 @@ type UninstallArgs =
       | Package _ ->
         "The name of the package to remove from the import map this can also be aliased name."
 
-type InstallArgs =
+type AddArgs =
   | [<AltCommandLine("-p")>] Package of string
   | [<AltCommandLine("-a")>] Alias of string option
   | [<AltCommandLine("-s")>] Source of Source option
 
-  static member ToOptions
-    (args: ParseResults<InstallArgs>)
-    : InstallPackageOptions =
-    { package = args.TryGetResult(InstallArgs.Package)
-      alias =
-        args.TryGetResult(InstallArgs.Alias)
-        |> Option.flatten
-      source =
-        args.TryGetResult(InstallArgs.Source)
-        |> Option.flatten }
+  static member ToOptions(args: ParseResults<AddArgs>) : AddPackageOptions =
+    { package = args.TryGetResult(Package)
+      alias = args.TryGetResult(Alias) |> Option.flatten
+      source = args.TryGetResult(Source) |> Option.flatten }
 
   interface IArgParserTemplate with
     member this.Usage: string =
@@ -113,17 +109,6 @@ type InstallArgs =
       | Alias _ -> "Specifier for this particular module."
       | Source _ ->
         "The name of the source you want to install a package from. e.g. unpkg or skypack."
-
-type SetEnvArgs =
-  | [<AltCommandLine("-p")>] Env of Env
-
-  static member ToOptions(args: ParseResults<SetEnvArgs>) : SetEnvOptions =
-    { env = args.TryGetResult(Env) }
-
-  interface IArgParserTemplate with
-    member this.Usage: string =
-      match this with
-      | Env _ -> "Sets the export map for development/production."
 
 type DevServerArgs =
   | [<CliPrefix(CliPrefix.None); AltCommandLine("s")>] Server of
@@ -134,8 +119,8 @@ type DevServerArgs =
   | [<CliPrefix(CliPrefix.None); AltCommandLine("se")>] Search of
     ParseResults<SearchArgs>
   | [<CliPrefix(CliPrefix.None)>] Show of ParseResults<ShowArgs>
-  | [<CliPrefix(CliPrefix.None)>] Install of ParseResults<InstallArgs>
-  | [<CliPrefix(CliPrefix.None)>] Uninstall of ParseResults<UninstallArgs>
+  | [<CliPrefix(CliPrefix.None)>] Add of ParseResults<AddArgs>
+  | [<CliPrefix(CliPrefix.None)>] Remove of ParseResults<RemoveArgs>
   | [<AltCommandLine("-v")>] Version
   | [<AltCommandLine("-fa")>] Fable_Auto_start of bool option
   | [<AltCommandLine("-fp")>] Fable_Project of string option
@@ -159,8 +144,8 @@ type DevServerArgs =
       | Init _ -> "Creates basic files and directories to start using fds."
       | Search _ -> "Searches a package in the skypack API."
       | Show _ -> "Gets the skypack information about a package."
-      | Install _ -> "Generates an entry in the import map."
-      | Uninstall _ -> "Removes an entry in the import map."
+      | Add _ -> "Generates an entry in the import map."
+      | Remove _ -> "Removes an entry in the import map."
       | Version _ -> "Prints out the cli version to the console."
 
 let processExit (result: Task<Result<int, exn>>) =
@@ -177,49 +162,66 @@ let processExit (result: Task<Result<int, exn>>) =
 
 
 let getServerOptions (serverargs: ServerArgs list) =
-  let serverOpts = DevServerConfig.DefaultConfig()
+  let serverOpts =
+    match Fs.getFdsConfig (Fs.Paths.GetFdsConfigPath()) with
+    | Ok config -> config.devServer
+    | Error err ->
+      eprintfn "%s" err.Message
+      DevServerConfig.DefaultConfig()
 
   let foldServerOpts (server: DevServerConfig) (next: ServerArgs) =
 
     match next with
-    | Auto_Start (Some value) -> { server with AutoStart = Some value }
-    | Port (Some value) -> { server with Port = Some value }
-    | Host (Some value) -> { server with Host = Some value }
+    | Auto_Start (Some value) -> { server with autoStart = Some value }
+    | Port (Some value) -> { server with port = Some value }
+    | Host (Some value) -> { server with host = Some value }
     | ServerArgs.Static_Files_Dir (Some value) ->
       { server with
-          StaticFilesDir = Some value }
-    | Use_Ssl (Some value) -> { server with UseSSL = Some value }
+          staticFilesDir = Some value }
+    | Use_Ssl (Some value) -> { server with useSSL = Some value }
     | _ -> server
 
   serverargs |> List.fold foldServerOpts serverOpts
 
 let getBuildOptions (serverargs: BuildArgs list) =
-  let buildOpts = BuildConfig.DefaultConfig()
+  let buildOpts =
+    match Fs.getFdsConfig (Fs.Paths.GetFdsConfigPath()) with
+    | Ok config -> config.build
+    | Error err ->
+      eprintfn "%s" err.Message
+      BuildConfig.DefaultConfig()
 
   let foldBuildOptions (build: BuildConfig) (next: BuildArgs) =
     match next with
     | Static_Files_Dir (Some value) ->
       { build with
-          StaticFilesDir = Some value }
-    | Index_File (Some value) -> { build with IndexFile = Some value }
+          staticFilesDir = Some value }
+    | Index_File (Some value) -> { build with indexFile = Some value }
     | Esbuild_Version (Some value) ->
       { build with
-          EsbuildVersion = Some value }
-    | Out_Dir (Some value) -> { build with OutDir = Some value }
+          esbuildVersion = Some value }
+    | Out_Dir (Some value) -> { build with outDir = Some value }
     | _ -> build
 
   serverargs |> List.fold foldBuildOptions buildOpts
 
 
 let getFableOptions (devServerArgs: DevServerArgs list) =
-  let fableOpts = FableConfig.DefaultConfig()
+  let fableOpts =
+    match Fs.getFdsConfig (Fs.Paths.GetFdsConfigPath()) with
+    | Ok config ->
+      config.fable
+      |> Option.defaultValue (FableConfig.DefaultConfig())
+    | Error err ->
+      eprintfn "%s" err.Message
+      FableConfig.DefaultConfig()
 
   let foldFableOpts (fable: FableConfig) (next: DevServerArgs) =
     match next with
-    | Fable_Auto_start (Some value) -> { fable with AutoStart = Some value }
-    | Fable_Project (Some value) -> { fable with Project = Some value }
-    | Fable_Extension (Some value) -> { fable with Extension = Some value }
-    | Fable_Out_Dir (Some value) -> { fable with OutDir = Some value }
+    | Fable_Auto_start (Some value) -> { fable with autoStart = Some value }
+    | Fable_Project (Some value) -> { fable with project = Some value }
+    | Fable_Extension (Some value) -> { fable with extension = Some value }
+    | Fable_Out_Dir (Some value) -> { fable with outDir = Some value }
     | _ -> fable
 
   devServerArgs |> List.fold foldFableOpts fableOpts
@@ -236,6 +238,19 @@ let main argv =
       let fableConfig = getFableOptions (parsed.GetAllResults())
 
       match parsed.TryGetSubCommand() with
+      | Some (Init subcmd) ->
+        return! subcmd |> InitArgs.ToOptions |> Commands.runInit
+      | Some (Add subcmd) ->
+        return! subcmd |> AddArgs.ToOptions |> Commands.runAdd
+      | Some (Remove subcmd) ->
+        return!
+          subcmd
+          |> RemoveArgs.ToOptions
+          |> Commands.runRemove
+      | Some (Build items) ->
+        let buildConfig = getBuildOptions (items.GetAllResults())
+        do! Commands.startBuild (buildConfig, fableConfig) :> Task
+        return! Ok 0
       | Some (Server items) ->
         let serverConfig = getServerOptions (items.GetAllResults())
 
@@ -244,8 +259,6 @@ let main argv =
           |> Async.Ignore
 
         return! Ok 0
-      | Some (Init subcmd) ->
-        return! subcmd |> InitArgs.ToOptions |> Commands.runInit
       | Some (Search subcmd) ->
         return!
           subcmd
@@ -253,16 +266,6 @@ let main argv =
           |> Commands.runSearch
       | Some (Show subcmd) ->
         return! subcmd |> ShowArgs.ToOptions |> Commands.runShow
-      | Some (Install subcmd) ->
-        return!
-          subcmd
-          |> InstallArgs.ToOptions
-          |> Commands.runInstall
-      | Some (Uninstall subcmd) ->
-        return!
-          subcmd
-          |> UninstallArgs.ToOptions
-          |> Commands.runUninstall
       | Some Version ->
         printfn
           "%A"
@@ -273,10 +276,6 @@ let main argv =
             .GetName()
             .Version)
 
-        return! Ok 0
-      | Some (Build items) ->
-        let buildConfig = getBuildOptions (items.GetAllResults())
-        do! Commands.startBuild (buildConfig, fableConfig) :> Task
         return! Ok 0
       | err ->
         parsed.Raise("No Commands Specified", showUsage = true)

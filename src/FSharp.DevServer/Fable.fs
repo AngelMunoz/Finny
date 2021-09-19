@@ -1,7 +1,5 @@
 ﻿namespace FSharp.DevServer
 
-open System.Runtime.InteropServices
-
 open FSharp.Control.Tasks
 
 open CliWrap
@@ -10,7 +8,7 @@ open Types
 open System
 
 module Fable =
-  let mutable private activeFable : int option = None
+  let mutable private activeFable: int option = None
 
   let private killActiveProcess pid =
     try
@@ -26,22 +24,26 @@ module Fable =
 
     fun (config: FableConfig) ->
       let project =
-        defaultArg config.Project "./src/App.fsproj"
+        defaultArg config.project "./src/App.fsproj"
 
-      let outDir = defaultArg config.OutDir "./public"
-      let extension = defaultArg config.Extension ".fs.js"
-
-      let isWindows =
-        RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+      let outDir = defaultArg config.outDir "./public"
+      let extension = defaultArg config.extension ".fs.js"
 
       let watch =
         $"""{if isWatch then " watch " else " "}"""
 
       Cli
-        .Wrap(if isWindows then "dotnet.exe" else "dotnet")
+        .Wrap(
+          if Env.isWindows then
+            "dotnet.exe"
+          else
+            "dotnet"
+        )
         .WithArguments($"fable{watch}{project} -o {outDir} -e {extension}")
         .WithStandardErrorPipe(PipeTarget.ToStream(Console.OpenStandardError()))
-        .WithStandardOutputPipe(PipeTarget.ToStream(Console.OpenStandardOutput()))
+        .WithStandardOutputPipe(
+          PipeTarget.ToStream(Console.OpenStandardOutput())
+        )
 
   let stopFable () =
     match activeFable with

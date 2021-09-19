@@ -1,11 +1,8 @@
 ﻿namespace FSharp.DevServer
 
-
-
 open System
 open System.IO
 open System.Net.Http
-open System.Runtime.InteropServices
 open System.Threading.Tasks
 
 open FSharp.Control.Tasks
@@ -22,8 +19,6 @@ open Types
 open Fable
 
 module Build =
-  let private isWindows =
-    RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
 
   [<RequireQualifiedAccess>]
   type private ResourceType =
@@ -35,42 +30,19 @@ module Build =
       | JS -> "JS"
       | CSS -> "CSS"
 
-  let private platformString =
-    if RuntimeInformation.IsOSPlatform(OSPlatform.Windows) then
-      "windows"
-    else if RuntimeInformation.IsOSPlatform(OSPlatform.Linux) then
-      "linux"
-    else if RuntimeInformation.IsOSPlatform(OSPlatform.OSX) then
-      "darwin"
-    else if RuntimeInformation.IsOSPlatform(OSPlatform.FreeBSD) then
-      "freebsd"
-    else
-      failwith "Unsupported OS"
-
-  let private archString =
-    match RuntimeInformation.OSArchitecture with
-    | Architecture.Arm -> "arm"
-    | Architecture.Arm64 -> "arm64"
-    | Architecture.X64 -> "64"
-    | Architecture.X86 -> "32"
-    | _ -> failwith "Unsupported Architecture"
-
   let private tgzDownloadPath =
-    Path.Combine("./", ".fsdevserver", "esbuild.tgz")
+    Path.Combine(Env.getToolsPath (), "esbuild.tgz")
 
   let private esbuildExec =
-    Path.Combine(
-      "./",
-      ".fsdevserver",
-      "package",
-      $"""{if isWindows then "" else "bin"}""",
-      $"""esbuild{if isWindows then ".exe" else ""}"""
-    )
+    let bin = if Env.isWindows then "" else "bin"
+    let exec = if Env.isWindows then ".exe" else ""
+    Path.Combine(Env.getToolsPath (), "package", bin, $"esbuild{exec}")
 
   let private tryDownloadEsBuild
     (esbuildVersion: string)
     : Task<string option> =
-    let binString = $"esbuild-{platformString}-{archString}"
+    let binString =
+      $"esbuild-{Env.platformString}-{Env.archString}"
 
     let url =
       $"https://registry.npmjs.org/{binString}/-/{binString}-{esbuildVersion}.tgz"
@@ -94,7 +66,7 @@ module Build =
         return None
     }
 
-  let private chmodBinCmd() =
+  let private chmodBinCmd () =
     Cli
       .Wrap("chmod")
       .WithStandardErrorPipe(PipeTarget.ToStream(Console.OpenStandardError()))
@@ -112,9 +84,12 @@ module Build =
           TarArchive.CreateInputTarArchive(stream, Text.Encoding.UTF8)
 
         archive.ExtractContents(Path.Combine(Path.GetDirectoryName path))
-        if isWindows |> not then
+
+        if Env.isWindows |> not then
+          printfn $"Executing: chmod +x on \"{esbuildExec}\""
           let res = chmodBinCmd().ExecuteAsync()
           do! res.Task :> Task
+
         return Some path
       | None -> return None
     }
@@ -133,29 +108,84 @@ module Build =
     |> Async.AwaitTask
 
 
-  let private esbuildJsCmd (entryPoint: string, excludes: string seq) =
-    printfn "%A" excludes
+  let private esbuildJsCmd (entryPoint: string) (config: BuildConfig) =
+    let external =
+      match config.externals with
+      | Some externals when externals |> Seq.length > 0 ->
+        $" --external:{String.Join(',', externals)} "
+      | _ -> ""
 
-    let excludes =
-      if excludes |> Seq.length > 0 then
-        $" --external:{String.Join(',', excludes)} "
-      else
-        " "
+    let bundle =
+      config.bundle
+      |> Option.map (fun bundle -> if bundle then $"--bundle" else "")
+      |> Option.defaultValue "--bundle"
+
+    let target =
+      config.target
+      |> Option.map (fun target -> $"--target={target}")
+      |> Option.defaultValue "--target=es2015"
+
+    let minify =
+      config.minify
+      |> Option.map (fun minify -> if minify then $"--minify" else "")
+      |> Option.defaultValue "--minify"
+
+    let format =
+      config.format
+      |> Option.map (fun format -> $"--format={format}")
+      |> Option.defaultValue "--format=esm"
+
+    let outDir =
+      config.outDir
+      |> Option.map (fun outDir -> $"--outdir={outDir}")
+      |> Option.defaultValue "--outdir=./dist"
+
+    let execBin =
+      config.esBuildPath
+      |> Option.defaultValue esbuildExec
+
+    let args =
+      $"{entryPoint} {bundle} {target} {external} {format} {outDir} {minify}"
+
+    printfn "%s" args
 
     Cli
-      .Wrap(esbuildExec)
+      .Wrap(execBin)
       .WithStandardErrorPipe(PipeTarget.ToStream(Console.OpenStandardError()))
       .WithStandardOutputPipe(PipeTarget.ToStream(Console.OpenStandardOutput()))
-      .WithArguments(
-        $"{entryPoint} --bundle --target=es2015{excludes}--format=esm --outdir=./dist"
-      )
+      .WithArguments(args)
 
-  let private esbuildCssCmd (entryPoint: string) =
+  let private esbuildCssCmd (entryPoint: string) (config: BuildConfig) =
+
+    let bundle =
+      config.bundle
+      |> Option.map (fun bundle -> if bundle then $"--bundle" else "")
+      |> Option.defaultValue "--bundle"
+
+    let minify =
+      config.minify
+      |> Option.map (fun minify -> if minify then $"--minify" else "")
+      |> Option.defaultValue "--minify"
+
+    let outDir =
+      config.outDir
+      |> Option.map (fun outDir -> $"--outDir={outDir}")
+      |> Option.defaultValue "--outDir=./dist"
+
+    let execBin =
+      config.esBuildPath
+      |> Option.defaultValue esbuildExec
+
+    let args =
+      $"{entryPoint} {bundle} {minify} {outDir}"
+
+    printfn "%s" args
+
     Cli
-      .Wrap(esbuildExec)
+      .Wrap(execBin)
       .WithStandardErrorPipe(PipeTarget.ToStream(Console.OpenStandardError()))
       .WithStandardOutputPipe(PipeTarget.ToStream(Console.OpenStandardOutput()))
-      .WithArguments($"{entryPoint} --bundle --minify --outdir=./dist")
+      .WithArguments(args)
 
   let private pathToFile (staticFilesDir: string) (file: string) =
     Path.Combine(Path.GetFullPath staticFilesDir, file)
@@ -165,9 +195,9 @@ module Build =
       BrowsingContext.New(Configuration.Default)
 
     let staticFilesDir =
-      defaultArg config.StaticFilesDir "./public"
+      defaultArg config.staticFilesDir "./public"
 
-    let indexFile = defaultArg config.IndexFile "index.html"
+    let indexFile = defaultArg config.indexFile "index.html"
 
     let content =
       File.ReadAllText(pathToFile staticFilesDir indexFile)
@@ -199,10 +229,10 @@ module Build =
 
   let insertMapAndCopy config =
     let staticFilesDir =
-      defaultArg config.StaticFilesDir "./public"
+      defaultArg config.staticFilesDir "./public"
 
-    let indexFile = defaultArg config.IndexFile "index.html"
-    let outDir = defaultArg config.OutDir "./dist"
+    let indexFile = defaultArg config.indexFile "index.html"
+    let outDir = defaultArg config.outDir "./dist"
 
     let content =
       File.ReadAllText(pathToFile staticFilesDir indexFile)
@@ -238,7 +268,7 @@ module Build =
   let private buildFiles
     (type': ResourceType)
     (files: string seq)
-    (excludes: string seq)
+    (config: BuildConfig)
     =
     task {
       if files |> Seq.length > 0 then
@@ -247,8 +277,11 @@ module Build =
         let cmd =
           match type' with
           | ResourceType.JS ->
-            esbuildJsCmd(entrypoints, excludes).ExecuteAsync()
-          | ResourceType.CSS -> esbuildCssCmd(entrypoints).ExecuteAsync()
+            let tsk = config |> esbuildJsCmd entrypoints
+            tsk.ExecuteAsync()
+          | ResourceType.CSS ->
+            let tsk = config |> esbuildCssCmd entrypoints
+            tsk.ExecuteAsync()
 
         printfn $"Starting esbuild with pid: [{cmd.ProcessId}]"
 
@@ -259,12 +292,12 @@ module Build =
 
   let execBuild (buildConfig: BuildConfig) (fableConfig: FableConfig) =
     let staticFilesDir =
-      defaultArg buildConfig.StaticFilesDir "./public"
+      defaultArg buildConfig.staticFilesDir "./public"
 
-    let outDir = defaultArg buildConfig.OutDir "./dist"
+    let outDir = defaultArg buildConfig.outDir "./dist"
 
     let esbuildVersion =
-      defaultArg buildConfig.EsbuildVersion "0.12.28"
+      defaultArg buildConfig.esbuildVersion "0.12.28"
 
     task {
       let cmdResult =
@@ -301,10 +334,22 @@ module Build =
             return Seq.empty
         }
 
+      let config =
+        { buildConfig with
+            externals =
+              buildConfig.externals
+              |> Option.map
+                   (fun ex ->
+                     seq {
+                       yield! ex
+                       yield! excludes
+                     })
+              |> Option.orElse (Some excludes) }
+
       do!
         Task.WhenAll(
-          buildFiles ResourceType.JS jsFiles excludes,
-          buildFiles ResourceType.CSS cssFiles Seq.empty
+          buildFiles ResourceType.JS jsFiles config,
+          buildFiles ResourceType.CSS cssFiles config
         )
         :> Task
 

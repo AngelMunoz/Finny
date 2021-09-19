@@ -18,9 +18,9 @@ open Types
 open Fable
 
 module Server =
-  let mutable private app : IHost option = None
+  let mutable private app: IHost option = None
 
-  let private startFable : FableConfig -> Task<CommandResult> =
+  let private startFable: FableConfig -> Task<CommandResult> =
     let getFableCmd (config: FableConfig) =
       (fableCmd (Some true) config)
         .WithValidation(CommandResultValidation.None)
@@ -29,11 +29,11 @@ module Server =
 
   let private devServer (config: DevServerConfig) =
     let staticFilesDir =
-      defaultArg config.StaticFilesDir "./public"
+      defaultArg config.staticFilesDir "./public"
 
-    let customHost = defaultArg config.Host "localhost"
-    let customPort = defaultArg config.Port 7331
-    let useSSL = defaultArg config.UseSSL true
+    let customHost = defaultArg config.host "localhost"
+    let customPort = defaultArg config.port 7331
+    let useSSL = defaultArg config.useSSL true
 
     let app =
       let urls =
@@ -44,7 +44,10 @@ module Server =
         }
 
       let withWebhostConfig (config: IWebHostBuilder) =
-        config.UseUrls($"http://{customHost}:{customPort - 1}", $"https://{customHost}:{customPort}")
+        config.UseUrls(
+          $"http://{customHost}:{customPort - 1}",
+          $"https://{customHost}:{customPort}"
+        )
 
       if useSSL then
         application {

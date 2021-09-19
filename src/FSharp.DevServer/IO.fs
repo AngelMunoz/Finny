@@ -1,12 +1,48 @@
 namespace FSharp.DevServer
 
+open System
 open FsToolkit.ErrorHandling
 open Types
 
 [<RequireQualifiedAccess>]
-module internal Json =
+module Env =
+  open System.IO
+  open System.Runtime.InteropServices
 
-  open System
+  [<Literal>]
+  let FdsDirectoryName = ".fsdevserver"
+
+  let getToolsPath () =
+    let user =
+      Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData)
+
+    Path.Combine(user, FdsDirectoryName)
+
+  let isWindows =
+    RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+
+  let platformString =
+    if RuntimeInformation.IsOSPlatform(OSPlatform.Windows) then
+      "windows"
+    else if RuntimeInformation.IsOSPlatform(OSPlatform.Linux) then
+      "linux"
+    else if RuntimeInformation.IsOSPlatform(OSPlatform.OSX) then
+      "darwin"
+    else if RuntimeInformation.IsOSPlatform(OSPlatform.FreeBSD) then
+      "freebsd"
+    else
+      failwith "Unsupported OS"
+
+  let archString =
+    match RuntimeInformation.OSArchitecture with
+    | Architecture.Arm -> "arm"
+    | Architecture.Arm64 -> "arm64"
+    | Architecture.X64 -> "64"
+    | Architecture.X86 -> "32"
+    | _ -> failwith "Unsupported Architecture"
+
+[<RequireQualifiedAccess>]
+module internal Json =
   open System.Text.Json
   open System.Text.Json.Serialization
 
@@ -77,7 +113,6 @@ module internal Http =
 
 [<RequireQualifiedAccess>]
 module Fs =
-  open System
   open System.IO
 
   [<Literal>]
@@ -117,13 +152,13 @@ module Fs =
 
         let bytes = File.ReadAllBytes(path)
 
-        return Json.FromBytes<FdsLock> bytes
+        return Json.FromBytes<PacakgesLock> bytes
       with
       | :? System.IO.FileNotFoundException -> return Map.ofList []
       | ex -> return! ex |> Error
     }
 
-  let writeLockFile configPath (fdsLock: FdsLock) =
+  let writeLockFile configPath (fdsLock: PacakgesLock) =
     let path = Path.GetFullPath($"%s{configPath}.lock")
     let serialized = Json.ToBytes fdsLock
 

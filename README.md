@@ -53,8 +53,8 @@ SUBCOMMANDS:
     init <options>        Creates basic files and directories to start using fds.
     search, se <options>  Searches a package in the skypack API.
     show <options>        Gets the skypack information about a package.
-    install <options>     Generates an entry in the import map.
-    uninstall <options>   Removes an entry in the import map.
+    add <options>         Generates an entry in the import map.
+    remove <options>      Removes an entry in the import map.
 
     Use 'FSharp.DevServer.exe <subcommand> --help' for additional information.
 
