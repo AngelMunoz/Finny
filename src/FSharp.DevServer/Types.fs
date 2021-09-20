@@ -1,5 +1,7 @@
 ﻿namespace FSharp.DevServer
 
+open System.Collections.Generic
+
 module Types =
 
   let (|RestartFable|StartFable|StopFable|UnknownFable|) =
@@ -29,27 +31,25 @@ module Types =
     static member DefaultConfig() =
       { autoStart = Some true
         project = Some "./src/App.fsproj"
-        extension = Some ".fs.js"
-        outDir = Some "./public" }
+        extension = None
+        outDir = None }
 
   type DevServerConfig =
     { autoStart: bool option
       port: int option
       host: string option
-      staticFilesDir: string option
+      mountDirectories: Map<string, string> option
       useSSL: bool option }
 
     static member DefaultConfig() =
       { autoStart = Some true
         port = Some 7331
         host = None
-        staticFilesDir = Some "./public"
+        mountDirectories = Map.ofList ([ "./public", "/" ]) |> Some
         useSSL = Some true }
 
   type BuildConfig =
     { esBuildPath: string option
-      staticFilesDir: string option
-      indexFile: string option
       esbuildVersion: string option
       target: string option
       outDir: string option
@@ -61,8 +61,6 @@ module Types =
 
     static member DefaultConfig() =
       { esBuildPath = None
-        staticFilesDir = Some "./public"
-        indexFile = Some "index.html"
         esbuildVersion = Some "0.12.28"
         target = Some "es2015"
         outDir = Some "./dist"
@@ -72,9 +70,10 @@ module Types =
         externals = None }
 
   type FdsConfig =
-    { fable: FableConfig option
-      devServer: DevServerConfig
-      build: BuildConfig
+    { index: string option
+      fable: FableConfig option
+      devServer: DevServerConfig option
+      build: BuildConfig option
       packages: Map<string, string> option }
 
     static member DefaultConfig(?withFable: bool) =
@@ -83,9 +82,10 @@ module Types =
         | Some true -> FableConfig.DefaultConfig() |> Some
         | _ -> None
 
-      { fable = fable
-        devServer = DevServerConfig.DefaultConfig()
-        build = BuildConfig.DefaultConfig()
+      { index = Some "./index.html"
+        fable = fable
+        devServer = DevServerConfig.DefaultConfig() |> Some
+        build = BuildConfig.DefaultConfig() |> Some
         packages = None }
 
   type LockDependency =

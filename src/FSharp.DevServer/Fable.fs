@@ -26,8 +26,15 @@ module Fable =
       let project =
         defaultArg config.project "./src/App.fsproj"
 
-      let outDir = defaultArg config.outDir "./public"
-      let extension = defaultArg config.extension ".fs.js"
+      let outDir =
+        match config.outDir with
+        | Some dir -> "-o {dir}"
+        | None -> ""
+
+      let extension =
+        match config.extension with
+        | Some ext -> $"-e {ext}"
+        | None -> ""
 
       let watch =
         $"""{if isWatch then " watch " else " "}"""
@@ -39,7 +46,7 @@ module Fable =
           else
             "dotnet"
         )
-        .WithArguments($"fable{watch}{project} -o {outDir} -e {extension}")
+        .WithArguments($"fable{watch}{project} {outDir} {extension}")
         .WithStandardErrorPipe(PipeTarget.ToStream(Console.OpenStandardError()))
         .WithStandardOutputPipe(
           PipeTarget.ToStream(Console.OpenStandardOutput())
@@ -50,7 +57,10 @@ module Fable =
     | Some pid -> killActiveProcess pid
     | None -> printfn "No active Fable found"
 
-  let startFable (getCommand: FableConfig -> Command) (config: FableConfig) =
+  let startFable
+    (getCommand: FableConfig option -> Command)
+    (config: FableConfig option)
+    =
     task {
       let cmdResult = getCommand(config).ExecuteAsync()
       activeFable <- Some cmdResult.ProcessId

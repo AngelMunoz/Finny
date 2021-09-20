@@ -12,11 +12,16 @@ open type Fs.Paths
 
 module Commands =
 
-  let startInteractive (configuration: DevServerConfig * FableConfig) =
-    let devConfig, fableConfig = configuration
-    let onStdinAsync = serverActions devConfig fableConfig
+  let startInteractive (configuration: FdsConfig) =
+    let onStdinAsync = serverActions configuration
 
-    let autoStartServer = defaultArg devConfig.autoStart true
+    let deServer =
+      defaultArg configuration.devServer (DevServerConfig.DefaultConfig())
+
+    let fableConfig =
+      defaultArg configuration.fable (FableConfig.DefaultConfig())
+
+    let autoStartServer = defaultArg deServer.autoStart true
     let autoStartFable = defaultArg fableConfig.autoStart true
 
     asyncSeq {
@@ -29,9 +34,7 @@ module Commands =
     }
     |> AsyncSeq.iterAsync onStdinAsync
 
-  let startBuild (configuration: BuildConfig * FableConfig) =
-    let buildConfig, fableConfig = configuration
-    execBuild buildConfig fableConfig
+  let startBuild (configuration: FdsConfig) = execBuild configuration
 
 
   let private (|ScopedPackage|Package|) (package: string) =

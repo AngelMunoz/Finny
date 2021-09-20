@@ -13,7 +13,6 @@ type ServerArgs =
   | [<AltCommandLine("-a")>] Auto_Start of bool option
   | [<AltCommandLine("-p")>] Port of int option
   | [<AltCommandLine("-h")>] Host of string option
-  | [<AltCommandLine("-d")>] Static_Files_Dir of string option
   | [<AltCommandLine("-s")>] Use_Ssl of bool option
 
   interface IArgParserTemplate with
@@ -21,21 +20,16 @@ type ServerArgs =
       match this with
       | Port _ -> "Select the server port, defaults to 7331"
       | Host _ -> "Server host, defaults to localhost"
-      | Static_Files_Dir _ ->
-        "Path to the static files directory, defaults to './public'"
       | Use_Ssl _ -> "Forces the requests to go through HTTPS. Defaults to true"
       | Auto_Start _ -> "Starts the server without action required by the user."
 
 type BuildArgs =
-  | [<AltCommandLine("-d")>] Static_Files_Dir of string option
   | [<AltCommandLine("-i")>] Index_File of string option
   | [<AltCommandLine("-ev")>] Esbuild_Version of string option
   | [<AltCommandLine("-o")>] Out_Dir of string option
   interface IArgParserTemplate with
     member this.Usage =
       match this with
-      | Static_Files_Dir _ ->
-        "Where to look for the JS and CSS Files. Defaults to \"./public\""
       | Index_File _ ->
         "The Entry File for the web application. Defaults to \"index.html\""
       | Esbuild_Version _ ->
@@ -122,10 +116,6 @@ type DevServerArgs =
   | [<CliPrefix(CliPrefix.None)>] Add of ParseResults<AddArgs>
   | [<CliPrefix(CliPrefix.None)>] Remove of ParseResults<RemoveArgs>
   | [<AltCommandLine("-v")>] Version
-  | [<AltCommandLine("-fa")>] Fable_Auto_start of bool option
-  | [<AltCommandLine("-fp")>] Fable_Project of string option
-  | [<AltCommandLine("-fe")>] Fable_Extension of string option
-  | [<AltCommandLine("-fo")>] Fable_Out_Dir of string option
 
   interface IArgParserTemplate with
     member this.Usage =
@@ -133,14 +123,6 @@ type DevServerArgs =
       | Server _ ->
         "Starts a development server for modern Javascript development"
       | Build _ -> "Builds the specified JS and CSS resources for production"
-      | Fable_Auto_start _ ->
-        "Auto-start fable in watch mode. Defaults to true, overrides the config file"
-      | Fable_Project _ ->
-        "The fsproject to use with fable. Defaults to \"./src/App.fsproj\", overrides the config file"
-      | Fable_Extension _ ->
-        "The extension to use with fable output files. Defaults to \".fs.js\", overrides the config file"
-      | Fable_Out_Dir _ ->
-        "Where to output the fable compiled files. Defaults to \"./public\", overrides the config file"
       | Init _ -> "Creates basic files and directories to start using fds."
       | Search _ -> "Searches a package in the skypack API."
       | Show _ -> "Gets the skypack information about a package."
@@ -162,12 +144,17 @@ let processExit (result: Task<Result<int, exn>>) =
 
 
 let getServerOptions (serverargs: ServerArgs list) =
-  let serverOpts =
+  let config =
     match Fs.getFdsConfig (Fs.Paths.GetFdsConfigPath()) with
-    | Ok config -> config.devServer
+    | Ok config -> config
     | Error err ->
       eprintfn "%s" err.Message
-      DevServerConfig.DefaultConfig()
+      FdsConfig.DefaultConfig()
+
+  let devServerConfig =
+    match config.devServer with
+    | Some devServer -> devServer
+    | None -> DevServerConfig.DefaultConfig()
 
   let foldServerOpts (server: DevServerConfig) (next: ServerArgs) =
 
@@ -175,56 +162,42 @@ let getServerOptions (serverargs: ServerArgs list) =
     | Auto_Start (Some value) -> { server with autoStart = Some value }
     | Port (Some value) -> { server with port = Some value }
     | Host (Some value) -> { server with host = Some value }
-    | ServerArgs.Static_Files_Dir (Some value) ->
-      { server with
-          staticFilesDir = Some value }
     | Use_Ssl (Some value) -> { server with useSSL = Some value }
     | _ -> server
 
-  serverargs |> List.fold foldServerOpts serverOpts
+  { config with
+      devServer =
+        serverargs
+        |> List.fold foldServerOpts devServerConfig
+        |> Some }
 
 let getBuildOptions (serverargs: BuildArgs list) =
-  let buildOpts =
+  let config =
     match Fs.getFdsConfig (Fs.Paths.GetFdsConfigPath()) with
-    | Ok config -> config.build
+    | Ok config -> config
     | Error err ->
       eprintfn "%s" err.Message
-      BuildConfig.DefaultConfig()
+      FdsConfig.DefaultConfig()
+
+  let buildConfig =
+    match config.build with
+    | Some build -> build
+    | None -> BuildConfig.DefaultConfig()
 
   let foldBuildOptions (build: BuildConfig) (next: BuildArgs) =
     match next with
-    | Static_Files_Dir (Some value) ->
-      { build with
-          staticFilesDir = Some value }
-    | Index_File (Some value) -> { build with indexFile = Some value }
     | Esbuild_Version (Some value) ->
       { build with
           esbuildVersion = Some value }
     | Out_Dir (Some value) -> { build with outDir = Some value }
     | _ -> build
 
-  serverargs |> List.fold foldBuildOptions buildOpts
+  { config with
+      build =
+        serverargs
+        |> List.fold foldBuildOptions buildConfig
+        |> Some }
 
-
-let getFableOptions (devServerArgs: DevServerArgs list) =
-  let fableOpts =
-    match Fs.getFdsConfig (Fs.Paths.GetFdsConfigPath()) with
-    | Ok config ->
-      config.fable
-      |> Option.defaultValue (FableConfig.DefaultConfig())
-    | Error err ->
-      eprintfn "%s" err.Message
-      FableConfig.DefaultConfig()
-
-  let foldFableOpts (fable: FableConfig) (next: DevServerArgs) =
-    match next with
-    | Fable_Auto_start (Some value) -> { fable with autoStart = Some value }
-    | Fable_Project (Some value) -> { fable with project = Some value }
-    | Fable_Extension (Some value) -> { fable with extension = Some value }
-    | Fable_Out_Dir (Some value) -> { fable with outDir = Some value }
-    | _ -> fable
-
-  devServerArgs |> List.fold foldFableOpts fableOpts
 
 [<EntryPoint>]
 let main argv =
@@ -234,8 +207,6 @@ let main argv =
     try
       let parsed =
         parser.ParseCommandLine(inputs = argv, raiseOnUsage = true)
-
-      let fableConfig = getFableOptions (parsed.GetAllResults())
 
       match parsed.TryGetSubCommand() with
       | Some (Init subcmd) ->
@@ -249,13 +220,13 @@ let main argv =
           |> Commands.runRemove
       | Some (Build items) ->
         let buildConfig = getBuildOptions (items.GetAllResults())
-        do! Commands.startBuild (buildConfig, fableConfig) :> Task
+        do! Commands.startBuild buildConfig :> Task
         return! Ok 0
       | Some (Server items) ->
         let serverConfig = getServerOptions (items.GetAllResults())
 
         do!
-          Commands.startInteractive (serverConfig, fableConfig)
+          Commands.startInteractive serverConfig
           |> Async.Ignore
 
         return! Ok 0

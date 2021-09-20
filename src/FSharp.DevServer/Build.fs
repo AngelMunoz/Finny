@@ -169,8 +169,8 @@ module Build =
 
     let outDir =
       config.outDir
-      |> Option.map (fun outDir -> $"--outDir={outDir}")
-      |> Option.defaultValue "--outDir=./dist"
+      |> Option.map (fun outDir -> $"--outdir={outDir}")
+      |> Option.defaultValue "--outdir=./dist"
 
     let execBin =
       config.esBuildPath
@@ -187,20 +187,14 @@ module Build =
       .WithStandardOutputPipe(PipeTarget.ToStream(Console.OpenStandardOutput()))
       .WithArguments(args)
 
-  let private pathToFile (staticFilesDir: string) (file: string) =
-    Path.Combine(Path.GetFullPath staticFilesDir, file)
-
-  let private getEntryPoints (type': ResourceType) (config: BuildConfig) =
+  let private getEntryPoints (type': ResourceType) (config: FdsConfig) =
     let context =
       BrowsingContext.New(Configuration.Default)
 
-    let staticFilesDir =
-      defaultArg config.staticFilesDir "./public"
-
-    let indexFile = defaultArg config.indexFile "index.html"
+    let indexFile = defaultArg config.index "index.html"
 
     let content =
-      File.ReadAllText(pathToFile staticFilesDir indexFile)
+      File.ReadAllText(Path.GetFullPath(indexFile))
 
     let parser = context.GetService<IHtmlParser>()
     let doc = parser.ParseDocument content
@@ -223,19 +217,21 @@ module Build =
         | Some attr -> attr.Value
         | None -> ""
 
-      pathToFile staticFilesDir src
+      Path.GetFullPath(src)
 
     els |> Seq.map getPathFromAttribute
 
   let insertMapAndCopy config =
-    let staticFilesDir =
-      defaultArg config.staticFilesDir "./public"
 
-    let indexFile = defaultArg config.indexFile "index.html"
-    let outDir = defaultArg config.outDir "./dist"
+    let indexFile = defaultArg config.index "index.html"
+
+    let outDir =
+      match config.build with
+      | Some config -> config.outDir |> Option.defaultValue "./dist"
+      | None -> "./dist"
 
     let content =
-      File.ReadAllText(pathToFile staticFilesDir indexFile)
+      File.ReadAllText(Path.GetFullPath(indexFile))
 
     let context =
       BrowsingContext.New(Configuration.Default)
@@ -290,9 +286,15 @@ module Build =
         printfn $"No Entrypoints for {type'.AsString()} found in index.html"
     }
 
-  let execBuild (buildConfig: BuildConfig) (fableConfig: FableConfig) =
-    let staticFilesDir =
-      defaultArg buildConfig.staticFilesDir "./public"
+  let execBuild (config: FdsConfig) =
+    let buildConfig =
+      defaultArg config.build (BuildConfig.DefaultConfig())
+
+    let fableConfig =
+      defaultArg config.fable (FableConfig.DefaultConfig())
+
+    let devServer =
+      defaultArg config.devServer (DevServerConfig.DefaultConfig())
 
     let outDir = defaultArg buildConfig.outDir "./dist"
 
@@ -317,11 +319,9 @@ module Build =
 
       Directory.CreateDirectory(outDir) |> ignore
 
-      let jsFiles =
-        getEntryPoints ResourceType.JS buildConfig
+      let jsFiles = getEntryPoints ResourceType.JS config
 
-      let cssFiles =
-        getEntryPoints ResourceType.CSS buildConfig
+      let cssFiles = getEntryPoints ResourceType.CSS config
 
       let! excludes =
         task {
@@ -334,7 +334,7 @@ module Build =
             return Seq.empty
         }
 
-      let config =
+      let buildConfig =
         { buildConfig with
             externals =
               buildConfig.externals
@@ -348,23 +348,40 @@ module Build =
 
       do!
         Task.WhenAll(
-          buildFiles ResourceType.JS jsFiles config,
-          buildFiles ResourceType.CSS cssFiles config
+          buildFiles ResourceType.JS jsFiles buildConfig,
+          buildFiles ResourceType.CSS cssFiles buildConfig
         )
         :> Task
 
       let opts = EnumerationOptions()
       opts.RecurseSubdirectories <- true
 
-      Directory.EnumerateFiles(Path.GetFullPath(staticFilesDir), "*.*", opts)
-      |> Seq.filter
-           (fun file ->
-             not <| file.Contains(".fable")
-             && not <| file.Contains(".js")
-             && not <| file.Contains(".css")
-             && not <| file.Contains("index.html"))
-      |> Seq.iter
-           (fun path -> File.Copy(path, $"{outDir}/{Path.GetFileName(path)}"))
+      let getDirectories (map: Map<string, string>) =
+        seq {
+          for key in map.Keys do
+            yield!
+              Directory.EnumerateFiles(Path.GetFullPath(key), "*.*", opts)
+              |> Seq.filter
+                   (fun file ->
+                     not <| file.Contains(".fable")
+                     && not <| file.Contains("bin")
+                     && not <| file.Contains("obj")
+                     && not <| file.Contains(".fsproj")
+                     && not <| file.Contains(".fs")
+                     && not <| file.Contains(".js")
+                     && not <| file.Contains(".css")
+                     && not <| file.Contains("index.html"))
+        }
 
-      do! insertMapAndCopy buildConfig
+      let copyMountedFiles (dirs: string seq) =
+        dirs
+        |> Seq.iter
+             (fun path -> File.Copy(path, $"{outDir}/{Path.GetFileName(path)}"))
+
+      devServer.mountDirectories
+      |> Option.map getDirectories
+      |> Option.map copyMountedFiles
+      |> ignore
+
+      do! insertMapAndCopy config
     }
