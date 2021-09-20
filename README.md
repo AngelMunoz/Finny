@@ -44,7 +44,7 @@ Including the previous goals the future goals include
 current commands are
 
 ```
-USAGE: FSharp.DevServer.exe [--help] [--version] [--fable-auto-start [<bool>]] [--fable-project [<string>]] [--fable-extension [<string>]] [--fable-out-dir [<string>]] [<subcommand> [<options>]]
+USAGE: FSharp.DevServer.exe [--help] [--version] [<subcommand> [<options>]]
 
 SUBCOMMANDS:
 
@@ -61,14 +61,6 @@ SUBCOMMANDS:
 OPTIONS:
 
     --version, -v         Prints out the cli version to the console.
-    --fable-auto-start, -fa [<bool>]
-                          Auto-start fable in watch mode. Defaults to true, overrides the config file
-    --fable-project, -fp [<string>]
-                          The fsproject to use with fable. Defaults to "./src/App.fsproj", overrides the config file
-    --fable-extension, -fe [<string>]
-                          The extension to use with fable output files. Defaults to ".fs.js", overrides the config file
-    --fable-out-dir, -fo [<string>]
-                          Where to output the fable compiled files. Defaults to "./public", overrides the config file
     --help                display this list of options.
 ```
 
