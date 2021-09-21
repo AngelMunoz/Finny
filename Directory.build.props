@@ -1,0 +1,28 @@
+<Project>
+    <PropertyGroup>
+        <PackageLicenseExpression>MIT</PackageLicenseExpression>
+        <Copyright>Copyright 2020 Angel D. Munoz.</Copyright>
+        <Authors>Angel Munoz and contributors</Authors>
+
+        <Description>
+            A frontend dev server for CDN based development
+        </Description>
+        <Summary>
+            A frontend dev server for CDN based development
+        </Summary>
+
+        <Title>Perla</Title>
+        <PackageLicenseExpression>MIT</PackageLicenseExpression>
+        <RepositoryType>git</RepositoryType>
+        <ProjectUrl>https://github.com/AngelMunoz/Perla</ProjectUrl>
+        <RepositoryUrl>https://github.com/AngelMunoz/Perla.git</RepositoryUrl>
+        <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
+        <PackageOutputPath>.\dist</PackageOutputPath>
+        <GenerateDocumentationFile>true</GenerateDocumentationFile>
+        <WarnOn>3390;$(WarnOn)</WarnOn>
+    </PropertyGroup>
+    <ItemGroup>
+        <None Include="$(MSBuildThisFileDirectory)\LICENSE" Pack="true" PackagePath="LICENSE" />
+        <None Include="$(MSBuildThisFileDirectory)\README.md" Pack="true" PackagePath="README.md" />
+    </ItemGroup>
+</Project>
