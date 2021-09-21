@@ -15,7 +15,7 @@
   "devServer": {
     "autoStart": true,
     "port": 7331,
-    "useSSL": true,
+    "useSSL": false,
     "mountDirectories": {
       "./public": "",
       "./src": "/src"
