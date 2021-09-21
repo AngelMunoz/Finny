@@ -147,8 +147,6 @@ module Build =
     let args =
       $"{entryPoint} {bundle} {target} {external} {format} {outDir} {minify}"
 
-    printfn "%s" args
-
     Cli
       .Wrap(execBin)
       .WithStandardErrorPipe(PipeTarget.ToStream(Console.OpenStandardError()))
@@ -178,8 +176,6 @@ module Build =
 
     let args =
       $"{entryPoint} {bundle} {minify} {outDir}"
-
-    printfn "%s" args
 
     Cli
       .Wrap(execBin)
@@ -290,9 +286,6 @@ module Build =
     let buildConfig =
       defaultArg config.build (BuildConfig.DefaultConfig())
 
-    let fableConfig =
-      defaultArg config.fable (FableConfig.DefaultConfig())
-
     let devServer =
       defaultArg config.devServer (DevServerConfig.DefaultConfig())
 
@@ -302,12 +295,15 @@ module Build =
       defaultArg buildConfig.esbuildVersion "0.12.28"
 
     task {
-      let cmdResult =
-        (fableCmd (Some false) fableConfig).ExecuteAsync()
+      match config.fable with
+      | Some fable ->
+        let cmdResult =
+          (fableCmd (Some false) fable).ExecuteAsync()
 
-      printfn $"Starting Fable with pid: [{cmdResult.ProcessId}]"
+        printfn $"Starting Fable with pid: [{cmdResult.ProcessId}]"
 
-      do! cmdResult.Task :> Task
+        do! cmdResult.Task :> Task
+      | None -> printfn "No Fable configuration provided, skipping fable"
 
       if not <| File.Exists(esbuildExec) then
         do! setupEsbuild esbuildVersion
