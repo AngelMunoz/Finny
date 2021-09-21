@@ -1,4 +1,4 @@
-# FSharp.DevServer
+# Perla Dev Server
 
 [esbuild]: https://esbuild.github.io/
 [import maps]: https://github.com/WICG/import-maps
