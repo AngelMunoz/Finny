@@ -112,7 +112,7 @@ module Build =
     let external =
       match config.externals with
       | Some externals when externals |> Seq.length > 0 ->
-        $" --external:{String.Join(',', externals)} "
+        String.Join(" ", externals |> Seq.map(fun ex -> $"--external:{ex}"))
       | _ -> ""
 
     let bundle =
