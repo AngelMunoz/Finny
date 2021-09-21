@@ -37,12 +37,7 @@ Target.create "Clean" (fun _ -> !! "dist" |> Shell.cleanDirs)
 Target.create
     "PackNugets"
     (fun _ ->
-        let result = Target.runSimple "Clean" []
-
-        match result.Error with
-        | Some err -> eprintfn "%O" err
-        | None ->
-            DotNet.pack
+        DotNet.pack
                 (fun opts ->
                     { opts with
                           Configuration = DotNet.BuildConfiguration.Release
@@ -78,6 +73,6 @@ Target.create
 
 Target.create "Default" (fun _ -> Target.runSimple "Zip" [] |> ignore)
 
-"Clean" ==> "BuildBinaries" ==> "Default"
+"Clean" ==> "BuildBinaries" ==> "PackNugets" ==> "Default"
 
 Target.runOrDefault "Default"
