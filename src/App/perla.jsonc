@@ -1,21 +1,14 @@
 {
+  "$schema": "../../perla.schema.json",
+  "index": "./index.html",
   "fable": {
-    "autoStart": true,
     "project": "./src/App.fsproj",
     "extension": ".fs.js"
   },
   "build": {
-    "esbuildVersion": "0.12.28",
-    "target": "es2015",
-    "outDir": "./dist",
-    "bundle": true,
-    "format": "esm",
     "minify": false
   },
   "devServer": {
-    "autoStart": true,
-    "port": 7331,
-    "useSSL": false,
     "mountDirectories": {
       "./public": "",
       "./src": "/src"
