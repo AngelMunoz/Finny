@@ -22,6 +22,7 @@
     }
   },
   "packages": {
-    "fsharp-components": "https://cdn.skypack.dev/fsharp-components"
+    "fsharp-components": "https://cdn.skypack.dev/fsharp-components",
+    "lit-html": "https://cdn.skypack.dev/lit-html"
   }
 }

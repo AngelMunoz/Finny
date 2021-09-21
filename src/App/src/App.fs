@@ -10,6 +10,7 @@ open Sutil.Styling
 open type Feliz.length
 
 let registerAll: unit -> unit = importMember "fsharp-components"
+importSideEffects "./lit.js"
 
 registerAll ()
 

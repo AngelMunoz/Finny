@@ -3,5 +3,10 @@
     "lookUp": "fsharp-components",
     "pin": "/pin/fsharp-components@v0.0.4-vrcdq1fAiAHCYER7N99I/mode=imports/optimized/fsharp-components.js",
     "import": "/-/fsharp-components@v0.0.4-vrcdq1fAiAHCYER7N99I/dist=es2020,mode=imports/optimized/fsharp-components.js"
+  },
+  "lit-html": {
+    "lookUp": "lit-html",
+    "pin": "/pin/lit-html@v2.0.0-kfI6Y9B9Hg1qgdLLWHKh/mode=imports/optimized/lit-html.js",
+    "import": "/-/lit-html@v2.0.0-kfI6Y9B9Hg1qgdLLWHKh/dist=es2020,mode=imports/optimized/lit-html.js"
   }
 }
