@@ -1,4 +1,4 @@
-﻿namespace FSharp.DevServer
+﻿namespace Perla
 
 open FSharp.Control.Tasks
 

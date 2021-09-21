@@ -1,4 +1,4 @@
-﻿namespace FSharp.DevServer
+﻿namespace Perla
 
 open System
 open System.IO
@@ -105,10 +105,13 @@ module Server =
         }
 
       let withWebhostConfig (config: IWebHostBuilder) =
-        config.UseUrls(
-          $"http://{customHost}:{customPort - 1}",
-          $"https://{customHost}:{customPort}"
-        )
+        if useSSL then
+          config.UseUrls(
+            $"http://{customHost}:{customPort - 1}",
+            $"https://{customHost}:{customPort}"
+          )
+        else
+          config.UseUrls($"http://{customHost}:{customPort}")
 
       let withAppConfig (appConfig: IApplicationBuilder) =
         if useSSL then

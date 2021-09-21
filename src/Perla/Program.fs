@@ -6,8 +6,8 @@ open FSharp.Control.Tasks
 open Argu
 
 open FsToolkit.ErrorHandling
-open FSharp.DevServer
-open FSharp.DevServer.Types
+open Perla
+open Perla.Types
 
 type ServerArgs =
   | [<AltCommandLine("-a")>] Auto_Start of bool option
@@ -105,7 +105,7 @@ type AddArgs =
         "The name of the source you want to install a package from. e.g. unpkg or skypack."
 
 type DevServerArgs =
-  | [<CliPrefix(CliPrefix.None); AltCommandLine("s")>] Server of
+  | [<CliPrefix(CliPrefix.None); AltCommandLine("s")>] Serve of
     ParseResults<ServerArgs>
   | [<CliPrefix(CliPrefix.None); AltCommandLine("b")>] Build of
     ParseResults<BuildArgs>
@@ -120,7 +120,7 @@ type DevServerArgs =
   interface IArgParserTemplate with
     member this.Usage =
       match this with
-      | Server _ ->
+      | Serve _ ->
         "Starts a development server for modern Javascript development"
       | Build _ -> "Builds the specified JS and CSS resources for production"
       | Init _ -> "Creates basic files and directories to start using fds."
@@ -222,7 +222,7 @@ let main argv =
         let buildConfig = getBuildOptions (items.GetAllResults())
         do! Commands.startBuild buildConfig :> Task
         return! Ok 0
-      | Some (Server items) ->
+      | Some (Serve items) ->
         let serverConfig = getServerOptions (items.GetAllResults())
 
         do!
