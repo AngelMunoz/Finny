@@ -116,7 +116,7 @@ module Fs =
   open System.IO
 
   [<Literal>]
-  let FdsConfigName = "fds.jsonc"
+  let FdsConfigName = "perla.jsonc"
 
   type Paths() =
     static member GetFdsConfigPath(?path: string) =
