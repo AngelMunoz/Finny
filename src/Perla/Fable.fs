@@ -19,34 +19,47 @@ module Fable =
     with
     | ex -> printfn $"Failed to Kill Procees with PID: [{pid}]\n{ex.Message}"
 
+  let private addOutDir
+    (outdir: string option)
+    (args: Builders.ArgumentsBuilder)
+    =
+    match outdir with
+    | Some outdir -> args.Add $"-o {outdir}"
+    | None -> args
+
+  let private addExtension
+    (extension: string option)
+    (args: Builders.ArgumentsBuilder)
+    =
+    match extension with
+    | Some extension -> args.Add $"-e {extension}"
+    | None -> args
+
+  let private addWatch (watch: bool option) (args: Builders.ArgumentsBuilder) =
+    match watch with
+    | Some true -> args.Add $"watch"
+    | Some false
+    | None -> args
+
   let fableCmd (isWatch: bool option) =
-    let isWatch = defaultArg isWatch false
 
     fun (config: FableConfig) ->
-      let project =
-        defaultArg config.project "./src/App.fsproj"
-
-      let outDir =
-        match config.outDir with
-        | Some dir -> "-o {dir}"
-        | None -> ""
-
-      let extension =
-        match config.extension with
-        | Some ext -> $"-e {ext}"
-        | None -> ""
-
-      let watch =
-        $"""{if isWatch then " watch " else " "}"""
+      let execBinName =
+        if Env.isWindows then
+          "dotnet.exe"
+        else
+          "dotnet"
 
       Cli
-        .Wrap(
-          if Env.isWindows then
-            "dotnet.exe"
-          else
-            "dotnet"
-        )
-        .WithArguments($"fable{watch}{project} {outDir} {extension}")
+        .Wrap(execBinName)
+        .WithArguments(fun args ->
+          args
+            .Add("fable")
+            .Add(defaultArg config.project "./src/App.fsproj")
+          |> addWatch isWatch
+          |> addOutDir config.outDir
+          |> addExtension config.extension
+          |> ignore)
         .WithStandardErrorPipe(PipeTarget.ToStream(Console.OpenStandardError()))
         .WithStandardOutputPipe(
           PipeTarget.ToStream(Console.OpenStandardOutput())

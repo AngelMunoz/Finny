@@ -30,6 +30,62 @@ module Build =
       | JS -> "JS"
       | CSS -> "CSS"
 
+  let private addEsExternals
+    (externals: (string seq) option)
+    (args: Builders.ArgumentsBuilder)
+    =
+    let externals = defaultArg externals Seq.empty
+
+    externals
+    |> Seq.map (fun ex -> $"--external:{ex}")
+    |> args.Add
+
+  let private addIsBundle
+    (isBundle: bool option)
+    (args: Builders.ArgumentsBuilder)
+    =
+    let isBundle = defaultArg isBundle true
+
+    if isBundle then
+      args.Add("--bundle")
+    else
+      args
+
+  let private addMinify
+    (minify: bool option)
+    (args: Builders.ArgumentsBuilder)
+    =
+    let minify = defaultArg minify true
+
+    if minify then
+      args.Add("--minify")
+    else
+      args
+
+  let private addFormat
+    (format: string option)
+    (args: Builders.ArgumentsBuilder)
+    =
+    let format = defaultArg format "esm"
+    args.Add $"--format={format}"
+
+  let private addTarget
+    (target: string option)
+    (args: Builders.ArgumentsBuilder)
+    =
+    let target = defaultArg target "es2015"
+
+    args.Add $"--target={target}"
+
+  let private addOutDir
+    (outdir: string option)
+    (args: Builders.ArgumentsBuilder)
+    =
+    let outdir = defaultArg outdir "./dist"
+
+    args.Add $"--outdir={outdir}"
+
+
   let private tgzDownloadPath =
     Path.Combine(Env.getToolsPath (), "esbuild.tgz")
 
@@ -109,79 +165,38 @@ module Build =
 
 
   let private esbuildJsCmd (entryPoint: string) (config: BuildConfig) =
-    let external =
-      match config.externals with
-      | Some externals when externals |> Seq.length > 0 ->
-        String.Join(" ", externals |> Seq.map(fun ex -> $"--external:{ex}"))
-      | _ -> ""
-
-    let bundle =
-      config.bundle
-      |> Option.map (fun bundle -> if bundle then $"--bundle" else "")
-      |> Option.defaultValue "--bundle"
-
-    let target =
-      config.target
-      |> Option.map (fun target -> $"--target={target}")
-      |> Option.defaultValue "--target=es2015"
-
-    let minify =
-      config.minify
-      |> Option.map (fun minify -> if minify then $"--minify" else "")
-      |> Option.defaultValue "--minify"
-
-    let format =
-      config.format
-      |> Option.map (fun format -> $"--format={format}")
-      |> Option.defaultValue "--format=esm"
-
-    let outDir =
-      config.outDir
-      |> Option.map (fun outDir -> $"--outdir={outDir}")
-      |> Option.defaultValue "--outdir=./dist"
 
     let execBin =
-      config.esBuildPath
-      |> Option.defaultValue esbuildExec
-
-    let args =
-      $"{entryPoint} {bundle} {target} {external} {format} {outDir} {minify}"
+      defaultArg config.esBuildPath esbuildExec
 
     Cli
       .Wrap(execBin)
       .WithStandardErrorPipe(PipeTarget.ToStream(Console.OpenStandardError()))
       .WithStandardOutputPipe(PipeTarget.ToStream(Console.OpenStandardOutput()))
-      .WithArguments(args)
+      .WithArguments(fun args ->
+        args.Add(entryPoint)
+        |> addEsExternals config.externals
+        |> addIsBundle config.bundle
+        |> addTarget config.target
+        |> addMinify config.minify
+        |> addFormat config.format
+        |> addOutDir config.outDir
+        |> ignore)
 
   let private esbuildCssCmd (entryPoint: string) (config: BuildConfig) =
-
-    let bundle =
-      config.bundle
-      |> Option.map (fun bundle -> if bundle then $"--bundle" else "")
-      |> Option.defaultValue "--bundle"
-
-    let minify =
-      config.minify
-      |> Option.map (fun minify -> if minify then $"--minify" else "")
-      |> Option.defaultValue "--minify"
-
-    let outDir =
-      config.outDir
-      |> Option.map (fun outDir -> $"--outdir={outDir}")
-      |> Option.defaultValue "--outdir=./dist"
-
     let execBin =
-      config.esBuildPath
-      |> Option.defaultValue esbuildExec
-
-    let args =
-      $"{entryPoint} {bundle} {minify} {outDir}"
+      defaultArg config.esBuildPath esbuildExec
 
     Cli
       .Wrap(execBin)
       .WithStandardErrorPipe(PipeTarget.ToStream(Console.OpenStandardError()))
       .WithStandardOutputPipe(PipeTarget.ToStream(Console.OpenStandardOutput()))
-      .WithArguments(args)
+      .WithArguments(fun args ->
+        args.Add(entryPoint)
+        |> addIsBundle config.bundle
+        |> addMinify config.minify
+        |> addOutDir config.outDir
+        |> ignore)
 
   let private getEntryPoints (type': ResourceType) (config: FdsConfig) =
     let context =
