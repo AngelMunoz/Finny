@@ -69,7 +69,8 @@ module Types =
         externals = None }
 
   type FdsConfig =
-    { index: string option
+    { ``$schema``: string option
+      index: string option
       fable: FableConfig option
       devServer: DevServerConfig option
       build: BuildConfig option
@@ -81,7 +82,10 @@ module Types =
         | Some true -> FableConfig.DefaultConfig() |> Some
         | _ -> None
 
-      { index = Some "./index.html"
+      { ``$schema`` =
+          Some
+            "https://raw.githubusercontent.com/AngelMunoz/Perla/main/perla.schema.json"
+        index = Some "./index.html"
         fable = fable
         devServer = DevServerConfig.DefaultConfig() |> Some
         build = BuildConfig.DefaultConfig() |> Some
