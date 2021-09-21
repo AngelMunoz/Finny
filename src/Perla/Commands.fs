@@ -151,20 +151,17 @@ module Commands =
 
       let packages =
         fdsConfig.packages
-        |> Option.map
-             (fun map ->
-               map
-               |> Map.change
-                    alias
-                    (fun f ->
-                      f
-                      |> Option.map
-                           (fun _ -> $"{Http.SKYPACK_CDN}/{info.lookUp}")
-                      |> Option.orElse (
-                        Some $"{Http.SKYPACK_CDN}/{info.lookUp}"
-                      )))
+        |> Option.defaultValue Map.empty
+        |> (Map.change
+              alias
+              (fun entry ->
+                entry
+                |> Option.map (fun _ -> $"{Http.SKYPACK_CDN}/{info.lookUp}")
+                |> Option.orElse (Some $"{Http.SKYPACK_CDN}/{info.lookUp}")))
 
-      let fdsConfig = { fdsConfig with packages = packages }
+      let fdsConfig =
+        { fdsConfig with
+            packages = packages |> Some }
 
       let lockFile =
         lockFile
