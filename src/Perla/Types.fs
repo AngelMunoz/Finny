@@ -44,8 +44,8 @@ module Types =
       { autoStart = Some true
         port = Some 7331
         host = None
-        mountDirectories = Map.ofList ([ "./public", "/" ]) |> Some
-        useSSL = Some true }
+        mountDirectories = Map.ofList ([ "./src", "/src" ]) |> Some
+        useSSL = Some false }
 
   type BuildConfig =
     { esBuildPath: string option
