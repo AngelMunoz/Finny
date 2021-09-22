@@ -139,12 +139,14 @@ module Commands =
       let alias =
         options.alias |> Option.defaultValue package
 
+      let source = defaultArg options.source Source.Skypack
+
       let version =
         match version with
         | Some version -> $"@{version}"
         | None -> ""
 
-      let! info = Http.getPackageUrlInfo $"{package}{version}"
+      let! info = Http.getPackageUrlInfo $"{package}{version}" source
 
       let! fdsConfig = Fs.getFdsConfig (GetFdsConfigPath())
       let! lockFile = Fs.getorCreateLockFile (GetFdsConfigPath())
@@ -156,8 +158,8 @@ module Commands =
               alias
               (fun entry ->
                 entry
-                |> Option.map (fun _ -> $"{Http.SKYPACK_CDN}/{info.lookUp}")
-                |> Option.orElse (Some $"{Http.SKYPACK_CDN}/{info.lookUp}")))
+                |> Option.map (fun _ -> info.import)
+                |> Option.orElse (Some info.import)))
 
       let fdsConfig =
         { fdsConfig with

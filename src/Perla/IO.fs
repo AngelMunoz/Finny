@@ -66,12 +66,16 @@ module internal Json =
 
 [<RequireQualifiedAccessAttribute>]
 module internal Http =
+  open Flurl
   open Flurl.Http
 
   [<Literal>]
   let SKYPACK_CDN = "https://cdn.skypack.dev"
 
-  let getPackageUrlInfo name =
+  [<Literal>]
+  let JSPM_API = "https://api.jspm.io/generate"
+
+  let private getSkypackInfo name =
     taskResult {
       try
         let info = {| lookUp = $"%s{name}" |}
@@ -103,13 +107,61 @@ module internal Http =
 
         return
           { lookUp = info.lookUp
-            pin = info.pin |> Option.defaultValue info.lookUp
-            import = info.import |> Option.defaultValue info.lookUp }
-
+            pin = $"{SKYPACK_CDN}{info.pin |> Option.defaultValue info.lookUp}"
+            import =
+              $"{SKYPACK_CDN}{info.import |> Option.defaultValue info.lookUp}" }
       with
-      | :? Flurl.Http.FlurlHttpException ->
-        return! PackageNotFoundException |> Error
+      | :? Flurl.Http.FlurlHttpException as ex ->
+        match ex.StatusCode |> Option.ofNullable with
+        | Some code when code >= 400 ->
+          return! PackageNotFoundException |> Error
+        | _ -> ()
+
+        return! ex :> Exception |> Error
+      | ex -> return! ex |> Error
     }
+
+  let getJspmInfo name source =
+    taskResult {
+      let queryParams =
+        {| install = [| $"npm:{name}" |]
+           env = "browser"
+           provider =
+             match source with
+             | Source.Skypack -> "skypack"
+             | Source.Jspm -> "jspm"
+             | Source.Jsdelivr -> "jsdelivr"
+             | Source.Unpkg -> "unpkg"
+             | _ ->
+               printfn
+                 $"Warn: An unknown provider has been specied: [{source}] defaulting to jspm"
+
+               "jspm" |}
+
+      try
+        let! res =
+          JSPM_API
+            .SetQueryParams(queryParams)
+            .GetJsonAsync<JspmResponse>()
+
+        return
+          { lookUp = name
+            pin = res.map.imports |> Map.find name
+            import = res.map.imports |> Map.find name }
+      with
+      | :? Flurl.Http.FlurlHttpException as ex ->
+        match ex.StatusCode |> Option.ofNullable with
+        | Some code when code >= 400 ->
+          return! PackageNotFoundException |> Error
+        | _ -> ()
+
+        return! ex :> Exception |> Error
+    }
+
+  let getPackageUrlInfo name source =
+    match source with
+    | Source.Skypack -> getSkypackInfo name
+    | _ -> getJspmInfo name source
 
 [<RequireQualifiedAccess>]
 module Fs =

@@ -256,9 +256,7 @@ module Build =
       match! Fs.getorCreateLockFile (Fs.Paths.GetFdsConfigPath()) with
       | Ok lock ->
         let map: ImportMap =
-          { imports =
-              lock
-              |> Map.map (fun _ value -> $"{Http.SKYPACK_CDN}{value.pin}")
+          { imports = lock |> Map.map (fun _ value -> value.pin)
             scopes = Map.empty }
 
         script.TextContent <- Json.ToText map

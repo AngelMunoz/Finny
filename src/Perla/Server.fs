@@ -60,9 +60,7 @@ module Server =
         match! Fs.getorCreateLockFile (Fs.Paths.GetFdsConfigPath()) with
         | Ok lock ->
           let map: ImportMap =
-            { imports =
-                lock
-                |> Map.map (fun _ value -> $"{Http.SKYPACK_CDN}{value.pin}")
+            { imports = lock |> Map.map (fun _ value -> value.import)
               scopes = Map.empty }
 
           script.TextContent <- Json.ToText map
@@ -95,7 +93,7 @@ module Server =
 
     let customHost = defaultArg serverConfig.host "localhost"
     let customPort = defaultArg serverConfig.port 7331
-    let useSSL = defaultArg serverConfig.useSSL true
+    let useSSL = defaultArg serverConfig.useSSL false
 
     let app =
       let urls =

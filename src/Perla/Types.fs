@@ -104,10 +104,14 @@ module Types =
 
   type Source =
     | Skypack = 0
+    | Jspm = 1
+    | Jsdelivr = 2
+    | Unpkg = 3
 
-  type Env =
-    | Dev = 0
-    | Prod = 1
+  type JspmResponse =
+    { staticDeps: string seq
+      dynamicDeps: string seq
+      map: {| imports: Map<string, string> |} }
 
   type InitOptions =
     { path: string option
