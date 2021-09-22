@@ -75,7 +75,7 @@ module internal Http =
   [<Literal>]
   let JSPM_API = "https://api.jspm.io/generate"
 
-  let private getSkypackInfo name =
+  let private getSkypackInfo (name: string) (alias: string) =
     taskResult {
       try
         let info = {| lookUp = $"%s{name}" |}
@@ -106,10 +106,9 @@ module internal Http =
             {| info with import = Some importUrl |}
 
         return
-          { lookUp = info.lookUp
-            pin = $"{SKYPACK_CDN}{info.pin |> Option.defaultValue info.lookUp}"
-            import =
-              $"{SKYPACK_CDN}{info.import |> Option.defaultValue info.lookUp}" }
+          [ alias, $"{SKYPACK_CDN}{info.pin |> Option.defaultValue info.lookUp}" ],
+          // skypack doesn't handle any import maps so the scopes will always be empty
+          []
       with
       | :? Flurl.Http.FlurlHttpException as ex ->
         match ex.StatusCode |> Option.ofNullable with
@@ -121,7 +120,7 @@ module internal Http =
       | ex -> return! ex |> Error
     }
 
-  let getJspmInfo name source =
+  let getJspmInfo name alias source =
     taskResult {
       let queryParams =
         {| install = [| $"npm:{name}" |]
@@ -144,10 +143,15 @@ module internal Http =
             .SetQueryParams(queryParams)
             .GetJsonAsync<JspmResponse>()
 
-        return
-          { lookUp = name
-            pin = res.map.imports |> Map.find name
-            import = res.map.imports |> Map.find name }
+        let scopes =
+          // F# type serialization hits again!
+          // the JSPM response may include a scope object or not
+          // so try to safely check if it exists or not
+          match res.map.scopes :> obj |> Option.ofObj with
+          | None -> Map.empty
+          | Some value -> value :?> Map<string, Scope>
+
+        return res.map.imports |> Map.toList, scopes |> Map.toList
       with
       | :? Flurl.Http.FlurlHttpException as ex ->
         match ex.StatusCode |> Option.ofNullable with
@@ -158,10 +162,10 @@ module internal Http =
         return! ex :> Exception |> Error
     }
 
-  let getPackageUrlInfo name source =
+  let getPackageUrlInfo (name: string) (alias: string) (source: Source) =
     match source with
-    | Source.Skypack -> getSkypackInfo name
-    | _ -> getJspmInfo name source
+    | Source.Skypack -> getSkypackInfo name alias
+    | _ -> getJspmInfo name alias source
 
 [<RequireQualifiedAccess>]
 module Fs =
@@ -204,13 +208,16 @@ module Fs =
 
         let bytes = File.ReadAllBytes(path)
 
-        return Json.FromBytes<PacakgesLock> bytes
+        return Json.FromBytes<PackagesLock> bytes
       with
-      | :? System.IO.FileNotFoundException -> return Map.ofList []
+      | :? System.IO.FileNotFoundException ->
+        return
+          { imports = Map.empty
+            scopes = Map.empty }
       | ex -> return! ex |> Error
     }
 
-  let writeLockFile configPath (fdsLock: PacakgesLock) =
+  let writeLockFile configPath (fdsLock: PackagesLock) =
     let path = Path.GetFullPath($"%s{configPath}.lock")
     let serialized = Json.ToBytes fdsLock
 
@@ -234,8 +241,8 @@ module Fs =
       with
       | :? System.IO.FileNotFoundException ->
         return
-          { imports = Map.ofSeq Seq.empty
-            scopes = Map.ofSeq Seq.empty }
+          { imports = Map.empty
+            scopes = Map.empty }
       | ex -> return! ex |> Error
     }
 

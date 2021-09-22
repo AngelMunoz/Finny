@@ -121,9 +121,19 @@ module Commands =
 
       let opts = { fdsConfig with packages = deps }
 
-      let lockFile = lockFile |> Map.remove name
+      let imports = lockFile.imports |> Map.remove name
 
-      do! Fs.writeLockFile (GetFdsConfigPath()) lockFile
+      let scopes =
+        lockFile.scopes
+        |> Map.map (fun _ value -> value |> Map.remove name)
+
+      do!
+        Fs.writeLockFile
+          (GetFdsConfigPath())
+          { lockFile with
+              scopes = scopes
+              imports = imports }
+
       do! Fs.createFdsConfig (GetFdsConfigPath()) opts
 
       return 0
@@ -146,7 +156,8 @@ module Commands =
         | Some version -> $"@{version}"
         | None -> ""
 
-      let! info = Http.getPackageUrlInfo $"{package}{version}" source
+      let! (deps, scopes) =
+        Http.getPackageUrlInfo $"{package}{version}" alias source
 
       let! fdsConfig = Fs.getFdsConfig (GetFdsConfigPath())
       let! lockFile = Fs.getorCreateLockFile (GetFdsConfigPath())
@@ -154,25 +165,28 @@ module Commands =
       let packages =
         fdsConfig.packages
         |> Option.defaultValue Map.empty
-        |> (Map.change
-              alias
-              (fun entry ->
-                entry
-                |> Option.map (fun _ -> info.import)
-                |> Option.orElse (Some info.import)))
+        |> Map.toList
+        |> fun existing -> existing @ deps
+        |> Map.ofList
 
       let fdsConfig =
         { fdsConfig with
             packages = packages |> Some }
 
       let lockFile =
-        lockFile
-        |> Map.change
-             alias
-             (fun f ->
-               f
-               |> Option.map (fun _ -> info)
-               |> Option.orElse (Some info))
+        let imports =
+          lockFile.imports
+          |> Map.toList
+          |> fun existing -> existing @ deps |> Map.ofList
+
+        let scopes =
+          lockFile.scopes
+          |> Map.toList
+          |> fun existing -> existing @ scopes |> Map.ofList
+
+        { lockFile with
+            imports = imports
+            scopes = scopes }
 
       do! Fs.createFdsConfig (GetFdsConfigPath()) fdsConfig
       do! Fs.writeLockFile (GetFdsConfigPath()) lockFile

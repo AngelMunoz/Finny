@@ -91,16 +91,14 @@ module Types =
         build = BuildConfig.DefaultConfig() |> Some
         packages = None }
 
-  type LockDependency =
-    { lookUp: string
-      pin: string
-      import: string }
 
-  type PacakgesLock = Map<string, LockDependency>
+  type Scope = Map<string, string>
 
   type ImportMap =
     { imports: Map<string, string>
-      scopes: Map<string, string> }
+      scopes: Map<string, Scope> }
+
+  type PackagesLock = ImportMap
 
   type Source =
     | Skypack = 0
@@ -111,7 +109,7 @@ module Types =
   type JspmResponse =
     { staticDeps: string seq
       dynamicDeps: string seq
-      map: {| imports: Map<string, string> |} }
+      map: ImportMap }
 
   type InitOptions =
     { path: string option

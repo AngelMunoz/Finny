@@ -60,8 +60,8 @@ module Server =
         match! Fs.getorCreateLockFile (Fs.Paths.GetFdsConfigPath()) with
         | Ok lock ->
           let map: ImportMap =
-            { imports = lock |> Map.map (fun _ value -> value.import)
-              scopes = Map.empty }
+            { imports = lock.imports
+              scopes = lock.scopes }
 
           script.TextContent <- Json.ToText map
           doc.Head.AppendChild script |> ignore

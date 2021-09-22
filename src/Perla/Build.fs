@@ -256,8 +256,8 @@ module Build =
       match! Fs.getorCreateLockFile (Fs.Paths.GetFdsConfigPath()) with
       | Ok lock ->
         let map: ImportMap =
-          { imports = lock |> Map.map (fun _ value -> value.pin)
-            scopes = Map.empty }
+          { imports = lock.imports
+            scopes = lock.scopes }
 
         script.TextContent <- Json.ToText map
         doc.Head.AppendChild script |> ignore
@@ -337,7 +337,10 @@ module Build =
           match! Fs.getorCreateLockFile (Fs.Paths.GetFdsConfigPath()) with
           | Ok lock ->
 
-            return lock |> Map.toSeq |> Seq.map (fun (key, _) -> key)
+            return
+              lock.imports
+              |> Map.toSeq
+              |> Seq.map (fun (key, _) -> key)
           | Error ex ->
             printfn $"Warn: [{ex.Message}]"
             return Seq.empty
