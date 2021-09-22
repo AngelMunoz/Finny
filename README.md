@@ -6,6 +6,10 @@
 [saturn]: https://saturnframework.org/
 [skypack cdn]: https://www.skypack.dev/
 
+> Check the sample https://github.com/AngelMunoz/perla-sample
+
+> **Not using .NET?** check the releases tab for a binary distribution, no need to install anything, just get the binary on your path and run it.
+
 This is an experimental project that aims to replace common and almost obligated nodejs tooling for greenfield projects using some state of the art technologies like
 
 - [import maps]
@@ -44,11 +48,11 @@ Including the previous goals the future goals include
 current commands are
 
 ```
-USAGE: FSharp.DevServer.exe [--help] [--version] [<subcommand> [<options>]]
+USAGE: perla [--help] [--version] [<subcommand> [<options>]]
 
 SUBCOMMANDS:
 
-    server, s <options>   Starts a development server for modern Javascript development
+    serve, s <options>    Starts a development server for modern Javascript development
     build, b <options>    Builds the specified JS and CSS resources for production
     init <options>        Creates basic files and directories to start using fds.
     search, se <options>  Searches a package in the skypack API.
@@ -56,12 +60,12 @@ SUBCOMMANDS:
     add <options>         Generates an entry in the import map.
     remove <options>      Removes an entry in the import map.
 
-    Use 'FSharp.DevServer.exe <subcommand> --help' for additional information.
+    Use 'perla <subcommand> --help' for additional information.
 
 OPTIONS:
 
     --version, -v         Prints out the cli version to the console.
-    --help                display this list of options.
+    --help                display this list of options.               display this list of options.
 ```
 
 > <sup>\*</sup>: The first releases are aimed at the .NET community via _dotnet tools_ but, if this project turns out to be useful beyond that we will enable binary distributions which should be executable for any environment
