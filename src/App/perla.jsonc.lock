@@ -1,12 +1,7 @@
 {
-  "fsharp-components": {
-    "lookUp": "fsharp-components",
-    "pin": "https://cdn.skypack.dev/pin/fsharp-components@v0.0.4-vrcdq1fAiAHCYER7N99I/mode=imports/optimized/fsharp-components.js",
-    "import": "https://cdn.skypack.dev/-/fsharp-components@v0.0.4-vrcdq1fAiAHCYER7N99I/dist=es2020,mode=imports/optimized/fsharp-components.js"
+  "imports": {
+    "fsharp-components": "https://cdn.skypack.dev/pin/fsharp-components@v0.0.4-vrcdq1fAiAHCYER7N99I/mode=imports/optimized/fsharp-components.js",
+    "lit-html": "https://ga.jspm.io/npm:lit-html@1.4.1/lit-html.js"
   },
-  "lit-html": {
-    "lookUp": "lit-html",
-    "pin": "https://ga.jspm.io/npm:lit-html@1.4.1/lit-html.js",
-    "import": "https://ga.jspm.io/npm:lit-html@1.4.1/lit-html.js"
-  }
+  "scopes": {}
 }
