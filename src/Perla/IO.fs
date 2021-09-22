@@ -151,7 +151,11 @@ module internal Http =
           | None -> Map.empty
           | Some value -> value :?> Map<string, Scope>
 
-        return res.map.imports |> Map.toList, scopes |> Map.toList
+        return
+          res.map.imports
+          |> Map.toList
+          |> List.map (fun (k, v) -> alias, v),
+          scopes |> Map.toList
       with
       | :? Flurl.Http.FlurlHttpException as ex ->
         match ex.StatusCode |> Option.ofNullable with
