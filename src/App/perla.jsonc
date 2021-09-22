@@ -5,17 +5,17 @@
     "project": "./src/App.fsproj",
     "extension": ".fs.js"
   },
-  "build": {
-    "minify": false
-  },
   "devServer": {
     "mountDirectories": {
       "./public": "",
       "./src": "/src"
     }
   },
+  "build": {
+    "minify": false
+  },
   "packages": {
-    "fsharp-components": "https://cdn.skypack.dev/fsharp-components",
-    "lit-html": "https://cdn.skypack.dev/lit-html"
+    "fsharp-components": "https://cdn.skypack.dev/-/fsharp-components@v0.0.4-vrcdq1fAiAHCYER7N99I/dist=es2020,mode=imports/optimized/fsharp-components.js",
+    "lit-html": "https://ga.jspm.io/npm:lit-html@1.4.1/lit-html.js"
   }
 }
