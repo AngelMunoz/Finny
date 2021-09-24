@@ -1,4 +1,4 @@
-// Learn more about F# at http://docs.microsoft.com/dotnet/fsharp
+﻿// Learn more about F# at http://docs.microsoft.com/dotnet/fsharp
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
@@ -51,15 +51,18 @@ type InitArgs =
       | With_Fable _ -> "Include fable options in the config file"
 
 type SearchArgs =
-  | [<AltCommandLine("-p")>] Package of string
+  | [<AltCommandLine("-n")>] Name of string
+  | [<AltCommandLine("-p")>] Page of int option
 
   static member ToOptions(args: ParseResults<SearchArgs>) : SearchOptions =
-    { package = args.TryGetResult(Package) }
+    { package = args.TryGetResult(Name)
+      page = args.TryGetResult(Page) |> Option.flatten }
 
   interface IArgParserTemplate with
     member this.Usage: string =
       match this with
-      | Package _ -> "The name of the package to search for."
+      | Name _ -> "The name of the package to search for."
+      | Page _ -> "Page number to search at."
 
 type ShowArgs =
   | [<AltCommandLine("-p")>] Package of string

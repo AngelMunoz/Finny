@@ -79,6 +79,9 @@ module internal Http =
   let SKYPACK_CDN = "https://cdn.skypack.dev"
 
   [<Literal>]
+  let SKYPACK_API = "https://api.skypack.dev/v1"
+
+  [<Literal>]
   let JSPM_API = "https://api.jspm.io/generate"
 
   let private getSkypackInfo (name: string) (alias: string) =
@@ -176,6 +179,41 @@ module internal Http =
     match source with
     | Source.Skypack -> getSkypackInfo name alias
     | _ -> getJspmInfo name alias source
+
+  let searchPackage (name: string) (page: int option) =
+    taskResult {
+      let page = defaultArg page 1
+
+      let! res =
+        SKYPACK_API
+          .AppendPathSegment("search")
+          .SetQueryParams({| q = name; p = page |})
+          .GetJsonAsync<SkypackSearchResponse>()
+
+      return
+        {| meta = res.meta
+           results = res.results |}
+    }
+
+  let showPackage name =
+    taskResult {
+      let! res =
+        $"{SKYPACK_API}/package/{name}"
+          .GetJsonAsync<SkypackPackageResponse>()
+
+      return
+        {| name = res.name
+           versions = res.versions
+           distTags = res.distTags
+           maintainers = res.maintainers
+           license = res.license
+           updatedAt = res.updatedAt
+           registry = res.registry
+           description = res.description
+           isDeprecated = res.isDeprecated
+           dependenciesCount = res.dependenciesCount
+           links = res.links |}
+    }
 
 [<RequireQualifiedAccess>]
 module Fs =

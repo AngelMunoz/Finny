@@ -31,6 +31,7 @@
     <PackageReference Include="Flurl.Http" Version="3.2.0" />
     <PackageReference Include="FsToolkit.ErrorHandling" Version="2.7.0" />
     <PackageReference Include="FsToolkit.ErrorHandling.TaskResult" Version="2.7.0" />
+    <PackageReference Include="FSharp.SystemTextJson" Version="0.17.4" />
   </ItemGroup>
 
   <ItemGroup>

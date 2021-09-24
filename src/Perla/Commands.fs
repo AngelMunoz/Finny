@@ -93,15 +93,76 @@ module Commands =
       return 0
     }
 
-  let runSearch options =
-    result {
-      printfn "%A" options
+  let runSearch (options: SearchOptions) =
+    taskResult {
+      let! package =
+        match options.package with
+        | Some package -> Ok package
+        | None -> Error PackageNotFoundException
+
+      let! results = Http.searchPackage package options.page
+
+      results.results
+      |> Seq.truncate 5
+      |> Seq.iter
+           (fun package ->
+             let maintainers =
+               package.maintainers
+               |> Seq.fold
+                    (fun curr next -> $"{curr}{next.name} - {next.email}, ")
+                    ""
+
+             printfn "%s" ("".PadRight(10, '-'))
+
+             printfn
+               $"""name: {package.name}
+Description: {package.description}
+Maintainers: {maintainers}
+Updated: {package.updatedAt.ToShortDateString()}"""
+
+             printfn "%s" ("".PadRight(10, '-')))
+
+      printfn $"Found: {results.meta.totalCount}"
+      printfn $"Page {results.meta.page} of {results.meta.totalPages}"
       return 0
     }
 
-  let runShow options =
-    result {
-      printfn "%A" options
+  let runShow (options: ShowPackageOptions) =
+    taskResult {
+      let! package =
+        match options.package with
+        | Some package -> Ok package
+        | None -> Error PackageNotFoundException
+
+      let! package = Http.showPackage package
+
+      let maintainers =
+        package.maintainers
+        |> Seq.rev
+        |> Seq.truncate 5
+        |> Seq.fold (fun curr next -> $"{curr}{next.name} - {next.email}, ") ""
+
+      let versions =
+        package.distTags
+        |> Map.toSeq
+        |> Seq.truncate 5
+        |> Seq.fold
+             (fun curr (name, version) -> $"{curr}{name} - {version}\n\t")
+             ""
+
+      printfn "%s" ("".PadRight(10, '-'))
+
+      printfn
+        $"""name: {package.name}
+Description: {package.description}
+Deprecated: %b{package.isDeprecated}
+Dependency Count: {package.dependenciesCount}
+License: {package.license}
+Versions: {versions}
+Maintainers: {maintainers}
+Updated: {package.updatedAt.ToShortDateString()}"""
+
+      printfn "%s" ("".PadRight(10, '-'))
       return 0
     }
 

@@ -1,5 +1,9 @@
 ﻿namespace Perla
 
+open System
+open System.Text.Json
+open System.Text.Json.Serialization
+open System.Collections.Generic
 
 module Types =
 
@@ -106,22 +110,68 @@ module Types =
     | Jsdelivr = 2
     | Unpkg = 3
 
+  type SkypackSearchResult =
+    { createdAt: DateTime
+      description: string
+      hasTypes: bool
+      isDeprecated: bool
+      maintainers: {| name: string; email: string |} seq
+      name: string
+      popularityScore: float
+      updatedAt: DateTime }
+
+  type PackageCheck =
+    { title: string
+      pass: bool option
+      url: string }
+
   type JspmResponse =
     { staticDeps: string seq
       dynamicDeps: string seq
       map: ImportMap }
 
+  type SkypackSearchResponse =
+    { meta: {| page: int
+               resultsPerPage: int
+               time: int
+               totalCount: int64
+               totalPages: int |}
+      results: SkypackSearchResult seq
+      [<JsonExtensionData>]
+      extras: Map<string, JsonElement> }
+
+  type SkypackPackageResponse =
+    { name: string
+      versions: Map<string, DateTime>
+      maintainers: {| name: string; email: string |} seq
+      license: string
+      projectType: string
+      distTags: Map<string, string>
+      keywords: string seq
+      updatedAt: DateTime
+      links: Map<string, string> seq
+      qualityScore: float
+      createdAt: DateTime
+      buildStatus: string
+      registry: string
+      readmeHtml: string
+      description: string
+      popularityScore: float
+      isDeprecated: bool
+      dependenciesCount: int
+      [<JsonExtensionData>]
+      extras: Map<string, JsonElement> }
+
   type InitOptions =
     { path: string option
       withFable: bool option }
 
-  // https://api.skypack.dev/v1/search?q=package-name&p=1
-  type SearchOptions = { package: string option }
+  type SearchOptions =
+    { package: string option
+      page: int option }
 
-  // https://api.skypack.dev/v1/package/package-name
   type ShowPackageOptions = { package: string option }
 
-  // https://cdn.skypack.dev/package-name
   type AddPackageOptions =
     { package: string option
       alias: string option
