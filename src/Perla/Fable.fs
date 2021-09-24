@@ -37,7 +37,7 @@ module Fable =
 
   let private addWatch (watch: bool option) (args: Builders.ArgumentsBuilder) =
     match watch with
-    | Some true -> args.Add $"watch"
+    | Some true -> args.Add $"--watch"
     | Some false
     | None -> args
 
