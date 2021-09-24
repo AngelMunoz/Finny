@@ -109,15 +109,15 @@ module Commands =
              let maintainers =
                package.maintainers
                |> Seq.fold
-                    (fun curr next -> $"{curr}{next.name} - {next.email}, ")
-                    ""
+                    (fun curr next -> $"{curr}{next.name} - {next.email}\n\t")
+                    "\n\t"
 
              printfn "%s" ("".PadRight(10, '-'))
 
              printfn
                $"""name: {package.name}
 Description: {package.description}
-Maintainers: {maintainers}
+Maintainers:{maintainers}
 Updated: {package.updatedAt.ToShortDateString()}"""
 
              printfn "%s" ("".PadRight(10, '-')))
@@ -140,7 +140,9 @@ Updated: {package.updatedAt.ToShortDateString()}"""
         package.maintainers
         |> Seq.rev
         |> Seq.truncate 5
-        |> Seq.fold (fun curr next -> $"{curr}{next.name} - {next.email}, ") ""
+        |> Seq.fold
+             (fun curr next -> $"{curr}{next.name} - {next.email}\n\t")
+             "\n\t"
 
       let versions =
         package.distTags
@@ -148,7 +150,7 @@ Updated: {package.updatedAt.ToShortDateString()}"""
         |> Seq.truncate 5
         |> Seq.fold
              (fun curr (name, version) -> $"{curr}{name} - {version}\n\t")
-             ""
+             "\n\t"
 
       printfn "%s" ("".PadRight(10, '-'))
 
@@ -159,7 +161,7 @@ Deprecated: %b{package.isDeprecated}
 Dependency Count: {package.dependenciesCount}
 License: {package.license}
 Versions: {versions}
-Maintainers: {maintainers}
+Maintainers:{maintainers}
 Updated: {package.updatedAt.ToShortDateString()}"""
 
       printfn "%s" ("".PadRight(10, '-'))
