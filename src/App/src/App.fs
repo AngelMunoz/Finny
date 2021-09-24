@@ -1,4 +1,4 @@
-module App
+﻿module App
 
 open Browser.Types
 open Sutil
@@ -27,8 +27,8 @@ let view () =
         ]
         text "Show Text"
       ]
-      Bind.el
-        store
+      Bind.el (
+        store,
         (fun isOpen ->
           if isOpen then
             Html.p [
@@ -37,8 +37,9 @@ let view () =
             ]
           else
             Html.none)
-      Bind.el
-        store
+      )
+      Bind.el (
+        store,
         (fun isOpen ->
           if isOpen |> not then
             Html.custom (
@@ -49,6 +50,7 @@ let view () =
             )
           else
             Html.none)
+      )
     ]
   ]
   |> withStyle [

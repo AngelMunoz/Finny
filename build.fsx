@@ -1,4 +1,4 @@
-#!/usr/bin/env -S dotnet fsi
+﻿#!/usr/bin/env -S dotnet fsi
 #r "nuget: Fake.DotNet.Cli, 5.20.4"
 #r "nuget: Fake.IO.FileSystem, 5.20.4"
 #r "nuget: Fake.Core.Target, 5.20.4"
@@ -38,11 +38,11 @@ Target.create
     "PackNugets"
     (fun _ ->
         DotNet.pack
-                (fun opts ->
-                    { opts with
-                          Configuration = DotNet.BuildConfiguration.Release
-                          OutputPath = Some $"{output}" })
-                "src/Perla")
+            (fun opts ->
+                { opts with
+                      Configuration = DotNet.BuildConfiguration.Release
+                      OutputPath = Some $"{output}" })
+            "src/Perla")
 
 Target.create
     "BuildBinaries"
@@ -52,6 +52,7 @@ Target.create
         let getOpts (runtime: string) (opts: DotNet.PublishOptions) =
             { opts with
                   SelfContained = Some true
+                  Framework = Some "net6.0"
                   Runtime = Some runtime
                   Configuration = DotNet.BuildConfiguration.Release
                   OutputPath = Some $"{output}/{runtime}"
@@ -73,6 +74,9 @@ Target.create
 
 Target.create "Default" (fun _ -> Target.runSimple "Zip" [] |> ignore)
 
-"Clean" ==> "BuildBinaries" ==> "PackNugets" ==> "Default"
+"Clean"
+==> "BuildBinaries"
+==> "PackNugets"
+==> "Default"
 
 Target.runOrDefault "Default"
