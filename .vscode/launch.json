@@ -5,19 +5,28 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Debug Interactive Server",
+            "name": "NET6 build",
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build",
-            "program": "${workspaceFolder}/src/FSharp.DevServer/bin/Debug/net5.0/FSharp.DevServer.dll",
+            "program": "${workspaceFolder}/src/Perla/bin/Debug/net6.0/Perla.dll",
             "args": [
-                "--fable-project",
-                "${workspaceFolder}/src/App/src/App.fsproj",
-                "--fable-out-dir",
-                "${workspaceFolder}/src/App/public",
-                "server"
+                "build"
             ],
-            "cwd": "${workspaceFolder}",
+            "cwd": "${workspaceFolder}/src/App",
+            "stopAtEntry": false,
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "NET5 build",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build",
+            "program": "${workspaceFolder}/src/Perla/bin/Debug/net5.0/Perla.dll",
+            "args": [
+                "build"
+            ],
+            "cwd": "${workspaceFolder}/src/App",
             "stopAtEntry": false,
             "console": "integratedTerminal"
         }
