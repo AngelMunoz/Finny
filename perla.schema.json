@@ -96,6 +96,32 @@
                     "description": "Enable SSL and HSTS for Local development",
                     "type": "boolean",
                     "default": false
+                },
+                "liveReload": {
+                    "description": "Enable/Disable the live reload feature",
+                    "type": "boolean",
+                    "default": true
+                },
+                "watchConfig": {
+                    "description": "Modify the way files are watched in the system",
+                    "type": "object",
+                    "properties": {
+                        "extensions": {
+                            "description": "A list of extensions to watch for changes",
+                            "type": "array",
+                            "default": [
+                                "*.js",
+                                "*.css"
+                            ]
+                        },
+                        "directories": {
+                            "description": "A list of directories to watch for changes",
+                            "type": "array",
+                            "default": [
+                                "./src"
+                            ]
+                        }
+                    }
                 }
             }
         },

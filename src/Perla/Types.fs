@@ -37,11 +37,21 @@ module Types =
         extension = None
         outDir = None }
 
+  type WatchConfig =
+    { extensions: string seq option
+      directories: string seq option }
+
+    static member Default() =
+      { extensions = [ "*.js"; "*.css" ] |> List.toSeq |> Some
+        directories = [ "./src" ] |> List.toSeq |> Some }
+
   type DevServerConfig =
     { autoStart: bool option
       port: int option
       host: string option
       mountDirectories: Map<string, string> option
+      watchConfig: WatchConfig option
+      liveReload: bool option
       useSSL: bool option }
 
     static member DefaultConfig() =
@@ -49,6 +59,8 @@ module Types =
         port = Some 7331
         host = None
         mountDirectories = Map.ofList ([ "./src", "/src" ]) |> Some
+        watchConfig = WatchConfig.Default() |> Some
+        liveReload = Some true
         useSSL = Some false }
 
   type BuildConfig =
@@ -64,8 +76,8 @@ module Types =
 
     static member DefaultConfig() =
       { esBuildPath = None
-        esbuildVersion = Some "0.12.28"
-        target = Some "es2015"
+        esbuildVersion = Some "0.13.2"
+        target = Some "es2017"
         outDir = Some "./dist"
         bundle = Some true
         format = Some "esm"
