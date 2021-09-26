@@ -12,8 +12,10 @@ open Microsoft.AspNetCore.Http
 open Microsoft.AspNetCore.Hosting
 open Microsoft.Extensions.Hosting
 open Microsoft.Extensions.Logging
+open Microsoft.Extensions.FileProviders
 
 open FSharp.Control
+open FSharp.Control.Reactive
 open FSharp.Control.Tasks
 
 open FsToolkit.ErrorHandling
@@ -25,9 +27,70 @@ open CliWrap
 
 open Types
 open Fable
-open Microsoft.Extensions.FileProviders
 
 module Server =
+  type private Script =
+    | LiveReload
+    | Worker
+
+  let private sendScript (script: Script) next (ctx: HttpContext) =
+    task {
+      let basePath =
+        Path.GetDirectoryName(Reflection.Assembly.GetEntryAssembly().Location)
+
+      let! bytes =
+        match script with
+        | LiveReload ->
+          File.ReadAllBytesAsync(Path.Combine(basePath, "./livereload.js"))
+        | Worker ->
+          File.ReadAllBytesAsync(Path.Combine(basePath, "./worker.js"))
+
+      ctx.SetContentType "text/javascript"
+      ctx.SetStatusCode 200
+      return! setBody bytes next ctx
+    }
+
+  let private Sse (watchConfig: WatchConfig) next (ctx: HttpContext) =
+    task {
+      let logger = ctx.GetLogger()
+      logger.LogInformation $"LiveReload Client Connected"
+      ctx.SetStatusCode 200
+      ctx.SetHttpHeader("Content-Type", "text/event-stream")
+      ctx.SetHttpHeader("Cache-Control", "no-cache")
+      let res = ctx.Response
+      do! res.WriteAsync($"id:{ctx.Connection.Id}\ndata:{DateTime.Now}\n\n")
+      do! res.Body.FlushAsync()
+
+      let watcher = Fs.getFileWatcher watchConfig
+
+      logger.LogInformation $"Watching %A{watchConfig.directories} for changes"
+
+      let onChangeSub =
+        watcher.FileChanged
+        |> Observable.map
+             (fun filename ->
+               task {
+                 let data =
+                   Json.ToTextMinified({| filename = filename |})
+
+                 logger.LogInformation $"LiveReload File Changed: {filename}"
+                 do! res.WriteAsync $"event:reload\ndata:{data}\n\n"
+                 do! res.Body.FlushAsync()
+               })
+        |> Observable.switchTask
+        |> Observable.subscribe ignore
+
+      ctx.RequestAborted.Register
+        (fun _ ->
+          watcher.Dispose()
+          onChangeSub.Dispose())
+      |> ignore
+
+      while true do
+        do! Async.Sleep(TimeSpan.FromSeconds 1.)
+
+      return! text "" next ctx
+    }
 
   let private Index (next) (ctx: HttpContext) =
     task {
@@ -54,8 +117,11 @@ module Server =
 
         let parser = context.GetService<IHtmlParser>()
         let doc = parser.ParseDocument content
-        let script = doc.CreateElement("script")
+        let liveReload = doc.CreateElement "script"
+        let script = doc.CreateElement "script"
         script.SetAttribute("type", "importmap")
+        liveReload.SetAttribute("type", "text/javascript")
+        liveReload.SetAttribute("src", "/~scripts~/livereload.js")
 
         match! Fs.getorCreateLockFile (Fs.Paths.GetFdsConfigPath()) with
         | Ok lock ->
@@ -65,6 +131,7 @@ module Server =
 
           script.TextContent <- Json.ToText map
           doc.Head.AppendChild script |> ignore
+          doc.Body.AppendChild liveReload |> ignore
           logger.LogInformation(doc.ToHtml())
           return! htmlString (doc.ToHtml()) next ctx
         | Error err ->
@@ -94,13 +161,26 @@ module Server =
     let customHost = defaultArg serverConfig.host "localhost"
     let customPort = defaultArg serverConfig.port 7331
     let useSSL = defaultArg serverConfig.useSSL false
+    let liveReload = defaultArg serverConfig.liveReload true
+
+    let watchConfig =
+      defaultArg serverConfig.watchConfig (WatchConfig.Default())
 
     let app =
       let urls =
-        router {
-          get "/" Index
-          get "index.html" (redirectTo false "/")
-        }
+        if liveReload then
+          router {
+            get "/" Index
+            get "index.html" (redirectTo false "/")
+            get "/~~~/perla/sse" (Sse watchConfig)
+            get "/~scripts~/livereload.js" (sendScript LiveReload)
+            get "/~scripts~/worker.js" (sendScript Worker)
+          }
+        else
+          router {
+            get "/" Index
+            get "index.html" (redirectTo false "/")
+          }
 
       let withWebhostConfig (config: IWebHostBuilder) =
         if useSSL then

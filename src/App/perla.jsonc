@@ -6,6 +6,7 @@
     "extension": ".fs.js"
   },
   "devServer": {
+    "liveReload": true,
     "mountDirectories": {
       "./public": "",
       "./src": "/src"

@@ -33,7 +33,6 @@ let view () =
           if isOpen then
             Html.p [
               text "Hey there! this is some Sutil + Fable stuff!"
-              text $"""Hello F#!"""
             ]
           else
             Html.none)
