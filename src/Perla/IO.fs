@@ -46,7 +46,7 @@ module internal Json =
   open System.Text.Json
   open System.Text.Json.Serialization
 
-  let private jsonOptions =
+  let private jsonOptions () =
     let opts = JsonSerializerOptions()
     opts.WriteIndented <- true
     opts.AllowTrailingCommas <- true
@@ -62,13 +62,18 @@ module internal Json =
     opts
 
   let ToBytes value =
-    JsonSerializer.SerializeToUtf8Bytes(value, jsonOptions)
+    JsonSerializer.SerializeToUtf8Bytes(value, jsonOptions ())
 
   let FromBytes<'T> (bytes: byte array) =
-    JsonSerializer.Deserialize<'T>(ReadOnlySpan bytes, jsonOptions)
+    JsonSerializer.Deserialize<'T>(ReadOnlySpan bytes, jsonOptions ())
 
   let ToText value =
-    JsonSerializer.Serialize(value, jsonOptions)
+    JsonSerializer.Serialize(value, jsonOptions ())
+
+  let ToTextMinified value =
+    let opts = jsonOptions ()
+    opts.WriteIndented <- false
+    JsonSerializer.Serialize(value, opts)
 
 [<RequireQualifiedAccessAttribute>]
 module internal Http =
@@ -218,9 +223,14 @@ module internal Http =
 [<RequireQualifiedAccess>]
 module Fs =
   open System.IO
+  open FSharp.Control.Reactive
 
   [<Literal>]
   let FdsConfigName = "perla.jsonc"
+
+  type IFileWatcher =
+    inherit IDisposable
+    abstract member FileChanged : IObservable<string>
 
   type Paths() =
     static member GetFdsConfigPath(?path: string) =
@@ -308,3 +318,40 @@ module Fs =
       with
       | ex -> return! ex |> Error
     }
+
+  let getFileWatcher (config: WatchConfig) =
+    let watchers =
+      (defaultArg config.directories ([ "./src" ] |> Seq.ofList))
+      |> Seq.map
+           (fun dir ->
+             let fsw = new FileSystemWatcher(dir)
+             fsw.IncludeSubdirectories <- true
+             fsw.NotifyFilter <- NotifyFilters.FileName ||| NotifyFilters.Size
+
+             let filters =
+               defaultArg config.extensions (Seq.ofList [ "*.js"; "*.css" ])
+
+             for filter in filters do
+               fsw.Filters.Add(filter)
+
+             fsw.EnableRaisingEvents <- true
+             fsw)
+
+    let subs =
+      watchers
+      |> Seq.map
+           (fun watcher ->
+             [ watcher.Renamed
+               |> Observable.map (fun e -> e.Name)
+               watcher.Changed
+               |> Observable.map (fun e -> e.Name)
+               watcher.Deleted
+               |> Observable.map (fun e -> e.Name) ]
+             |> Observable.mergeSeq)
+
+    { new IFileWatcher with
+        override _.Dispose() : unit =
+          watchers
+          |> Seq.iter (fun watcher -> watcher.Dispose())
+
+        override _.FileChanged: IObservable<string> = Observable.mergeSeq subs }
