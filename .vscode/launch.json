@@ -5,6 +5,19 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Perla serve",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build",
+            "program": "${workspaceFolder}/src/Perla/bin/Debug/net6.0/Perla.dll",
+            "args": [
+                "serve"
+            ],
+            "cwd": "${workspaceFolder}/src/App",
+            "stopAtEntry": false,
+            "console": "internalConsole"
+        },
+        {
             "name": "NET6 build",
             "type": "coreclr",
             "request": "launch",

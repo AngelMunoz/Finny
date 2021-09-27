@@ -1,4 +1,4 @@
-const worker = new Worker("/~scripts~/worker.js");
+﻿const worker = new Worker("/~perla~/worker.js");
 worker.postMessage({ event: "connect" });
 worker.addEventListener("message", function({ data }) {
   if (data?.event === "reload") {

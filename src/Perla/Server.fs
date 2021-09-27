@@ -13,6 +13,7 @@ open Microsoft.AspNetCore.Hosting
 open Microsoft.Extensions.Hosting
 open Microsoft.Extensions.Logging
 open Microsoft.Extensions.FileProviders
+open Microsoft.AspNetCore.StaticFiles
 
 open FSharp.Control
 open FSharp.Control.Reactive
@@ -27,6 +28,105 @@ open CliWrap
 
 open Types
 open Fable
+
+[<RequireQualifiedAccess>]
+module Middleware =
+  let transformPredicate (extensions: string list) (ctx: HttpContext) =
+    extensions
+    |> List.exists (fun ext -> ctx.Request.Path.Value.Contains(ext))
+
+  let cssImport
+    (mountedDirs: Map<string, string>)
+    (ctx: HttpContext)
+    (next: Func<Task>)
+    =
+    task {
+      if ctx.Request.Path.Value.Contains(".css") |> not then
+        return! next.Invoke()
+      else
+
+        let logger = ctx.GetLogger("Perla Middleware")
+        let path = ctx.Request.Path.Value
+
+        let baseDir, baseName =
+          mountedDirs
+          |> Map.filter (fun _ v -> String.IsNullOrWhiteSpace v |> not)
+          |> Map.toSeq
+          |> Seq.find (fun (_, v) -> path.StartsWith(v))
+
+        let filePath =
+          let fileName =
+            path.Replace($"{baseName}/", "", StringComparison.InvariantCulture)
+
+          Path.Combine(baseDir, fileName)
+
+        logger.LogInformation("Transforming CSS")
+
+        let! content = File.ReadAllTextAsync(filePath)
+
+        let newContent =
+          $"""
+const css = `{content}`
+const style = document.createElement('style')
+style.innerHTML = css
+document.head.appendChild(style)"""
+
+        ctx.SetContentType "text/javascript"
+        do! ctx.WriteStringAsync newContent :> Task
+    }
+    :> Task
+
+  let jsImport
+    (mountedDirs: Map<string, string>)
+    (ctx: HttpContext)
+    (next: Func<Task>)
+    =
+    task {
+      let logger = ctx.GetLogger("Perla Middleware")
+
+      if
+        ctx.Request.Path.Value.Contains("~perla~")
+        || ctx.Request.Path.Value.Contains(".js") |> not
+      then
+        return! next.Invoke()
+      else
+        let path = ctx.Request.Path.Value
+        logger.LogInformation($"Serving {path}")
+
+        let baseDir, baseName =
+          mountedDirs
+          |> Map.filter (fun _ v -> String.IsNullOrWhiteSpace v |> not)
+          |> Map.toSeq
+          |> Seq.find (fun (_, v) -> path.StartsWith(v))
+
+        let filePath =
+          let fileName =
+            path.Replace($"{baseName}/", "", StringComparison.InvariantCulture)
+
+          Path.Combine(baseDir, fileName)
+
+        let! content = File.ReadAllBytesAsync(filePath)
+        ctx.SetContentType "text/javascript"
+        do! ctx.WriteBytesAsync content :> Task
+    }
+    :> Task
+
+  let configureTransformMiddleware
+    (config: FdsConfig)
+    (appConfig: IApplicationBuilder)
+    =
+    let serverConfig =
+      defaultArg config.devServer (DevServerConfig.DefaultConfig())
+
+    let mountedDirs =
+      defaultArg serverConfig.mountDirectories Map.empty
+
+    appConfig
+      .Use(Func<HttpContext, Func<Task>, Task>(cssImport mountedDirs))
+      .Use(Func<HttpContext, Func<Task>, Task>(jsImport mountedDirs))
+    |> ignore
+
+
 
 module Server =
   type private Script =
@@ -52,7 +152,7 @@ module Server =
 
   let private Sse (watchConfig: WatchConfig) next (ctx: HttpContext) =
     task {
-      let logger = ctx.GetLogger()
+      let logger = ctx.GetLogger("Perla:SSE")
       logger.LogInformation $"LiveReload Client Connected"
       ctx.SetStatusCode 200
       ctx.SetHttpHeader("Content-Type", "text/event-stream")
@@ -92,9 +192,10 @@ module Server =
       return! text "" next ctx
     }
 
+
   let private Index (next) (ctx: HttpContext) =
     task {
-      let logger = ctx.GetLogger()
+      let logger = ctx.GetLogger("Perla:Index")
 
       match Fs.getFdsConfig (Fs.Paths.GetFdsConfigPath()) with
       | Error err ->
@@ -121,7 +222,7 @@ module Server =
         let script = doc.CreateElement "script"
         script.SetAttribute("type", "importmap")
         liveReload.SetAttribute("type", "text/javascript")
-        liveReload.SetAttribute("src", "/~scripts~/livereload.js")
+        liveReload.SetAttribute("src", "/~perla~/livereload.js")
 
         match! Fs.getorCreateLockFile (Fs.Paths.GetFdsConfigPath()) with
         | Ok lock ->
@@ -132,12 +233,10 @@ module Server =
           script.TextContent <- Json.ToText map
           doc.Head.AppendChild script |> ignore
           doc.Body.AppendChild liveReload |> ignore
-          logger.LogInformation(doc.ToHtml())
           return! htmlString (doc.ToHtml()) next ctx
         | Error err ->
 
-          logger.Log(
-            LogLevel.Error,
+          logger.LogError(
             "Couldn't append the importmap in the index file",
             err
           )
@@ -163,6 +262,9 @@ module Server =
     let useSSL = defaultArg serverConfig.useSSL false
     let liveReload = defaultArg serverConfig.liveReload true
 
+    let mountedDirs =
+      defaultArg serverConfig.mountDirectories Map.empty
+
     let watchConfig =
       defaultArg serverConfig.watchConfig (WatchConfig.Default())
 
@@ -172,9 +274,9 @@ module Server =
           router {
             get "/" Index
             get "index.html" (redirectTo false "/")
-            get "/~~~/perla/sse" (Sse watchConfig)
-            get "/~scripts~/livereload.js" (sendScript LiveReload)
-            get "/~scripts~/worker.js" (sendScript Worker)
+            get "/~perla~/sse" (Sse watchConfig)
+            get "/~perla~/livereload.js" (sendScript LiveReload)
+            get "/~perla~/worker.js" (sendScript Worker)
           }
         else
           router {
@@ -196,21 +298,40 @@ module Server =
           appConfig.UseHsts().UseHttpsRedirection()
           |> ignore
 
-        for map in
-          serverConfig.mountDirectories
-          |> Option.defaultValue Map.empty do
-          let opts =
-            let opts = StaticFileOptions()
-            opts.RequestPath <- PathString(map.Value)
+        let ignoreStatic =
+          [ ".js"
+            ".css"
+            ".module.css"
+            ".ts"
+            ".tsx"
+            ".jsx"
+            ".module.json" ]
 
-            opts.FileProvider <-
+        for map in mountedDirs do
+          let staticFileOptions =
+            let provider = FileExtensionContentTypeProvider()
+
+            for ext in ignoreStatic do
+              provider.Mappings.Remove(ext) |> ignore
+
+            let options = StaticFileOptions()
+
+            options.ContentTypeProvider <- provider
+            options.RequestPath <- PathString(map.Value)
+
+            options.FileProvider <-
               new PhysicalFileProvider(Path.GetFullPath(map.Key))
 
-            opts
+            options
 
-          appConfig.UseStaticFiles opts |> ignore
+          appConfig.UseStaticFiles staticFileOptions
+          |> ignore
 
-        appConfig
+        appConfig.UseWhen(
+          Middleware.transformPredicate ignoreStatic,
+          Middleware.configureTransformMiddleware config
+        )
+
 
       application {
         app_config withAppConfig
@@ -299,7 +420,11 @@ module Server =
           printfn "Finishing the session"
 
           task {
-            stopFable ()
+            try
+              stopFable ()
+            with
+            | ex -> eprintfn "%s" ex.Message
+
             do! stopServer ()
             exit 0
           }
