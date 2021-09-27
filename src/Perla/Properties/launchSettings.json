@@ -1,0 +1,9 @@
+﻿{
+  "profiles": {
+    "Serve App": {
+      "commandName": "Project",
+      "commandLineArgs": "serve",
+      "workingDirectory": "..\\App"
+    }
+  }
+}
