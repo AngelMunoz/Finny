@@ -55,7 +55,9 @@ module Middleware =
           |> Seq.find (fun (_, v) -> path.StartsWith(v))
 
         let filePath =
-          let fileName = path.Replace($"{baseName}/", "", StringComparison.InvariantCulture)
+          let fileName =
+            path.Replace($"{baseName}/", "", StringComparison.InvariantCulture)
+
           Path.Combine(baseDir, fileName)
 
         logger.LogInformation("Transforming CSS")
@@ -81,11 +83,16 @@ document.head.appendChild(style)"""
     =
     task {
       let logger = ctx.GetLogger("Perla Middleware")
-      if ctx.Request.Path.Value.Contains("~perla~") || ctx.Request.Path.Value.Contains(".js") |> not then
+
+      if
+        ctx.Request.Path.Value.Contains("~perla~")
+        || ctx.Request.Path.Value.Contains(".js") |> not
+      then
         return! next.Invoke()
       else
         let path = ctx.Request.Path.Value
         logger.LogInformation($"Serving {path}")
+
         let baseDir, baseName =
           mountedDirs
           |> Map.filter (fun _ v -> String.IsNullOrWhiteSpace v |> not)
@@ -93,7 +100,9 @@ document.head.appendChild(style)"""
           |> Seq.find (fun (_, v) -> path.StartsWith(v))
 
         let filePath =
-          let fileName = path.Replace($"{baseName}/", "", StringComparison.InvariantCulture)
+          let fileName =
+            path.Replace($"{baseName}/", "", StringComparison.InvariantCulture)
+
           Path.Combine(baseDir, fileName)
 
         let! content = File.ReadAllBytesAsync(filePath)
@@ -411,7 +420,11 @@ module Server =
           printfn "Finishing the session"
 
           task {
-            stopFable ()
+            try
+              stopFable ()
+            with
+            | ex -> eprintfn "%s" ex.Message
+
             do! stopServer ()
             exit 0
           }

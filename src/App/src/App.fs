@@ -1,19 +1,12 @@
 ﻿module App
 
-open Browser.Types
 open Sutil
 open Sutil.DOM
 open Sutil.Attr
-open Fable.Core.JsInterop
 open Sutil.Styling
 
 open type Feliz.length
 
-let registerAll: unit -> unit = importMember "fsharp-components"
-importSideEffects "./lit.js"
-importSideEffects "./styles.css"
-
-registerAll ()
 
 let view () =
   let store = Store.make true

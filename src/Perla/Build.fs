@@ -166,6 +166,16 @@ module Build =
 
   let private esbuildJsCmd (entryPoint: string) (config: BuildConfig) =
 
+    let dirName =
+      (Path.GetDirectoryName entryPoint)
+        .Split(Path.DirectorySeparatorChar)
+      |> Seq.last
+
+    let outDir =
+      match config.outDir with
+      | Some outdir -> Path.Combine(outdir, dirName) |> Some
+      | None -> Path.Combine("./dist", dirName) |> Some
+
     let execBin =
       defaultArg config.esBuildPath esbuildExec
 
@@ -180,7 +190,7 @@ module Build =
         |> addTarget config.target
         |> addMinify config.minify
         |> addFormat config.format
-        |> addOutDir config.outDir
+        |> addOutDir outDir
         |> ignore)
 
   let private esbuildCssCmd (entryPoint: string) (config: BuildConfig) =
@@ -232,7 +242,7 @@ module Build =
 
     els |> Seq.map getPathFromAttribute
 
-  let insertMapAndCopy config =
+  let insertMapAndCopy cssFiles config =
 
     let indexFile = defaultArg config.index "index.html"
 
@@ -249,6 +259,14 @@ module Build =
 
     let parser = context.GetService<IHtmlParser>()
     let doc = parser.ParseDocument content
+
+    let styles =
+      [ for file in cssFiles do
+          let style = doc.CreateElement("link")
+          style.SetAttribute("rel", "stylesheet")
+          style.SetAttribute("href", file)
+          style ]
+
     let script = doc.CreateElement("script")
     script.SetAttribute("type", "importmap")
 
@@ -259,7 +277,11 @@ module Build =
           { imports = lock.imports
             scopes = lock.scopes }
 
-        script.TextContent <- Json.ToText map
+        script.TextContent <- Json.ToTextMinified map
+
+        for style in styles do
+          doc.Head.AppendChild(style) |> ignore
+
         doc.Head.AppendChild script |> ignore
         let content = doc.ToHtml()
 
@@ -395,5 +417,17 @@ module Build =
       |> Option.map copyMountedFiles
       |> ignore
 
-      do! insertMapAndCopy config
+      let cssFiles =
+        [ for jsFile in jsFiles do
+            let name =
+              (Path.GetFileName jsFile).Replace(".js", ".css")
+
+            let dirName =
+              (Path.GetDirectoryName jsFile)
+                .Split(Path.DirectorySeparatorChar)
+              |> Seq.last
+
+            $"./{dirName}/{name}".Replace("\\", "/") ]
+
+      do! insertMapAndCopy cssFiles config
     }
