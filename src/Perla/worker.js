@@ -1,4 +1,4 @@
-self.addEventListener('connect', function(e) {
+﻿self.addEventListener('connect', function(e) {
     console.log('connected');
 });
 
@@ -6,7 +6,7 @@ let source;
 
 function connectToSource() {
     if (source) return;
-    source = new EventSource("/~~~/perla/sse");
+    source = new EventSource("/~perla~/sse");
     source.addEventListener("open", function(event) {
         console.log("Connected");
     });
