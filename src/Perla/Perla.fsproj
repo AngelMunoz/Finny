@@ -4,11 +4,10 @@
     <OutputType>Exe</OutputType>
     <TargetFrameworks>net6.0;net5.0</TargetFrameworks>
     <WarnOn>3390;$(WarnOn)</WarnOn>
-    <Version>0.7.0</Version>
+    <Version>0.8.0</Version>
     <IsPackable>true</IsPackable>
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>perla</ToolCommandName>
-    <PackageOutputPath>../../dist</PackageOutputPath>
     <PackageProjectUrl>https://github.com/AngelMunoz/Perla</PackageProjectUrl>
   </PropertyGroup>
   <ItemGroup>
