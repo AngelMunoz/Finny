@@ -11,6 +11,7 @@ open type Feliz.length
 
 let registerAll: unit -> unit = importMember "fsharp-components"
 importSideEffects "./lit.js"
+importSideEffects "./styles.css"
 
 registerAll ()
 
