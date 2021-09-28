@@ -60,6 +60,8 @@ module Middleware =
 
           Path.Combine(baseDir, fileName)
 
+        let filename = Path.GetFileName filePath
+
         logger.LogInformation("Transforming CSS")
 
         let! content = File.ReadAllTextAsync(filePath)
@@ -69,6 +71,7 @@ module Middleware =
 const css = `{content}`
 const style = document.createElement('style')
 style.innerHTML = css
+style.setAttribute("filename", "{filename}");
 document.head.appendChild(style)"""
 
         ctx.SetContentType "text/javascript"
@@ -129,6 +132,17 @@ document.head.appendChild(style)"""
 
 
 module Server =
+
+  let (|Typescript|Javascript|Jsx|Css|Json|Other|) value =
+    match value with
+    | ".ts"
+    | ".tsx" -> Typescript
+    | ".js" -> Javascript
+    | ".jsx" -> Jsx
+    | ".json" -> Json
+    | ".css" -> Css
+    | _ -> Other value
+
   type private Script =
     | LiveReload
     | Worker
@@ -168,14 +182,43 @@ module Server =
       let onChangeSub =
         watcher.FileChanged
         |> Observable.map
-             (fun filename ->
+             (fun event ->
                task {
-                 let data =
-                   Json.ToTextMinified({| filename = filename |})
+                 match Path.GetExtension event.name with
+                 | Css ->
+                   let! content = File.ReadAllTextAsync event.path
 
-                 logger.LogInformation $"LiveReload File Changed: {filename}"
-                 do! res.WriteAsync $"event:reload\ndata:{data}\n\n"
-                 do! res.Body.FlushAsync()
+                   let data =
+                     Json.ToTextMinified(
+                       {| oldName =
+                            event.oldName
+                            |> Option.map
+                                 (fun value ->
+                                   match value with
+                                   | Css -> value
+                                   | _ -> "")
+                          name = event.name
+                          content = content |}
+                     )
+
+                   do! res.WriteAsync $"event:replace-css\ndata:{data}\n\n"
+                   return! res.Body.FlushAsync()
+                 | Typescript
+                 | Javascript
+                 | Jsx
+                 | Json
+                 | Other _ ->
+                   let data =
+                     Json.ToTextMinified(
+                       {| oldName = event.oldName
+                          name = event.name |}
+                     )
+
+                   logger.LogInformation
+                     $"LiveReload File Changed: {event.name}"
+
+                   do! res.WriteAsync $"event:reload\ndata:{data}\n\n"
+                   return! res.Body.FlushAsync()
                })
         |> Observable.switchTask
         |> Observable.subscribe ignore
