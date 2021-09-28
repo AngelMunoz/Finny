@@ -5,6 +5,7 @@
 [fable compiler]: https://fable.io/
 [saturn]: https://saturnframework.org/
 [skypack cdn]: https://www.skypack.dev/
+[jspm cdn]: https://jspm.org/docs/cdn
 
 > Check the sample https://github.com/AngelMunoz/perla-sample
 
@@ -14,6 +15,7 @@ This is an experimental project that aims to replace common and almost obligated
 
 - [import maps]
 - [skypack cdn]
+- [jspm cdn]
 
 And battle tested technologies like
 
@@ -31,22 +33,23 @@ This tool assumes you're using standard Html, CSS and Javascript (Fable for F# u
 
 THis project is in its early stages of development, current goals at this point are:
 
-- [ ] For .NET users, remove npm/node out of the equation.
-- [ ] For F# users, seamless fable integration.
-- [ ] For .NET users, have a development server, HMR/auto-reload are not yet in the works.
-- [ ] For .NET users, Build for production using esbuild.
-- [ ] For .NET users, provide a cli dotnet tool
+- [x] For .NET users, remove npm/node out of the equation.
+- [x] For F# users, seamless fable integration.
+- [x] For .NET users, have a development server, HMR/auto-reload are not yet in the works.
+- [x] For .NET users, Build for production using esbuild.
+- [x] For .NET users, provide a cli dotnet tool
+- [x] Binary Release for users outside .NET
+- [x] Autoreload on change
 
 ### Future Goals
 
 Including the previous goals the future goals include
 
-- [ ] Autoreload on change
+- [ ] Typescript (ts/tsx) and jsx support
 - [ ] HMR
-- [ ] Binary Release for users outside .NET
+- [ ] Plugin System
 
-current commands are
-
+### Quick Command View
 ```
 USAGE: perla [--help] [--version] [<subcommand> [<options>]]
 
@@ -65,7 +68,7 @@ SUBCOMMANDS:
 OPTIONS:
 
     --version, -v         Prints out the cli version to the console.
-    --help                display this list of options.               display this list of options.
+    --help                display this list of options.
 ```
 
 > <sup>\*</sup>: The first releases are aimed at the .NET community via _dotnet tools_ but, if this project turns out to be useful beyond that we will enable binary distributions which should be executable for any environment
