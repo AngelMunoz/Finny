@@ -228,9 +228,22 @@ module Fs =
   [<Literal>]
   let FdsConfigName = "perla.jsonc"
 
+  type ChangeKind =
+    | Created
+    | Deleted
+    | Renamed
+    | Changed
+
+  type FileChangedEvent =
+    { oldName: string option
+      ChangeType: ChangeKind
+      path: string
+      name: string }
+
   type IFileWatcher =
     inherit IDisposable
-    abstract member FileChanged : IObservable<string>
+    abstract member FileChanged : IObservable<FileChangedEvent>
+
 
   type Paths() =
     static member GetFdsConfigPath(?path: string) =
@@ -337,16 +350,43 @@ module Fs =
              fsw.EnableRaisingEvents <- true
              fsw)
 
+
     let subs =
       watchers
       |> Seq.map
            (fun watcher ->
              [ watcher.Renamed
-               |> Observable.map (fun e -> e.Name)
+               |> Observable.throttle (TimeSpan.FromMilliseconds(400.))
+               |> Observable.map
+                    (fun e ->
+                      { oldName = Some e.OldName
+                        ChangeType = Renamed
+                        name = e.Name
+                        path = e.FullPath })
                watcher.Changed
-               |> Observable.map (fun e -> e.Name)
+               |> Observable.throttle (TimeSpan.FromMilliseconds(400.))
+               |> Observable.map
+                    (fun e ->
+                      { oldName = None
+                        ChangeType = Changed
+                        name = e.Name
+                        path = e.FullPath })
                watcher.Deleted
-               |> Observable.map (fun e -> e.Name) ]
+               |> Observable.throttle (TimeSpan.FromMilliseconds(400.))
+               |> Observable.map
+                    (fun e ->
+                      { oldName = None
+                        ChangeType = Deleted
+                        name = e.Name
+                        path = e.FullPath })
+               watcher.Created
+               |> Observable.throttle (TimeSpan.FromMilliseconds(400.))
+               |> Observable.map
+                    (fun e ->
+                      { oldName = None
+                        ChangeType = Created
+                        name = e.Name
+                        path = e.FullPath }) ]
              |> Observable.mergeSeq)
 
     { new IFileWatcher with
@@ -354,4 +394,5 @@ module Fs =
           watchers
           |> Seq.iter (fun watcher -> watcher.Dispose())
 
-        override _.FileChanged: IObservable<string> = Observable.mergeSeq subs }
+        override _.FileChanged: IObservable<FileChangedEvent> =
+          Observable.mergeSeq subs }
