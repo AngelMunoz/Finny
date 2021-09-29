@@ -6,11 +6,11 @@
     "extension": ".fs.js"
   },
   "devServer": {
-    "liveReload": true,
     "mountDirectories": {
       "./public": "",
       "./src": "/src"
-    }
+    },
+    "liveReload": true
   },
   "build": {
     "minify": false

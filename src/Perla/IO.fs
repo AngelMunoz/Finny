@@ -51,14 +51,8 @@ module internal Json =
     opts.WriteIndented <- true
     opts.AllowTrailingCommas <- true
     opts.ReadCommentHandling <- JsonCommentHandling.Skip
-#if NET6_0
     opts.UnknownTypeHandling <- JsonUnknownTypeHandling.JsonElement
     opts.DefaultIgnoreCondition <- JsonIgnoreCondition.WhenWritingNull
-#endif
-
-#if NET5_0
-    opts.IgnoreNullValues <- true
-#endif
     opts
 
   let ToBytes value =
@@ -137,7 +131,7 @@ module internal Http =
   let getJspmInfo name alias source =
     taskResult {
       let queryParams =
-        {| install = [| $"npm:{name}" |]
+        {| install = [| $"{name}" |]
            env = "browser"
            provider =
              match source with

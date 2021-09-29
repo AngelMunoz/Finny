@@ -18,6 +18,23 @@
             "console": "internalConsole"
         },
         {
+            "name": "Perla add @shoelace-style/shoelace",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build",
+            "program": "${workspaceFolder}/src/Perla/bin/Debug/net6.0/Perla.dll",
+            "args": [
+                "add",
+                "-p",
+                "@shoelace-style/shoelace",
+                "-s",
+                "jspm"
+            ],
+            "cwd": "${workspaceFolder}/src/App",
+            "stopAtEntry": false,
+            "console": "internalConsole"
+        },
+        {
             "name": "NET6 build",
             "type": "coreclr",
             "request": "launch",

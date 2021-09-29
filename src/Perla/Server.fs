@@ -1,6 +1,7 @@
 ﻿namespace Perla
 
 open System
+open System.Diagnostics
 open System.IO
 open System.Threading.Tasks
 
@@ -150,7 +151,7 @@ module Server =
   let private sendScript (script: Script) next (ctx: HttpContext) =
     task {
       let basePath =
-        Path.GetDirectoryName(Reflection.Assembly.GetEntryAssembly().Location)
+        Path.GetDirectoryName(Process.GetCurrentProcess().MainModule.FileName)
 
       let! bytes =
         match script with
