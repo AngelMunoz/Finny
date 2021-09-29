@@ -151,7 +151,15 @@ module Server =
   let private sendScript (script: Script) next (ctx: HttpContext) =
     task {
       let basePath =
-        Path.GetDirectoryName(Process.GetCurrentProcess().MainModule.FileName)
+        let assemblyLoc =
+          Path.GetDirectoryName(Reflection.Assembly.GetEntryAssembly().Location)
+
+        if String.IsNullOrWhiteSpace assemblyLoc then
+          Path.GetDirectoryName(Process.GetCurrentProcess().MainModule.FileName)
+        else
+          assemblyLoc
+
+      printfn "basePath %s" basePath
 
       let! bytes =
         match script with

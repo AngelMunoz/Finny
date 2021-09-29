@@ -9,7 +9,7 @@
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build",
-            "program": "${workspaceFolder}/src/Perla/bin/Debug/net6.0/Perla.dll",
+            "program": "${workspaceFolder}/src/Perla/bin/Debug/net5.0/Perla.dll",
             "args": [
                 "serve"
             ],
