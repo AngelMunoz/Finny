@@ -24,6 +24,16 @@ dotnet tool restore
 dotnet build
 ```
 
+If you want to build your own packages for testing just run at the root of this repository 
+```
+dotnet fsi ./build.fsx
+```
+that will generate every binary file, zip them and the NuGet package, if you're only interested in the NuGet package 
+```
+dotnet fsi ./build.fsx -t PackNugets
+```
+
+
 ## Manual Testing
 If you want to test your changes manually (preferred way as the time of writing due to lack of tests) you can use the App project
 
