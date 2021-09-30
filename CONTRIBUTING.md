@@ -1,7 +1,9 @@
 ## Requirements
 
-- [.NET5](https://dotnet.microsoft.com/download/dotnet/5.0)
+- [.NET5](https://dotnet.microsoft.com/download/dotnet/5.0) (not enforced but ideal)
 - [.NET6](https://dotnet.microsoft.com/download/dotnet/6.0)
+
+.NET5 is not strictly required but it would be great that you test your changes in .NET5 as well to ensure we're not breaking users
 
 ## Editor
 You can use any editor of your choice
