@@ -8,7 +8,7 @@
 ## Editor
 You can use any editor of your choice
 
-- [Ionide](https://marketplace.visualstudio.com/items?itemName=Ionide.Ionide-fsharp) (recommended)
+- [Ionide](https://marketplace.visualstudio.com/items?itemName=Ionide.Ionide-fsharp) (recommended as it is the simplest setup possible)
 - [Rider](https://www.jetbrains.com/rider/)
 - [Visual Studio](https://visualstudio.microsoft.com/vs/community/)
   - If using 2019 use the [F# formatting extension](https://marketplace.visualstudio.com/items?itemName=asti.fantomas-vs)
