@@ -72,3 +72,17 @@ OPTIONS:
 ```
 
 > <sup>\*</sup>: The first releases are aimed at the .NET community via _dotnet tools_ but, if this project turns out to be useful beyond that we will enable binary distributions which should be executable for any environment
+
+
+## Existing tools
+
+If you actually use and like nodejs, then you would be better taking a look at the tools that inspired this repository
+
+- [snowpack](https://www.snowpack.dev/)
+- [vite](https://vitejs.dev/)
+
+These tools have a bigger community and rely on an even bigger ecosystem plus they support plugins via npm so if you're using node stick with them they are a better choice
+Perla's unbundled development was inspired by both snowpack and vite, CDN dependencies were inspired by snowpack's remote sources development
+
+
+
