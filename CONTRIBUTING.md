@@ -38,6 +38,8 @@ For VSCode/Visual Studio there are some Debug configurations that help on this s
 There are no tests as the time of writing however if you want to setup tests and start with simple unit tests to ensure your changes work, by al means feel free to include them.
 
 ## Code
+Please ensure your code is Formatted with Fantomas and that you're roughly following the [F# Style Guide](https://docs.microsoft.com/en-us/dotnet/fsharp/style-guide/) (which fantomas helps you follow).
+
 You can send PR's without issues if you think the problem/fix is relatively simple/short, however if you want to pursue a more complex feature, please open an Issue or mark your PR as a draft so we can discuss the changes and potential impact on the code.
 
 Please keep in mind the following:
