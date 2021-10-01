@@ -11,6 +11,20 @@
 
 > **Not using .NET?** check the releases tab for a binary distribution, no need to install anything, just get the binary on your path and run it.
 
+## Install
+
+- .NET Users
+    - `dotnet tool install perla`
+- Windows Users
+    ```pwsh
+    iwr -useb https://gist.githubusercontent.com/AngelMunoz/2f12b5d5d343338a509a216868d2bc2e/raw/3602e5b7f172af2bbf790fb6e303305ec7442213/install-perla.ps1 -OutFile ./install-perla.ps1
+    # verify the contents of the script if you want then invoke
+    ./install-perla.ps1 -Version # <CurrentVersion>
+    ```
+    > Once we release a stable version you will be able to omit `-Version <CurrentVersion>`
+- Unix/MacOS
+    > Comming Soon   
+
 This is an experimental project that aims to replace common and almost obligated nodejs tooling for greenfield projects using some state of the art technologies like
 
 - [import maps]
