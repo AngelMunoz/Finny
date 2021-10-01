@@ -23,7 +23,7 @@
     ```
     > Once we release a stable version you will be able to omit `-Version <CurrentVersion>`
 - Unix/MacOS
-    > Comming Soon   
+    > Soon   
 
 This is an experimental project that aims to replace common and almost obligated nodejs tooling for greenfield projects using some state of the art technologies like
 
