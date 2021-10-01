@@ -80,6 +80,41 @@ document.head.appendChild(style)"""
     }
     :> Task
 
+  let jsonImport
+    (mountedDirs: Map<string, string>)
+    (ctx: HttpContext)
+    (next: Func<Task>)
+    =
+    task {
+      if ctx.Request.Path.Value.Contains(".json") |> not then
+        return! next.Invoke()
+      else
+
+        let logger = ctx.GetLogger("Perla Middleware")
+        let path = ctx.Request.Path.Value
+
+        let baseDir, baseName =
+          mountedDirs
+          |> Map.filter (fun _ v -> String.IsNullOrWhiteSpace v |> not)
+          |> Map.toSeq
+          |> Seq.find (fun (_, v) -> path.StartsWith(v))
+
+        let filePath =
+          let fileName =
+            path.Replace($"{baseName}/", "", StringComparison.InvariantCulture)
+
+          Path.Combine(baseDir, fileName)
+
+        logger.LogInformation("Transforming JSON")
+
+        let! content = File.ReadAllTextAsync(filePath)
+
+        let newContent = $"export default {content}"
+        ctx.SetContentType "text/javascript"
+        do! ctx.WriteStringAsync newContent :> Task
+    }
+    :> Task
+
   let jsImport
     (mountedDirs: Map<string, string>)
     (ctx: HttpContext)
@@ -126,6 +161,7 @@ document.head.appendChild(style)"""
       defaultArg serverConfig.mountDirectories Map.empty
 
     appConfig
+      .Use(Func<HttpContext, Func<Task>, Task>(jsonImport mountedDirs))
       .Use(Func<HttpContext, Func<Task>, Task>(cssImport mountedDirs))
       .Use(Func<HttpContext, Func<Task>, Task>(jsImport mountedDirs))
     |> ignore
@@ -357,7 +393,7 @@ module Server =
             ".ts"
             ".tsx"
             ".jsx"
-            ".module.json" ]
+            ".json" ]
 
         for map in mountedDirs do
           let staticFileOptions =
