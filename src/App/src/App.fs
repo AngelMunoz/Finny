@@ -7,9 +7,52 @@ open Sutil.Styling
 
 open type Feliz.length
 
+type Language =
+  | EnUs
+  | DeDe
+  | Spanish
+
+  member this.AsString() =
+    match this with
+    | EnUs -> "en-US"
+    | DeDe -> "de-DE"
+    | Spanish -> "es-MX"
+
+type TranslationValues =
+  {| name: string option
+     currentLang: string option |}
+
+let translations: {| ``en-us``: TranslationValues
+                     ``de-de``: TranslationValues |} =
+  Fable.Core.JsInterop.importDefault "./translations.json"
 
 let view () =
   let store = Store.make true
+  let currentLang = Store.make (EnUs)
+
+  let currentTranslations =
+    currentLang
+    .> (fun lang ->
+      match lang with
+      | EnUs -> translations.``en-us`` |> Some
+      | DeDe -> translations.``de-de`` |> Some
+      | Spanish -> None)
+
+  let nameLabel =
+    currentTranslations
+    .> (fun tran ->
+      tran
+      |> Option.map (fun tran -> tran.name)
+      |> Option.flatten
+      |> Option.defaultValue "Primer Nombre ")
+
+  let currentLangLabel =
+    currentTranslations
+    .> (fun tran ->
+      tran
+      |> Option.map (fun tran -> tran.currentLang)
+      |> Option.flatten
+      |> Option.defaultValue "Idioma Actual")
 
   Html.app [
     Html.main [
@@ -20,6 +63,38 @@ let view () =
           Bind.attr ("checked", store)
         ]
         text "Show Text"
+      ]
+      Html.section [
+        Html.div [
+          Html.text "English"
+          Html.input [
+            type' "radio"
+            Attr.name "language"
+            Attr.isChecked true
+            on "change" (fun _ -> currentLang <~ EnUs) []
+          ]
+        ]
+        Html.div [
+          Html.text "Deutsch"
+          Html.input [
+            type' "radio"
+            Attr.name "language"
+            on "change" (fun _ -> currentLang <~ DeDe) []
+          ]
+        ]
+        Html.div [
+          Html.text "Español"
+          Html.input [
+            type' "radio"
+            Attr.name "language"
+            on "change" (fun _ -> currentLang <~ Spanish) []
+          ]
+        ]
+        Html.div [
+          Bind.el (currentLangLabel, Html.text)
+          Bind.el (currentLang, (fun lang -> Html.text $": {lang.AsString()}"))
+        ]
+        Bind.el (nameLabel, Html.text)
       ]
       Bind.el (
         store,

@@ -1,0 +1,10 @@
+{
+    "en-us": {
+        "name": "First Name",
+        "currentLang": "Current Language"
+    },
+    "de-de": {
+        "name": "Vorname",
+        "currentLang": "Aktuelle Sprache"
+    }
+}
