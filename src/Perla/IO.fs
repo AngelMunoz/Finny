@@ -326,6 +326,8 @@ module Fs =
       | ex -> return! ex |> Error
     }
 
+  let compileErrWatcher = lazy (Subject.behavior "")
+
   let getFileWatcher (config: WatchConfig) =
     let watchers =
       (defaultArg config.directories ([ "./src" ] |> Seq.ofList))

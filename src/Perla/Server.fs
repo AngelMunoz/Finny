@@ -29,12 +29,42 @@ open CliWrap
 
 open Types
 open Fable
+open Esbuild
+open System.Text
 
 [<RequireQualifiedAccess>]
 module Middleware =
   let transformPredicate (extensions: string list) (ctx: HttpContext) =
     extensions
     |> List.exists (fun ext -> ctx.Request.Path.Value.Contains(ext))
+
+  let private tryReadExt file ext =
+    taskResult {
+      try
+        match ext with
+        | Typescript ->
+          let! content = File.ReadAllTextAsync($"{file}.ts")
+          return (content, Typescript)
+        | Jsx ->
+          let! content = File.ReadAllTextAsync($"{file}.jsx")
+          return (content, Jsx)
+        | Tsx ->
+          let! content = File.ReadAllTextAsync($"{file}.tsx")
+          return (content, Tsx)
+      with
+      | ex -> return! ex |> Error
+    }
+
+  let private tryReadFile (filepath: string) =
+    let fileNoExt =
+      Path.Combine(
+        Path.GetDirectoryName(filepath),
+        Path.GetFileNameWithoutExtension(filepath)
+      )
+
+    tryReadExt fileNoExt Typescript
+    |> TaskResult.orElseWith (fun _ -> tryReadExt fileNoExt Jsx)
+    |> TaskResult.orElseWith (fun _ -> tryReadExt fileNoExt Tsx)
 
   let cssImport
     (mountedDirs: Map<string, string>)
@@ -115,7 +145,36 @@ document.head.appendChild(style)"""
     }
     :> Task
 
+  let private tryCompileFile filepath config =
+    taskResult {
+      let config =
+        (defaultArg config (BuildConfig.DefaultConfig()))
+
+      let! res = tryReadFile filepath
+      let stdout = StringBuilder()
+      let stderr = StringBuilder()
+
+      let execBin =
+        defaultArg config.esBuildPath esbuildExec
+
+      if not <| File.Exists(esbuildExec) then
+        do! setupEsbuild execBin
+
+      let cmd =
+        match res with
+        | content, Typescript ->
+          (buildSingleFileCmd config Typescript (stdout, stderr) content)
+        | content, Jsx ->
+          (buildSingleFileCmd config Jsx (stdout, stderr) content)
+        | content, Tsx ->
+          (buildSingleFileCmd config Tsx (stdout, stderr) content)
+
+      do! (cmd.ExecuteAsync()).Task :> Task
+      return (stdout.ToString(), stderr.ToString())
+    }
+
   let jsImport
+    (buildConfig: BuildConfig option)
     (mountedDirs: Map<string, string>)
     (ctx: HttpContext)
     (next: Func<Task>)
@@ -144,9 +203,27 @@ document.head.appendChild(style)"""
 
           Path.Combine(baseDir, fileName)
 
-        let! content = File.ReadAllBytesAsync(filePath)
         ctx.SetContentType "text/javascript"
-        do! ctx.WriteBytesAsync content :> Task
+
+        try
+          let! content = File.ReadAllBytesAsync(filePath)
+          do! ctx.WriteBytesAsync content :> Task
+        with
+        | ex ->
+          let! fileData = tryCompileFile filePath buildConfig
+
+          match fileData with
+          | Ok (stdout, stderr) ->
+            if String.IsNullOrWhiteSpace stderr |> not then
+              Fs.compileErrWatcher.Value.OnNext stderr
+              ctx.SetStatusCode 204
+              do! ctx.WriteBytesAsync [||] :> Task
+            else
+              let content = Encoding.UTF8.GetBytes stdout
+              do! ctx.WriteBytesAsync content :> Task
+          | Error err ->
+            ctx.SetStatusCode 500
+            do! ctx.WriteTextAsync err.Message :> Task
     }
     :> Task
 
@@ -163,7 +240,9 @@ document.head.appendChild(style)"""
     appConfig
       .Use(Func<HttpContext, Func<Task>, Task>(jsonImport mountedDirs))
       .Use(Func<HttpContext, Func<Task>, Task>(cssImport mountedDirs))
-      .Use(Func<HttpContext, Func<Task>, Task>(jsImport mountedDirs))
+      .Use(
+        Func<HttpContext, Func<Task>, Task>(jsImport config.build mountedDirs)
+      )
     |> ignore
 
 
@@ -224,6 +303,20 @@ module Server =
 
       logger.LogInformation $"Watching %A{watchConfig.directories} for changes"
 
+      let onCompileErrSub =
+        Fs.compileErrWatcher.Value
+        |> Observable.map
+             (fun err ->
+               let err = Json.ToTextMinified {| error = err |}
+               logger.LogWarning $"Compilation Error"
+
+               task {
+                 do! res.WriteAsync $"event:compile-err\ndata:{err}\n\n"
+                 return! res.Body.FlushAsync()
+               })
+        |> Observable.switchTask
+        |> Observable.subscribe ignore
+
       let onChangeSub =
         watcher.FileChanged
         |> Observable.map
@@ -271,7 +364,8 @@ module Server =
       ctx.RequestAborted.Register
         (fun _ ->
           watcher.Dispose()
-          onChangeSub.Dispose())
+          onChangeSub.Dispose()
+          onCompileErrSub.Dispose())
       |> ignore
 
       while true do
