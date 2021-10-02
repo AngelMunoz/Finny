@@ -226,6 +226,9 @@ module Build =
                      && not <| file.Contains(".fs")
                      && not <| file.Contains(".js")
                      && not <| file.Contains(".css")
+                     && not <| file.Contains(".ts")
+                     && not <| file.Contains(".jsx")
+                     && not <| file.Contains(".tsx")
                      && not <| file.Contains("index.html"))
         }
 
