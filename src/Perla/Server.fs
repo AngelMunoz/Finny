@@ -29,7 +29,6 @@ open CliWrap
 
 open Types
 open Fable
-open Esbuild
 open System.Text
 
 [<RequireQualifiedAccess>]
@@ -37,34 +36,6 @@ module Middleware =
   let transformPredicate (extensions: string list) (ctx: HttpContext) =
     extensions
     |> List.exists (fun ext -> ctx.Request.Path.Value.Contains(ext))
-
-  let private tryReadExt file ext =
-    taskResult {
-      try
-        match ext with
-        | Typescript ->
-          let! content = File.ReadAllTextAsync($"{file}.ts")
-          return (content, Typescript)
-        | Jsx ->
-          let! content = File.ReadAllTextAsync($"{file}.jsx")
-          return (content, Jsx)
-        | Tsx ->
-          let! content = File.ReadAllTextAsync($"{file}.tsx")
-          return (content, Tsx)
-      with
-      | ex -> return! ex |> Error
-    }
-
-  let private tryReadFile (filepath: string) =
-    let fileNoExt =
-      Path.Combine(
-        Path.GetDirectoryName(filepath),
-        Path.GetFileNameWithoutExtension(filepath)
-      )
-
-    tryReadExt fileNoExt Typescript
-    |> TaskResult.orElseWith (fun _ -> tryReadExt fileNoExt Jsx)
-    |> TaskResult.orElseWith (fun _ -> tryReadExt fileNoExt Tsx)
 
   let cssImport
     (mountedDirs: Map<string, string>)
@@ -145,34 +116,6 @@ document.head.appendChild(style)"""
     }
     :> Task
 
-  let private tryCompileFile filepath config =
-    taskResult {
-      let config =
-        (defaultArg config (BuildConfig.DefaultConfig()))
-
-      let! res = tryReadFile filepath
-      let stdout = StringBuilder()
-      let stderr = StringBuilder()
-
-      let execBin =
-        defaultArg config.esBuildPath esbuildExec
-
-      if not <| File.Exists(esbuildExec) then
-        do! setupEsbuild execBin
-
-      let cmd =
-        match res with
-        | content, Typescript ->
-          (buildSingleFileCmd config Typescript (stdout, stderr) content)
-        | content, Jsx ->
-          (buildSingleFileCmd config Jsx (stdout, stderr) content)
-        | content, Tsx ->
-          (buildSingleFileCmd config Tsx (stdout, stderr) content)
-
-      do! (cmd.ExecuteAsync()).Task :> Task
-      return (stdout.ToString(), stderr.ToString())
-    }
-
   let jsImport
     (buildConfig: BuildConfig option)
     (mountedDirs: Map<string, string>)
@@ -210,7 +153,7 @@ document.head.appendChild(style)"""
           do! ctx.WriteBytesAsync content :> Task
         with
         | ex ->
-          let! fileData = tryCompileFile filePath buildConfig
+          let! fileData = Esbuild.tryCompileFile filePath buildConfig
 
           match fileData with
           | Ok (stdout, stderr) ->

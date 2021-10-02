@@ -3,6 +3,7 @@
 open System
 open System.IO
 open System.Net.Http
+open System.Text
 open System.Threading.Tasks
 
 open ICSharpCode.SharpZipLib.Tar
@@ -10,13 +11,10 @@ open ICSharpCode.SharpZipLib.GZip
 
 open CliWrap
 
-open Types
-open System.Text
+open FsToolkit.ErrorHandling
 
-type LoaderType =
-  | Typescript
-  | Tsx
-  | Jsx
+open Types
+
 
 let addEsExternals
   (externals: (string seq) option)
@@ -197,22 +195,21 @@ let esbuildCssCmd (entryPoint: string) (config: BuildConfig) =
       |> addOutDir config.outDir
       |> ignore)
 
-let buildSingleFileCmd
+let private buildSingleFileCmd
   (config: BuildConfig)
-  (loader: LoaderType)
-  (stdio: StringBuilder * StringBuilder)
-  (content: string)
+  (strio: StringBuilder * StringBuilder)
+  (content: string, loader: LoaderType)
   : Command =
   let execBin =
     defaultArg config.esBuildPath esbuildExec
 
-  let (stdout, stderr) = stdio
+  let (strout, strerr) = strio
 
   Cli
     .Wrap(execBin)
     .WithStandardInputPipe(PipeSource.FromString(content))
-    .WithStandardOutputPipe(PipeTarget.ToStringBuilder(stdout))
-    .WithStandardErrorPipe(PipeTarget.ToStringBuilder(stderr))
+    .WithStandardOutputPipe(PipeTarget.ToStringBuilder(strout))
+    .WithStandardErrorPipe(PipeTarget.ToStringBuilder(strerr))
     .WithArguments(fun args ->
       args
       |> addTarget config.target
@@ -221,3 +218,25 @@ let buildSingleFileCmd
       |> addInlineSourceMaps
       |> ignore)
     .WithValidation(CommandResultValidation.None)
+
+let tryCompileFile filepath config =
+  taskResult {
+    let config =
+      (defaultArg config (BuildConfig.DefaultConfig()))
+
+    let! res = Fs.tryReadFile filepath
+    let strout = StringBuilder()
+    let strerr = StringBuilder()
+
+    let execBin =
+      defaultArg config.esBuildPath esbuildExec
+
+    if not <| File.Exists(esbuildExec) then
+      do! setupEsbuild execBin
+
+    let cmd =
+      buildSingleFileCmd config (strout, strerr) res
+
+    do! (cmd.ExecuteAsync()).Task :> Task
+    return (strout.ToString(), strerr.ToString())
+  }

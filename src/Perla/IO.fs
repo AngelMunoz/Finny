@@ -399,3 +399,31 @@ module Fs =
 
         override _.FileChanged: IObservable<FileChangedEvent> =
           Observable.mergeSeq subs }
+
+  let private tryReadFileWithExtension file ext =
+    taskResult {
+      try
+        match ext with
+        | Typescript ->
+          let! content = File.ReadAllTextAsync($"{file}.ts")
+          return (content, Typescript)
+        | Jsx ->
+          let! content = File.ReadAllTextAsync($"{file}.jsx")
+          return (content, Jsx)
+        | Tsx ->
+          let! content = File.ReadAllTextAsync($"{file}.tsx")
+          return (content, Tsx)
+      with
+      | ex -> return! ex |> Error
+    }
+
+  let tryReadFile (filepath: string) =
+    let fileNoExt =
+      Path.Combine(
+        Path.GetDirectoryName(filepath),
+        Path.GetFileNameWithoutExtension(filepath)
+      )
+
+    tryReadFileWithExtension fileNoExt Typescript
+    |> TaskResult.orElseWith (fun _ -> tryReadFileWithExtension fileNoExt Jsx)
+    |> TaskResult.orElseWith (fun _ -> tryReadFileWithExtension fileNoExt Tsx)

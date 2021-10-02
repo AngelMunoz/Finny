@@ -25,6 +25,11 @@ module Types =
     | "stop" -> Exit
     | value -> Unknown value
 
+  type LoaderType =
+    | Typescript
+    | Tsx
+    | Jsx
+
   type FableConfig =
     { autoStart: bool option
       project: string option
