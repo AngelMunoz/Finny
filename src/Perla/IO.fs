@@ -326,7 +326,13 @@ module Fs =
       | ex -> return! ex |> Error
     }
 
-  let compileErrWatcher = lazy (Subject.behavior "")
+  let CompileErrWatcherEvent = lazy (new Event<string>())
+
+  let PublishCompileErr err =
+    CompileErrWatcherEvent.Value.Trigger err
+
+  let compileErrWatcher () = CompileErrWatcherEvent.Value.Publish
+
 
   let getFileWatcher (config: WatchConfig) =
     let watchers =

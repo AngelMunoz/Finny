@@ -164,6 +164,14 @@
                     "type": "boolean",
                     "default": true
                 },
+                "jsxFactory": {
+                    "description": "This sets the function that is called for each JSX element.",
+                    "type": "string"
+                },
+                "jsxFragment": {
+                    "description": "This sets the function that is called for each JSX fragment.",
+                    "type": "string"
+                },
                 "externals": {
                     "description": "Third party libraries that you want esbuild to ignore (i.e. bare specifiers), eg. excluding lit from the bundle from \"import { LitElement from 'lit'\" by default perla excludes all of the specifiers that are in the packages map.",
                     "type": "array",

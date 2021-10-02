@@ -158,7 +158,7 @@ document.head.appendChild(style)"""
           match fileData with
           | Ok (stdout, stderr) ->
             if String.IsNullOrWhiteSpace stderr |> not then
-              Fs.compileErrWatcher.Value.OnNext stderr
+              Fs.PublishCompileErr stderr
               ctx.SetStatusCode 204
               do! ctx.WriteBytesAsync [||] :> Task
             else
@@ -247,18 +247,18 @@ module Server =
       logger.LogInformation $"Watching %A{watchConfig.directories} for changes"
 
       let onCompileErrSub =
-        Fs.compileErrWatcher.Value
-        |> Observable.map
-             (fun err ->
-               let err = Json.ToTextMinified {| error = err |}
-               logger.LogWarning $"Compilation Error"
+        Fs
+          .compileErrWatcher()
+          .Subscribe(fun err ->
+            let err = Json.ToTextMinified {| error = err |}
+            logger.LogWarning $"Compilation Error"
 
-               task {
-                 do! res.WriteAsync $"event:compile-err\ndata:{err}\n\n"
-                 return! res.Body.FlushAsync()
-               })
-        |> Observable.switchTask
-        |> Observable.subscribe ignore
+            task {
+              do! res.WriteAsync $"event:compile-err\ndata:{err}\n\n"
+              return! res.Body.FlushAsync()
+            }
+            |> Async.AwaitTask
+            |> Async.StartImmediate)
 
       let onChangeSub =
         watcher.FileChanged

@@ -67,6 +67,16 @@ let addLoader (loader: LoaderType) (args: Builders.ArgumentsBuilder) =
 
   args.Add $"--loader={loader}"
 
+let addJsxFactory (factory: string option) (args: Builders.ArgumentsBuilder) =
+  match factory with
+  | Some factory -> args.Add $"--jsx-factory={factory}"
+  | None -> args
+
+let addJsxFragment (fragment: string option) (args: Builders.ArgumentsBuilder) =
+  match fragment with
+  | Some fragment -> args.Add $"--jsx-fragment={fragment}"
+  | None -> args
+
 let addInlineSourceMaps (args: Builders.ArgumentsBuilder) =
   args.Add "--sourcemap=inline"
 
@@ -225,6 +235,8 @@ let private buildSingleFileCmd
       |> addTarget config.target
       |> addLoader loader
       |> addFormat ("esm" |> Some)
+      |> addJsxFactory config.jsxFactory
+      |> addJsxFragment config.jsxFragment
       |> addInlineSourceMaps
       |> ignore)
     .WithValidation(CommandResultValidation.None)

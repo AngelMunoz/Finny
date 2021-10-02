@@ -88,6 +88,8 @@ module Types =
       bundle: bool option
       format: string option
       minify: bool option
+      jsxFactory: string option
+      jsxFragment: string option
       externals: (string seq) option }
 
 
@@ -99,6 +101,8 @@ module Types =
         bundle = Some true
         format = Some "esm"
         minify = Some true
+        jsxFactory = None
+        jsxFragment = None
         externals = None }
 
   type FdsConfig =
