@@ -3,7 +3,11 @@
 open System
 open System.Text.Json
 open System.Text.Json.Serialization
-open System.Collections.Generic
+
+
+module Constants =
+  [<Literal>]
+  let Esbuild_Version = "0.13.2"
 
 module Types =
 
@@ -25,6 +29,11 @@ module Types =
     | "stop" -> Exit
     | value -> Unknown value
 
+  type LoaderType =
+    | Typescript
+    | Tsx
+    | Jsx
+
   type FableConfig =
     { autoStart: bool option
       project: string option
@@ -42,7 +51,15 @@ module Types =
       directories: string seq option }
 
     static member Default() =
-      { extensions = [ "*.js"; "*.css" ] |> List.toSeq |> Some
+      { extensions =
+          [ "*.js"
+            "*.css"
+            "*.ts"
+            "*.tsx"
+            "*.jsx"
+            "*.json" ]
+          |> List.toSeq
+          |> Some
         directories = [ "./src" ] |> List.toSeq |> Some }
 
   type DevServerConfig =
@@ -71,17 +88,23 @@ module Types =
       bundle: bool option
       format: string option
       minify: bool option
+      jsxFactory: string option
+      jsxFragment: string option
+      injects: (string seq) option
       externals: (string seq) option }
 
 
     static member DefaultConfig() =
       { esBuildPath = None
-        esbuildVersion = Some "0.13.2"
+        esbuildVersion = Some Constants.Esbuild_Version
         target = Some "es2017"
         outDir = None
         bundle = Some true
         format = Some "esm"
         minify = Some true
+        jsxFactory = None
+        jsxFragment = None
+        injects = None
         externals = None }
 
   type FdsConfig =

@@ -15,12 +15,18 @@ function replaceCssContent({ oldName, name, content }) {
     style.setAttribute("filename", name);
 }
 
+function showOverlay({ error }) {
+    console.log('show overlay');
+}
+
 worker.addEventListener("message", function({ data }) {
     switch (data?.event) {
         case "reload":
             return window.location.reload();
         case "replace-css":
             return replaceCssContent(data);
+        case "compile-err":
+            return showOverlay(data);
         default:
             return console.log('Unknown message:', data);
     }

@@ -29,6 +29,7 @@ open CliWrap
 
 open Types
 open Fable
+open System.Text
 
 [<RequireQualifiedAccess>]
 module Middleware =
@@ -116,6 +117,7 @@ document.head.appendChild(style)"""
     :> Task
 
   let jsImport
+    (buildConfig: BuildConfig option)
     (mountedDirs: Map<string, string>)
     (ctx: HttpContext)
     (next: Func<Task>)
@@ -144,9 +146,30 @@ document.head.appendChild(style)"""
 
           Path.Combine(baseDir, fileName)
 
-        let! content = File.ReadAllBytesAsync(filePath)
         ctx.SetContentType "text/javascript"
-        do! ctx.WriteBytesAsync content :> Task
+
+        try
+          if Path.GetExtension(filePath) <> ".js" then
+            return failwith "Not a JS file, Try looking with another extension."
+
+          let! content = File.ReadAllBytesAsync(filePath)
+          do! ctx.WriteBytesAsync content :> Task
+        with
+        | ex ->
+          let! fileData = Esbuild.tryCompileFile filePath buildConfig
+
+          match fileData with
+          | Ok (stdout, stderr) ->
+            if String.IsNullOrWhiteSpace stderr |> not then
+              Fs.PublishCompileErr stderr
+              ctx.SetStatusCode 204
+              do! ctx.WriteBytesAsync [||] :> Task
+            else
+              let content = Encoding.UTF8.GetBytes stdout
+              do! ctx.WriteBytesAsync content :> Task
+          | Error err ->
+            ctx.SetStatusCode 500
+            do! ctx.WriteTextAsync err.Message :> Task
     }
     :> Task
 
@@ -163,7 +186,9 @@ document.head.appendChild(style)"""
     appConfig
       .Use(Func<HttpContext, Func<Task>, Task>(jsonImport mountedDirs))
       .Use(Func<HttpContext, Func<Task>, Task>(cssImport mountedDirs))
-      .Use(Func<HttpContext, Func<Task>, Task>(jsImport mountedDirs))
+      .Use(
+        Func<HttpContext, Func<Task>, Task>(jsImport config.build mountedDirs)
+      )
     |> ignore
 
 
@@ -224,6 +249,20 @@ module Server =
 
       logger.LogInformation $"Watching %A{watchConfig.directories} for changes"
 
+      let onCompileErrSub =
+        Fs
+          .compileErrWatcher()
+          .Subscribe(fun err ->
+            let err = Json.ToTextMinified {| error = err |}
+            logger.LogWarning $"Compilation Error"
+
+            task {
+              do! res.WriteAsync $"event:compile-err\ndata:{err}\n\n"
+              return! res.Body.FlushAsync()
+            }
+            |> Async.AwaitTask
+            |> Async.StartImmediate)
+
       let onChangeSub =
         watcher.FileChanged
         |> Observable.map
@@ -271,7 +310,8 @@ module Server =
       ctx.RequestAborted.Register
         (fun _ ->
           watcher.Dispose()
-          onChangeSub.Dispose())
+          onChangeSub.Dispose()
+          onCompileErrSub.Dispose())
       |> ignore
 
       while true do

@@ -326,6 +326,14 @@ module Fs =
       | ex -> return! ex |> Error
     }
 
+  let CompileErrWatcherEvent = lazy (new Event<string>())
+
+  let PublishCompileErr err =
+    CompileErrWatcherEvent.Value.Trigger err
+
+  let compileErrWatcher () = CompileErrWatcherEvent.Value.Publish
+
+
   let getFileWatcher (config: WatchConfig) =
     let watchers =
       (defaultArg config.directories ([ "./src" ] |> Seq.ofList))
@@ -336,7 +344,14 @@ module Fs =
              fsw.NotifyFilter <- NotifyFilters.FileName ||| NotifyFilters.Size
 
              let filters =
-               defaultArg config.extensions (Seq.ofList [ "*.js"; "*.css" ])
+               defaultArg
+                 config.extensions
+                 (Seq.ofList [ "*.js"
+                               "*.css"
+                               "*.ts"
+                               "*.tsx"
+                               "*.jsx"
+                               "*.json" ])
 
              for filter in filters do
                fsw.Filters.Add(filter)
@@ -390,3 +405,37 @@ module Fs =
 
         override _.FileChanged: IObservable<FileChangedEvent> =
           Observable.mergeSeq subs }
+
+  let private tryReadFileWithExtension file ext =
+    taskResult {
+      try
+        match ext with
+        | Typescript ->
+          let! content = File.ReadAllTextAsync($"{file}.ts")
+          return (content, Typescript)
+        | Jsx ->
+          let! content = File.ReadAllTextAsync($"{file}.jsx")
+          return (content, Jsx)
+        | Tsx ->
+          let! content = File.ReadAllTextAsync($"{file}.tsx")
+          return (content, Tsx)
+      with
+      | ex -> return! ex |> Error
+    }
+
+  let tryReadFile (filepath: string) =
+    let fileNoExt =
+      Path.Combine(
+        Path.GetDirectoryName(filepath),
+        Path.GetFileNameWithoutExtension(filepath)
+      )
+
+    tryReadFileWithExtension fileNoExt Typescript
+    |> TaskResult.orElseWith (fun _ -> tryReadFileWithExtension fileNoExt Jsx)
+    |> TaskResult.orElseWith (fun _ -> tryReadFileWithExtension fileNoExt Tsx)
+
+  let tryGetTsconfigFile () =
+    try
+      File.ReadAllText("./tsconfig.json") |> Some
+    with
+    | _ -> None

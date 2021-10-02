@@ -13,6 +13,7 @@
   <ItemGroup>
     <Compile Include="Types.fs" />
     <Compile Include="IO.fs" />
+    <Compile Include="Esbuild.fs" />
     <Compile Include="Fable.fs" />
     <Compile Include="Server.fs" />
     <Compile Include="Build.fs" />
