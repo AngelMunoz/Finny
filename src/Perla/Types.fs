@@ -3,7 +3,11 @@
 open System
 open System.Text.Json
 open System.Text.Json.Serialization
-open System.Collections.Generic
+
+
+module Constants =
+  [<Literal>]
+  let Esbuild_Version = "0.13.2"
 
 module Types =
 
@@ -89,7 +93,7 @@ module Types =
 
     static member DefaultConfig() =
       { esBuildPath = None
-        esbuildVersion = Some "0.13.2"
+        esbuildVersion = Some Constants.Esbuild_Version
         target = Some "es2017"
         outDir = None
         bundle = Some true
