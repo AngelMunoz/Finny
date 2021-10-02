@@ -149,6 +149,9 @@ document.head.appendChild(style)"""
         ctx.SetContentType "text/javascript"
 
         try
+          if Path.GetExtension(filePath) <> ".js" then
+            return failwith "Not a JS file, Try looking with another extension."
+
           let! content = File.ReadAllBytesAsync(filePath)
           do! ctx.WriteBytesAsync content :> Task
         with
