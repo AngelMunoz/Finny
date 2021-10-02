@@ -433,3 +433,9 @@ module Fs =
     tryReadFileWithExtension fileNoExt Typescript
     |> TaskResult.orElseWith (fun _ -> tryReadFileWithExtension fileNoExt Jsx)
     |> TaskResult.orElseWith (fun _ -> tryReadFileWithExtension fileNoExt Tsx)
+
+  let tryGetTsconfigFile () =
+    try
+      File.ReadAllText("./tsconfig.json") |> Some
+    with
+    | _ -> None

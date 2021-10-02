@@ -87,6 +87,10 @@ let addInjects (injects: string seq option) (args: Builders.ArgumentsBuilder) =
   |> Seq.map (fun inject -> $"--inject:{inject}")
   |> args.Add
 
+let addTsconfigRaw (tsconfig: string option) (args: Builders.ArgumentsBuilder) =
+  match tsconfig with
+  | Some tsconfig -> args.Add $"--tsconfig-raw='{tsconfig}'"
+  | None -> args
 
 let private tgzDownloadPath =
   Path.Combine(Env.getToolsPath (), "esbuild.tgz")
@@ -231,6 +235,7 @@ let private buildSingleFileCmd
   let execBin =
     defaultArg config.esBuildPath esbuildExec
 
+  let tsconfig = Fs.tryGetTsconfigFile ()
   let (strout, strerr) = strio
 
   Cli
@@ -246,6 +251,7 @@ let private buildSingleFileCmd
       |> addJsxFactory config.jsxFactory
       |> addJsxFragment config.jsxFragment
       |> addInlineSourceMaps
+      |> addTsconfigRaw tsconfig
       |> ignore)
     .WithValidation(CommandResultValidation.None)
 
