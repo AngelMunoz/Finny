@@ -338,7 +338,14 @@ module Fs =
              fsw.NotifyFilter <- NotifyFilters.FileName ||| NotifyFilters.Size
 
              let filters =
-               defaultArg config.extensions (Seq.ofList [ "*.js"; "*.css" ])
+               defaultArg
+                 config.extensions
+                 (Seq.ofList [ "*.js"
+                               "*.css"
+                               "*.ts"
+                               "*.tsx"
+                               "*.jsx"
+                               "*.json" ])
 
              for filter in filters do
                fsw.Filters.Add(filter)

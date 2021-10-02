@@ -42,7 +42,15 @@ module Types =
       directories: string seq option }
 
     static member Default() =
-      { extensions = [ "*.js"; "*.css" ] |> List.toSeq |> Some
+      { extensions =
+          [ "*.js"
+            "*.css"
+            "*.ts"
+            "*.tsx"
+            "*.jsx"
+            "*.json" ]
+          |> List.toSeq
+          |> Some
         directories = [ "./src" ] |> List.toSeq |> Some }
 
   type DevServerConfig =
