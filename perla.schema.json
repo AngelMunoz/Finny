@@ -181,6 +181,18 @@
                             "@undeclared/dep"
                         ]
                     ]
+                },
+                "injects": {
+                    "description": "A list of files to inject at the transformation phase, i.e import React from 'react' or import { h, Fragment } from 'preact', so you don't have to do it by hand on every file",
+                    "type": "array",
+                    "examples": [
+                        [
+                            "./react-shim.js"
+                        ],
+                        [
+                            "./preact-shim.js"
+                        ]
+                    ]
                 }
             }
         }

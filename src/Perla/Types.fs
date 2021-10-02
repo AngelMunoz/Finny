@@ -90,6 +90,7 @@ module Types =
       minify: bool option
       jsxFactory: string option
       jsxFragment: string option
+      injects: (string seq) option
       externals: (string seq) option }
 
 
@@ -103,6 +104,7 @@ module Types =
         minify = Some true
         jsxFactory = None
         jsxFragment = None
+        injects = None
         externals = None }
 
   type FdsConfig =

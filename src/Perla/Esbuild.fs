@@ -80,6 +80,13 @@ let addJsxFragment (fragment: string option) (args: Builders.ArgumentsBuilder) =
 let addInlineSourceMaps (args: Builders.ArgumentsBuilder) =
   args.Add "--sourcemap=inline"
 
+let addInjects (injects: string seq option) (args: Builders.ArgumentsBuilder) =
+  let injects = defaultArg injects Seq.empty
+
+  injects
+  |> Seq.map (fun inject -> $"--inject:{inject}")
+  |> args.Add
+
 
 let private tgzDownloadPath =
   Path.Combine(Env.getToolsPath (), "esbuild.tgz")
@@ -197,6 +204,7 @@ let esbuildJsCmd (entryPoint: string) (config: BuildConfig) =
       |> addTarget config.target
       |> addMinify config.minify
       |> addFormat config.format
+      |> addInjects config.injects
       |> addOutDir outDir
       |> ignore)
 
@@ -249,10 +257,32 @@ let tryCompileFile filepath config =
     let! res = Fs.tryReadFile filepath
     let strout = StringBuilder()
     let strerr = StringBuilder()
+    let (_, loader) = res
 
     let cmd =
       buildSingleFileCmd config (strout, strerr) res
 
     do! (cmd.ExecuteAsync()).Task :> Task
-    return (strout.ToString(), strerr.ToString())
+
+    let strout = strout.ToString()
+    let strerr = strerr.ToString()
+
+    let strout =
+      match loader with
+      | Jsx
+      | Tsx ->
+        try
+          let injects =
+            defaultArg config.injects (Seq.empty)
+            |> Seq.map File.ReadAllText
+
+          let injects = String.Join('\n', injects)
+          $"{injects}\n{strout}"
+        with
+        | ex ->
+          printfn $"Perla Serve: Failed to inject, {ex.Message}"
+          strout
+      | _ -> strout
+
+    return (strout, strerr)
   }
