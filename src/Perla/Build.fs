@@ -169,7 +169,7 @@ module Build =
     let outDir = defaultArg buildConfig.outDir "./dist"
 
     let esbuildVersion =
-      defaultArg buildConfig.esbuildVersion "0.13.1"
+      defaultArg buildConfig.esbuildVersion Constants.Esbuild_Version
 
     task {
       match config.fable with

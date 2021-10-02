@@ -15,7 +15,6 @@ open FsToolkit.ErrorHandling
 
 open Types
 
-
 let addEsExternals
   (externals: (string seq) option)
   (args: Builders.ArgumentsBuilder)
@@ -99,6 +98,7 @@ let private tryDownloadEsBuild (esbuildVersion: string) : Task<string option> =
       use file = File.OpenWrite(tgzDownloadPath)
 
       do! stream.CopyToAsync file
+      printfn "Downloaded esbuild to: %s" file.Name
       return Some(file.Name)
     with
     | ex ->
@@ -136,17 +136,27 @@ let private decompressFile (path: Task<string option>) =
 
 let private cleanup (path: Task<string option>) =
   task {
+    printfn "Cleaning up!"
+
     match! path with
     | Some path -> File.Delete(path)
     | None -> ()
+
+    printfn "This setup should happen once per machine"
+    printfn "If you see it often please report a bug."
   }
 
 let setupEsbuild (esbuildVersion: string) =
+  printfn "Checking esbuild is present..."
+
   if not <| File.Exists(esbuildExec) then
+    printfn "esbuild is not present, setting esbuild..."
+
     tryDownloadEsBuild esbuildVersion
     |> decompressFile
     |> cleanup
   else
+    printfn "esbuild is present."
     Task.FromResult(())
 
 
@@ -227,12 +237,6 @@ let tryCompileFile filepath config =
     let! res = Fs.tryReadFile filepath
     let strout = StringBuilder()
     let strerr = StringBuilder()
-
-    let execBin =
-      defaultArg config.esBuildPath esbuildExec
-
-    if not <| File.Exists(esbuildExec) then
-      do! setupEsbuild execBin
 
     let cmd =
       buildSingleFileCmd config (strout, strerr) res
