@@ -10,13 +10,9 @@ open FSharp.Control.Tasks
 open AngleSharp
 open AngleSharp.Html.Parser
 
-open CliWrap
-
-open ICSharpCode.SharpZipLib.Tar
-open ICSharpCode.SharpZipLib.GZip
-
 open Types
 open Fable
+open Esbuild
 
 module Build =
 
@@ -29,184 +25,6 @@ module Build =
       match this with
       | JS -> "JS"
       | CSS -> "CSS"
-
-  let private addEsExternals
-    (externals: (string seq) option)
-    (args: Builders.ArgumentsBuilder)
-    =
-    let externals = defaultArg externals Seq.empty
-
-    externals
-    |> Seq.map (fun ex -> $"--external:{ex}")
-    |> args.Add
-
-  let private addIsBundle
-    (isBundle: bool option)
-    (args: Builders.ArgumentsBuilder)
-    =
-    let isBundle = defaultArg isBundle true
-
-    if isBundle then
-      args.Add("--bundle")
-    else
-      args
-
-  let private addMinify
-    (minify: bool option)
-    (args: Builders.ArgumentsBuilder)
-    =
-    let minify = defaultArg minify true
-
-    if minify then
-      args.Add("--minify")
-    else
-      args
-
-  let private addFormat
-    (format: string option)
-    (args: Builders.ArgumentsBuilder)
-    =
-    let format = defaultArg format "esm"
-    args.Add $"--format={format}"
-
-  let private addTarget
-    (target: string option)
-    (args: Builders.ArgumentsBuilder)
-    =
-    let target = defaultArg target "es2015"
-
-    args.Add $"--target={target}"
-
-  let private addOutDir
-    (outdir: string option)
-    (args: Builders.ArgumentsBuilder)
-    =
-    let outdir = defaultArg outdir "./dist"
-
-    args.Add $"--outdir={outdir}"
-
-
-  let private tgzDownloadPath =
-    Path.Combine(Env.getToolsPath (), "esbuild.tgz")
-
-  let private esbuildExec =
-    let bin = if Env.isWindows then "" else "bin"
-    let exec = if Env.isWindows then ".exe" else ""
-    Path.Combine(Env.getToolsPath (), "package", bin, $"esbuild{exec}")
-
-  let private tryDownloadEsBuild
-    (esbuildVersion: string)
-    : Task<string option> =
-    let binString =
-      $"esbuild-{Env.platformString}-{Env.archString}"
-
-    let url =
-      $"https://registry.npmjs.org/{binString}/-/{binString}-{esbuildVersion}.tgz"
-
-    Directory.CreateDirectory(Path.GetDirectoryName(tgzDownloadPath))
-    |> ignore
-
-    task {
-      try
-        use client = new HttpClient()
-        printfn "Downloading esbuild from: %s" url
-
-        use! stream = client.GetStreamAsync(url)
-        use file = File.OpenWrite(tgzDownloadPath)
-
-        do! stream.CopyToAsync file
-        return Some(file.Name)
-      with
-      | ex ->
-        eprintfn "%O" ex
-        return None
-    }
-
-  let private chmodBinCmd () =
-    Cli
-      .Wrap("chmod")
-      .WithStandardErrorPipe(PipeTarget.ToStream(Console.OpenStandardError()))
-      .WithStandardOutputPipe(PipeTarget.ToStream(Console.OpenStandardOutput()))
-      .WithArguments($"+x {esbuildExec}")
-
-  let private decompressFile (path: Task<string option>) =
-    task {
-      match! path with
-      | Some path ->
-
-        use stream = new GZipInputStream(File.OpenRead path)
-
-        use archive =
-          TarArchive.CreateInputTarArchive(stream, Text.Encoding.UTF8)
-
-        archive.ExtractContents(Path.Combine(Path.GetDirectoryName path))
-
-        if Env.isWindows |> not then
-          printfn $"Executing: chmod +x on \"{esbuildExec}\""
-          let res = chmodBinCmd().ExecuteAsync()
-          do! res.Task :> Task
-
-        return Some path
-      | None -> return None
-    }
-
-  let private cleanup (path: Task<string option>) =
-    task {
-      match! path with
-      | Some path -> File.Delete(path)
-      | None -> ()
-    }
-
-  let private setupEsbuild (esbuildVersion: string) =
-    tryDownloadEsBuild esbuildVersion
-    |> decompressFile
-    |> cleanup
-    |> Async.AwaitTask
-
-
-  let private esbuildJsCmd (entryPoint: string) (config: BuildConfig) =
-
-    let dirName =
-      (Path.GetDirectoryName entryPoint)
-        .Split(Path.DirectorySeparatorChar)
-      |> Seq.last
-
-    let outDir =
-      match config.outDir with
-      | Some outdir -> Path.Combine(outdir, dirName) |> Some
-      | None -> Path.Combine("./dist", dirName) |> Some
-
-    let execBin =
-      defaultArg config.esBuildPath esbuildExec
-
-    Cli
-      .Wrap(execBin)
-      .WithStandardErrorPipe(PipeTarget.ToStream(Console.OpenStandardError()))
-      .WithStandardOutputPipe(PipeTarget.ToStream(Console.OpenStandardOutput()))
-      .WithArguments(fun args ->
-        args.Add(entryPoint)
-        |> addEsExternals config.externals
-        |> addIsBundle config.bundle
-        |> addTarget config.target
-        |> addMinify config.minify
-        |> addFormat config.format
-        |> addOutDir outDir
-        |> ignore)
-
-  let private esbuildCssCmd (entryPoint: string) (config: BuildConfig) =
-    let execBin =
-      defaultArg config.esBuildPath esbuildExec
-
-    Cli
-      .Wrap(execBin)
-      .WithStandardErrorPipe(PipeTarget.ToStream(Console.OpenStandardError()))
-      .WithStandardOutputPipe(PipeTarget.ToStream(Console.OpenStandardOutput()))
-      .WithArguments(fun args ->
-        args.Add(entryPoint)
-        |> addIsBundle config.bundle
-        |> addMinify config.minify
-        |> addOutDir config.outDir
-        |> ignore)
 
   let private getEntryPoints (type': ResourceType) (config: FdsConfig) =
     let context =
@@ -317,6 +135,30 @@ module Build =
         printfn $"No Entrypoints for {type'.AsString()} found in index.html"
     }
 
+  let getExcludes config =
+    task {
+      match! Fs.getorCreateLockFile (Fs.Paths.GetFdsConfigPath()) with
+      | Ok lock ->
+        let excludes =
+          lock.imports
+          |> Map.toSeq
+          |> Seq.map (fun (key, _) -> key)
+
+        return
+          config.externals
+          |> Option.map
+               (fun ex ->
+                 seq {
+                   yield! ex
+                   yield! excludes
+                 })
+          |> Option.defaultValue excludes
+
+      | Error ex ->
+        printfn $"Warn: [{ex.Message}]"
+        return Seq.empty
+    }
+
   let execBuild (config: FdsConfig) =
     let buildConfig =
       defaultArg config.build (BuildConfig.DefaultConfig())
@@ -354,31 +196,11 @@ module Build =
 
       let cssFiles = getEntryPoints ResourceType.CSS config
 
-      let! excludes =
-        task {
-          match! Fs.getorCreateLockFile (Fs.Paths.GetFdsConfigPath()) with
-          | Ok lock ->
-
-            return
-              lock.imports
-              |> Map.toSeq
-              |> Seq.map (fun (key, _) -> key)
-          | Error ex ->
-            printfn $"Warn: [{ex.Message}]"
-            return Seq.empty
-        }
+      let! excludes = getExcludes buildConfig
 
       let buildConfig =
         { buildConfig with
-            externals =
-              buildConfig.externals
-              |> Option.map
-                   (fun ex ->
-                     seq {
-                       yield! ex
-                       yield! excludes
-                     })
-              |> Option.orElse (Some excludes) }
+            externals = excludes |> Some }
 
       do!
         Task.WhenAll(
