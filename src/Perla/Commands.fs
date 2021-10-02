@@ -24,6 +24,16 @@ module Commands =
     let autoStartServer = defaultArg deServer.autoStart true
     let autoStartFable = defaultArg fableConfig.autoStart true
 
+    let esbuildVersion =
+      configuration.build
+      |> Option.map (fun build -> build.esbuildVersion)
+      |> Option.flatten
+      |> Option.defaultValue Constants.Esbuild_Version
+
+    Esbuild.setupEsbuild esbuildVersion
+    |> Async.AwaitTask
+    |> Async.StartImmediate
+
     asyncSeq {
       if autoStartServer then "start"
       if autoStartFable then "start:fable"
