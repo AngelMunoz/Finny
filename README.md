@@ -54,12 +54,12 @@ THis project is in its early stages of development, current goals at this point 
 - [x] For .NET users, provide a cli dotnet tool
 - [x] Binary Release for users outside .NET
 - [x] Autoreload on change
+- [x] Typescript and Jsx support
+- [x] Json modules
 
 ### Future Goals
 
 Including the previous goals the future goals include
-
-- [ ] Typescript (ts/tsx) and jsx support
 - [ ] HMR
 - [ ] Plugin System
 
