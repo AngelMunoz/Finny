@@ -18,6 +18,19 @@
             "console": "internalConsole"
         },
         {
+            "name": "Perla serve tsx",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build",
+            "program": "${workspaceFolder}/src/Perla/bin/Debug/net6.0/Perla.dll",
+            "args": [
+                "serve"
+            ],
+            "cwd": "${workspaceFolder}/src/react-tsx",
+            "stopAtEntry": false,
+            "console": "internalConsole"
+        },
+        {
             "name": "Perla add @shoelace-style/shoelace",
             "type": "coreclr",
             "request": "launch",

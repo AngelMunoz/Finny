@@ -89,7 +89,11 @@ let addInjects (injects: string seq option) (args: Builders.ArgumentsBuilder) =
 
 let addTsconfigRaw (tsconfig: string option) (args: Builders.ArgumentsBuilder) =
   match tsconfig with
-  | Some tsconfig -> args.Add $"--tsconfig-raw='{tsconfig}'"
+  | Some tsconfig ->
+    let tsconfig =
+      tsconfig.Replace("\n", "").Replace("\u0022", "\"")
+
+    args.Add $"""--tsconfig-raw={tsconfig} """
   | None -> args
 
 let private tgzDownloadPath =
