@@ -61,6 +61,19 @@
             "console": "integratedTerminal"
         },
         {
+            "name": "NET6 react-tsx",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build",
+            "program": "${workspaceFolder}/src/Perla/bin/Debug/net6.0/Perla.dll",
+            "args": [
+                "build"
+            ],
+            "cwd": "${workspaceFolder}/src/react-tsx",
+            "stopAtEntry": false,
+            "console": "integratedTerminal"
+        },
+        {
             "name": "NET5 build",
             "type": "coreclr",
             "request": "launch",

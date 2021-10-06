@@ -65,9 +65,10 @@ module Build =
     let indexFile = defaultArg config.index "index.html"
 
     let outDir =
-      match config.build with
-      | Some config -> config.outDir |> Option.defaultValue "./dist"
-      | None -> "./dist"
+      config.build
+      |> Option.map (fun build -> build.outDir)
+      |> Option.flatten
+      |> Option.defaultValue "./dist"
 
     let content =
       File.ReadAllText(Path.GetFullPath(indexFile))
@@ -213,33 +214,38 @@ module Build =
       opts.RecurseSubdirectories <- true
 
       let getDirectories (map: Map<string, string>) =
-        seq {
-          for key in map.Keys do
-            yield!
-              Directory.EnumerateFiles(Path.GetFullPath(key), "*.*", opts)
-              |> Seq.filter
-                   (fun file ->
-                     not <| file.Contains(".fable")
-                     && not <| file.Contains("bin")
-                     && not <| file.Contains("obj")
-                     && not <| file.Contains(".fsproj")
-                     && not <| file.Contains(".fs")
-                     && not <| file.Contains(".js")
-                     && not <| file.Contains(".css")
-                     && not <| file.Contains(".ts")
-                     && not <| file.Contains(".jsx")
-                     && not <| file.Contains(".tsx")
-                     && not <| file.Contains("index.html"))
-        }
+        let root = Environment.CurrentDirectory
 
-      let copyMountedFiles (dirs: string seq) =
-        dirs
-        |> Seq.iter
-             (fun path -> File.Copy(path, $"{outDir}/{Path.GetFileName(path)}"))
+        for key in map.Keys do
+          Directory.EnumerateFiles(Path.GetFullPath(key), "*.*", opts)
+          |> Seq.filter
+               (fun file ->
+                 not <| file.Contains(".fable")
+                 && not <| file.Contains("bin")
+                 && not <| file.Contains("obj")
+                 && not <| file.Contains(".fsproj")
+                 && not <| file.Contains(".fs")
+                 && not <| file.Contains(".js")
+                 && not <| file.Contains(".css")
+                 && not <| file.Contains(".ts")
+                 && not <| file.Contains(".jsx")
+                 && not <| file.Contains(".tsx")
+                 && not <| file.Contains("index.html"))
+          |> Seq.iter
+               (fun path ->
+                 let posPath = path.Replace(root, $"{outDir}")
+
+                 try
+                   Path.GetDirectoryName posPath
+                   |> Directory.CreateDirectory
+                   |> ignore
+                 with
+                 | _ -> ()
+
+                 File.Copy(path, posPath))
 
       devServer.mountDirectories
       |> Option.map getDirectories
-      |> Option.map copyMountedFiles
       |> ignore
 
       let cssFiles =
