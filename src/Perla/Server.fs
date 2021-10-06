@@ -495,72 +495,83 @@ module Server =
         return! app.StartAsync()
       }
 
-  let serverActions (config: FdsConfig) =
-    fun (value: string) ->
-      async {
-        match value with
-        | StartServer ->
-          async {
-            printfn "Starting Dev Server"
-            do! startServer config |> Async.AwaitTask
-          }
-          |> Async.Start
+  let serverActions
+    (tryExecCommand: string -> Async<Result<unit, exn>>)
+    (config: FdsConfig)
+    (value: string)
+    =
+    async {
+      match value with
+      | StartServer ->
+        async {
+          printfn "Starting Dev Server"
+          do! startServer config |> Async.AwaitTask
+        }
+        |> Async.Start
 
-          return ()
-        | StopServer ->
-          stopServer () |> Async.AwaitTask |> Async.Start
-          return ()
-        | RestartServer ->
-          async {
-            do! stopServer () |> Async.AwaitTask
-            printfn "Starting Dev Server"
-            do! startServer config |> Async.AwaitTask
-          }
-          |> Async.Start
+        return ()
+      | StopServer ->
+        stopServer () |> Async.AwaitTask |> Async.Start
+        return ()
+      | RestartServer ->
+        async {
+          do! stopServer () |> Async.AwaitTask
+          printfn "Starting Dev Server"
+          do! startServer config |> Async.AwaitTask
+        }
+        |> Async.Start
 
-          return ()
-        | StartFable ->
-          async {
-            printfn "Starting Fable"
+        return ()
+      | StartFable ->
+        async {
+          printfn "Starting Fable"
 
-            let! result = startFable config.fable |> Async.AwaitTask
-            printfn $"Finished in {result.RunTime}"
-          }
-          |> Async.Start
+          let! result = startFable config.fable |> Async.AwaitTask
+          printfn $"Finished in {result.RunTime}"
+        }
+        |> Async.Start
 
-          return ()
-        | StopFable ->
-          printfn "Stoping Fable"
+        return ()
+      | StopFable ->
+        printfn "Stoping Fable"
+        stopFable ()
+      | RestartFable ->
+        async {
+          printfn "Restarting Fable"
+
           stopFable ()
-        | RestartFable ->
-          async {
-            printfn "Restarting Fable"
 
+          let! result = startFable config.fable |> Async.AwaitTask
+          printfn $"Finished in {result.RunTime}"
+          return ()
+        }
+        |> Async.Start
+      | Clear -> Console.Clear()
+      | Exit ->
+        printfn "Finishing the session"
+
+        task {
+          try
             stopFable ()
+          with
+          | ex -> eprintfn "%s" ex.Message
 
-            let! result = startFable config.fable |> Async.AwaitTask
-            printfn $"Finished in {result.RunTime}"
-            return ()
-          }
-          |> Async.Start
-        | Clear -> Console.Clear()
-        | Exit ->
-          printfn "Finishing the session"
+          do! stopServer ()
+          exit 0
+        }
+        |> Async.AwaitTask
+        |> Async.StartImmediate
+      | UnknownFable value
+      | Unknown value ->
+        match! tryExecCommand value with
+        | Ok () -> return ()
+        | Error ex ->
+          printfn "Couldn't execute command: %s" ex.Message
 
-          task {
-            try
-              stopFable ()
-            with
-            | ex -> eprintfn "%s" ex.Message
-
-            do! stopServer ()
-            exit 0
-          }
-          |> Async.AwaitTask
-          |> Async.StartImmediate
-        | UnknownFable value
-        | Unknown value ->
           printfn
             "Unknown option [%s]\ntype \"exit\" or \"quit\" to finish the application."
             value
-      }
+
+          return ()
+
+    }
