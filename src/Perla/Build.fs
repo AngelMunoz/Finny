@@ -239,20 +239,33 @@ module Build =
 
         let includedFiles =
           totalPaths
-          |> Array.takeWhile
+          |> Array.filter
                (fun path ->
                  copyIncludes
-                 |> List.exists (fun ext -> path.Contains(ext)))
+                 |> List.exists
+                      (fun ext ->
+                        let ext =
+                          let ext =
+                            ext.Replace('/', Path.DirectorySeparatorChar)
+
+                          if ext.StartsWith "." then
+                            ext.Substring(2)
+                          else
+                            ext
+
+                        path.Contains(ext)))
+
 
         let excludedFiles =
           totalPaths
-          |> Array.skipWhile
+          |> Array.filter
                (fun path ->
                  copyExcludes
-                 |> List.exists (fun ext -> path.Contains(ext)))
+                 |> List.exists (fun ext -> path.Contains(ext))
+                 |> not)
 
-        [| yield! includedFiles
-           yield! excludedFiles |]
+        [| yield! excludedFiles
+           yield! includedFiles |]
         |> Array.Parallel.iter
              (fun path ->
                let posPath = path.Replace(root, $"{outDir}")
