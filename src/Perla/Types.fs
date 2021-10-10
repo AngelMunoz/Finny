@@ -80,9 +80,14 @@ module Types =
         liveReload = Some true
         useSSL = Some false }
 
+  type CopyPaths =
+    { ``include``: (string seq) option
+      exclude: (string seq) option }
+
   type BuildConfig =
     { esBuildPath: string option
       esbuildVersion: string option
+      copyPaths: CopyPaths option
       target: string option
       outDir: string option
       bundle: bool option
@@ -93,10 +98,31 @@ module Types =
       injects: (string seq) option
       externals: (string seq) option }
 
+    static member DefaultExcludes() =
+      [ "index.html"
+        ".fsproj"
+        ".fable"
+        "fable_modules"
+        "bin"
+        "obj"
+        ".fs"
+        ".js"
+        ".css"
+        ".ts"
+        ".jsx"
+        ".tsx" ]
+
 
     static member DefaultConfig() =
       { esBuildPath = None
         esbuildVersion = Some Constants.Esbuild_Version
+        copyPaths =
+          { ``include`` = None
+            exclude =
+              BuildConfig.DefaultExcludes()
+              |> Seq.ofList
+              |> Some }
+          |> Some
         target = Some "es2017"
         outDir = None
         bundle = Some true

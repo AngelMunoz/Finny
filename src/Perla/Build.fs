@@ -172,6 +172,22 @@ module Build =
     let esbuildVersion =
       defaultArg buildConfig.esbuildVersion Constants.Esbuild_Version
 
+    let copyExcludes =
+      match buildConfig.copyPaths with
+      | None -> BuildConfig.DefaultExcludes()
+      | Some paths ->
+        paths.exclude
+        |> Option.map List.ofSeq
+        |> Option.defaultValue (BuildConfig.DefaultExcludes())
+
+    let copyIncludes =
+      match buildConfig.copyPaths with
+      | None -> List.empty
+      | Some paths ->
+        paths.``include``
+        |> Option.map List.ofSeq
+        |> Option.defaultValue List.empty
+
     task {
       match config.fable with
       | Some fable ->
@@ -216,33 +232,39 @@ module Build =
       let getDirectories (map: Map<string, string>) =
         let root = Environment.CurrentDirectory
 
-        for key in map.Keys do
-          Directory.EnumerateFiles(Path.GetFullPath(key), "*.*", opts)
-          |> Seq.filter
-               (fun file ->
-                 not <| file.Contains(".fable")
-                 && not <| file.Contains("bin")
-                 && not <| file.Contains("obj")
-                 && not <| file.Contains(".fsproj")
-                 && not <| file.Contains(".fs")
-                 && not <| file.Contains(".js")
-                 && not <| file.Contains(".css")
-                 && not <| file.Contains(".ts")
-                 && not <| file.Contains(".jsx")
-                 && not <| file.Contains(".tsx")
-                 && not <| file.Contains("index.html"))
-          |> Seq.iter
+        let totalPaths =
+          [| for key in map.Keys do
+               yield!
+                 Directory.EnumerateFiles(Path.GetFullPath(key), "*.*", opts) |]
+
+        let includedFiles =
+          totalPaths
+          |> Array.takeWhile
                (fun path ->
-                 let posPath = path.Replace(root, $"{outDir}")
+                 copyIncludes
+                 |> List.exists (fun ext -> path.Contains(ext)))
 
-                 try
-                   Path.GetDirectoryName posPath
-                   |> Directory.CreateDirectory
-                   |> ignore
-                 with
-                 | _ -> ()
+        let excludedFiles =
+          totalPaths
+          |> Array.skipWhile
+               (fun path ->
+                 copyExcludes
+                 |> List.exists (fun ext -> path.Contains(ext)))
 
-                 File.Copy(path, posPath))
+        [| yield! includedFiles
+           yield! excludedFiles |]
+        |> Array.Parallel.iter
+             (fun path ->
+               let posPath = path.Replace(root, $"{outDir}")
+
+               try
+                 Path.GetDirectoryName posPath
+                 |> Directory.CreateDirectory
+                 |> ignore
+               with
+               | _ -> ()
+
+               File.Copy(path, posPath))
 
       devServer.mountDirectories
       |> Option.map getDirectories
