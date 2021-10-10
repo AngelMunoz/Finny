@@ -4,7 +4,7 @@
     <OutputType>Exe</OutputType>
     <TargetFrameworks>net6.0;net5.0</TargetFrameworks>
     <WarnOn>3390;$(WarnOn)</WarnOn>
-    <Version>0.13.0-dev</Version>
+    <Version>0.13.0</Version>
     <IsPackable>true</IsPackable>
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>perla</ToolCommandName>
