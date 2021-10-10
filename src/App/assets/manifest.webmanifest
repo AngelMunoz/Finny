@@ -1,0 +1,10 @@
+{
+    "$schema": "https://json.schemastore.org/web-manifest-combined.json",
+    "name": "App",
+    "description": "Some App",
+    "start_url": "/",
+    "lang": "en-US",
+    "background_color": "#FFFFFF",
+    "display": "standalone",
+    "orientation": "portrait"
+}

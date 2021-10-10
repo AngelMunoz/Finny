@@ -24,7 +24,7 @@ type TranslationValues =
 
 let translations: {| ``en-us``: TranslationValues
                      ``de-de``: TranslationValues |} =
-  Fable.Core.JsInterop.importDefault "./translations.json"
+  Fable.Core.JsInterop.importDefault "./translations.json?module"
 
 let view () =
   let store = Store.make true

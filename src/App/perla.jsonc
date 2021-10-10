@@ -8,12 +8,17 @@
   "devServer": {
     "liveReload": true,
     "mountDirectories": {
-      "./public": "",
+      "./assets": "/assets",
       "./src": "/src"
     }
   },
   "build": {
-    "minify": false
+    "minify": false,
+    "copyPaths": {
+      "include": [
+        "./src/translations.json"
+      ]
+    }
   },
   "packages": {
     "fsharp-components": "https://cdn.skypack.dev/pin/fsharp-components@v0.0.4-vrcdq1fAiAHCYER7N99I/mode=imports/optimized/fsharp-components.js",

@@ -106,12 +106,17 @@ document.head.appendChild(style)"""
 
           Path.Combine(baseDir, fileName)
 
-        logger.LogInformation("Transforming JSON")
-
         let! content = File.ReadAllTextAsync(filePath)
 
-        let newContent = $"export default {content}"
-        ctx.SetContentType "text/javascript"
+        let newContent =
+          if ctx.Request.Query.ContainsKey "module" then
+            logger.LogInformation("Sending JSON Module")
+            ctx.SetContentType "text/javascript"
+            $"export default {content}"
+          else
+            logger.LogInformation("Sending JSON File")
+            content
+
         do! ctx.WriteStringAsync newContent :> Task
     }
     :> Task
