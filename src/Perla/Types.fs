@@ -112,7 +112,6 @@ module Types =
         ".jsx"
         ".tsx" ]
 
-
     static member DefaultConfig() =
       { esBuildPath = None
         esbuildVersion = Some Constants.Esbuild_Version

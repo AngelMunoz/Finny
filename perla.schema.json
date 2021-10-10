@@ -1,200 +1,232 @@
-{
-    "$schema": "http://json-schema.org/schema",
-    "title": "Perla",
-    "description": "A Node'less dev server for frontend developers",
-    "type": "object",
-    "properties": {
-        "index": {
-            "description": "The main index file to be processed by perla, this file should be outside of the static mounted paths.",
-            "type": "string"
-        },
-        "fable": {
-            "$ref": "#/definitions/fable"
-        },
-        "devServer": {
-            "$ref": "#/definitions/devServer"
-        },
-        "build": {
-            "$ref": "#/definitions/build"
-        },
-        "packages": {
-            "description": "A list of third party packages with the URL to their source, the key of the object can be any string, not necessarily the name of the package. This is used to generate an import map for the browser",
-            "type": "object",
-            "examples": [
-                {
-                    "lit": "https://cdn.skypack.dev/lit"
-                },
-                {
-                    "fsharp-components": "https://cdn.skypack.dev/fsharp-components",
-                    "lit": "https://cdn.skypack.dev/lit"
-                }
-            ]
-        }
+﻿{
+  "$schema": "http://json-schema.org/schema",
+  "title": "Perla",
+  "description": "A Node'less dev server for frontend developers",
+  "type": "object",
+  "properties": {
+    "index": {
+      "description": "The main index file to be processed by perla, this file should be outside of the static mounted paths.",
+      "type": "string"
     },
-    "required": [
-        "index"
-    ],
-    "definitions": {
-        "fable": {
-            "description": "Fable Compiler configuration options (optional)",
-            "type": "object",
-            "properties": {
-                "autoStart": {
-                    "description": "Enable/Disable the Fable compilation at the start of the dev server",
-                    "type": "boolean",
-                    "default": true
-                },
-                "project": {
-                    "description": "A relative path to the Fable project to compile",
-                    "type": "string",
-                    "default": "./src/App.fsproj"
-                },
-                "extension": {
-                    "description": "The extension to use for compiled js files",
-                    "type": "string"
-                },
-                "outDir": {
-                    "description": "A relative path that tells to output the js files",
-                    "type": "string"
-                }
-            }
+    "fable": {
+      "$ref": "#/definitions/fable"
+    },
+    "devServer": {
+      "$ref": "#/definitions/devServer"
+    },
+    "build": {
+      "$ref": "#/definitions/build"
+    },
+    "packages": {
+      "description": "A list of third party packages with the URL to their source, the key of the object can be any string, not necessarily the name of the package. This is used to generate an import map for the browser",
+      "type": "object",
+      "examples": [
+        {
+          "lit": "https://cdn.skypack.dev/lit"
         },
-        "devServer": {
-            "description": "",
-            "type": "object",
-            "properties": {
-                "autoStart": {
-                    "description": "Enable/Disable the saturn server auto start feature",
-                    "type": "boolean",
-                    "default": true
-                },
-                "port": {
-                    "description": "A port to listen connections at for the dev server",
-                    "type": "integer",
-                    "default": 7331
-                },
-                "mountDirectories": {
-                    "description": "A key/value object that mounts the physical path specified by the key on the route specified by the value.",
-                    "type": "object",
-                    "default": {
-                        "./src": ""
-                    },
-                    "examples": [
-                        {
-                            "./src": ""
-                        },
-                        {
-                            "./src": "",
-                            "./public": "/static"
-                        },
-                        {
-                            "./public": ""
-                        }
-                    ]
-                },
-                "useSSL": {
-                    "description": "Enable SSL and HSTS for Local development",
-                    "type": "boolean",
-                    "default": false
-                },
-                "liveReload": {
-                    "description": "Enable/Disable the live reload feature",
-                    "type": "boolean",
-                    "default": true
-                },
-                "watchConfig": {
-                    "description": "Modify the way files are watched in the system",
-                    "type": "object",
-                    "properties": {
-                        "extensions": {
-                            "description": "A list of extensions to watch for changes",
-                            "type": "array",
-                            "default": [
-                                "*.js",
-                                "*.css"
-                            ]
-                        },
-                        "directories": {
-                            "description": "A list of directories to watch for changes",
-                            "type": "array",
-                            "default": [
-                                "./src"
-                            ]
-                        }
-                    }
-                }
-            }
-        },
-        "build": {
-            "description": "",
-            "type": "object",
-            "properties": {
-                "esBuildPath": {
-                    "description": "An absolute path to the esbuild executable, on Windows it must include the .exe extension.",
-                    "type": "string"
-                },
-                "esbuildVersion": {
-                    "description": "A Sememantic versioning  *version* of an esbuild release, this must match a package in the npmjs registry",
-                    "type": "string",
-                    "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\\+([0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*))?$",
-                    "default": "0.12.28"
-                },
-                "target": {
-                    "description": "Any target defined by esbuild, check https://esbuild.github.io/api/#target",
-                    "type": "string",
-                    "default": "es2015"
-                },
-                "outDir": {
-                    "description": "A relative path that tells to output the js files",
-                    "type": "string",
-                    "default": "./dist"
-                },
-                "format": {
-                    "description": "Any format defined by esbuild, check https://esbuild.github.io/api/#format",
-                    "type": "string",
-                    "default": "esm"
-                },
-                "bundle": {
-                    "description": "Enable/disable bundling",
-                    "type": "boolean",
-                    "default": true
-                },
-                "minify": {
-                    "description": "Enable/disable minification",
-                    "type": "boolean",
-                    "default": true
-                },
-                "jsxFactory": {
-                    "description": "This sets the function that is called for each JSX element.",
-                    "type": "string"
-                },
-                "jsxFragment": {
-                    "description": "This sets the function that is called for each JSX fragment.",
-                    "type": "string"
-                },
-                "externals": {
-                    "description": "Third party libraries that you want esbuild to ignore (i.e. bare specifiers), eg. excluding lit from the bundle from \"import { LitElement from 'lit'\" by default perla excludes all of the specifiers that are in the packages map.",
-                    "type": "array",
-                    "examples": [
-                        [
-                            "my-undeclared-dependency",
-                            "@undeclared/dep"
-                        ]
-                    ]
-                },
-                "injects": {
-                    "description": "A list of files to inject at the transformation phase, i.e import React from 'react' or import { h, Fragment } from 'preact', so you don't have to do it by hand on every file",
-                    "type": "array",
-                    "examples": [
-                        [
-                            "./react-shim.js"
-                        ],
-                        [
-                            "./preact-shim.js"
-                        ]
-                    ]
-                }
-            }
+        {
+          "fsharp-components": "https://cdn.skypack.dev/fsharp-components",
+          "lit": "https://cdn.skypack.dev/lit"
         }
+      ]
     }
+  },
+  "required": [
+    "index"
+  ],
+  "definitions": {
+    "fable": {
+      "description": "Fable Compiler configuration options (optional)",
+      "type": "object",
+      "properties": {
+        "autoStart": {
+          "description": "Enable/Disable the Fable compilation at the start of the dev server",
+          "type": "boolean",
+          "default": true
+        },
+        "project": {
+          "description": "A relative path to the Fable project to compile",
+          "type": "string",
+          "default": "./src/App.fsproj"
+        },
+        "extension": {
+          "description": "The extension to use for compiled js files",
+          "type": "string"
+        },
+        "outDir": {
+          "description": "A relative path that tells to output the js files",
+          "type": "string"
+        }
+      }
+    },
+    "devServer": {
+      "description": "",
+      "type": "object",
+      "properties": {
+        "autoStart": {
+          "description": "Enable/Disable the saturn server auto start feature",
+          "type": "boolean",
+          "default": true
+        },
+        "port": {
+          "description": "A port to listen connections at for the dev server",
+          "type": "integer",
+          "default": 7331
+        },
+        "mountDirectories": {
+          "description": "A key/value object that mounts the physical path specified by the key on the route specified by the value.",
+          "type": "object",
+          "default": {
+            "./src": ""
+          },
+          "examples": [
+            {
+              "./src": ""
+            },
+            {
+              "./src": "",
+              "./public": "/static"
+            },
+            {
+              "./public": ""
+            }
+          ]
+        },
+        "useSSL": {
+          "description": "Enable SSL and HSTS for Local development",
+          "type": "boolean",
+          "default": false
+        },
+        "liveReload": {
+          "description": "Enable/Disable the live reload feature",
+          "type": "boolean",
+          "default": true
+        },
+        "watchConfig": {
+          "description": "Modify the way files are watched in the system",
+          "type": "object",
+          "properties": {
+            "extensions": {
+              "description": "A list of extensions to watch for changes",
+              "type": "array",
+              "default": [
+                "*.js",
+                "*.css"
+              ]
+            },
+            "directories": {
+              "description": "A list of directories to watch for changes",
+              "type": "array",
+              "default": [
+                "./src"
+              ]
+            }
+          }
+        }
+      }
+    },
+    "build": {
+      "description": "",
+      "type": "object",
+      "properties": {
+        "esBuildPath": {
+          "description": "An absolute path to the esbuild executable, on Windows it must include the .exe extension.",
+          "type": "string"
+        },
+        "esbuildVersion": {
+          "description": "A Sememantic versioning  *version* of an esbuild release, this must match a package in the npmjs registry",
+          "type": "string",
+          "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\\+([0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*))?$",
+          "default": "0.12.28"
+        },
+        "copyPaths": {
+          "description": "Include/Exclude content to be copied to the final bundle",
+          "type": "object",
+          "properties": {
+            "include": {
+              "type": "array",
+              "description": "Files/directories to include in the out directory",
+              "examples": [
+                "./src/sample.png",
+                "./public/data.bin"
+              ]
+            },
+            "excludes": {
+              "type": "array",
+              "description": "Files/directories to exclude from the out directory, this will override the default exclude list.",
+              "default": [
+                "index.html",
+                ".fsproj",
+                ".fable",
+                "fable_modules",
+                "bin",
+                "obj",
+                ".fs",
+                ".js",
+                ".css",
+                ".ts",
+                ".jsx",
+                ".tsx"
+              ]
+            }
+          }
+        },
+        "target": {
+          "description": "Any target defined by esbuild, check https://esbuild.github.io/api/#target",
+          "type": "string",
+          "default": "es2015"
+        },
+        "outDir": {
+          "description": "A relative path that tells to output the js files",
+          "type": "string",
+          "default": "./dist"
+        },
+        "format": {
+          "description": "Any format defined by esbuild, check https://esbuild.github.io/api/#format",
+          "type": "string",
+          "default": "esm"
+        },
+        "bundle": {
+          "description": "Enable/disable bundling",
+          "type": "boolean",
+          "default": true
+        },
+        "minify": {
+          "description": "Enable/disable minification",
+          "type": "boolean",
+          "default": true
+        },
+        "jsxFactory": {
+          "description": "This sets the function that is called for each JSX element.",
+          "type": "string"
+        },
+        "jsxFragment": {
+          "description": "This sets the function that is called for each JSX fragment.",
+          "type": "string"
+        },
+        "externals": {
+          "description": "Third party libraries that you want esbuild to ignore (i.e. bare specifiers), eg. excluding lit from the bundle from \"import { LitElement from 'lit'\" by default perla excludes all of the specifiers that are in the packages map.",
+          "type": "array",
+          "examples": [
+            [
+              "my-undeclared-dependency",
+              "@undeclared/dep"
+            ]
+          ]
+        },
+        "injects": {
+          "description": "A list of files to inject at the transformation phase, i.e import React from 'react' or import { h, Fragment } from 'preact', so you don't have to do it by hand on every file",
+          "type": "array",
+          "examples": [
+            [
+              "./react-shim.js"
+            ],
+            [
+              "./preact-shim.js"
+            ]
+          ]
+        }
+      }
+    }
+  }
 }
