@@ -61,7 +61,7 @@
             "console": "integratedTerminal"
         },
         {
-            "name": "NET6 react-tsx",
+            "name": "NET6 build react-tsx",
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build",
