@@ -32,7 +32,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="AngleSharp" Version="0.16.0" />
+    <PackageReference Include="AngleSharp" Version="0.16.1" />
     <PackageReference Include="Argu" Version="6.1.1" />
     <PackageReference Include="CliWrap" Version="3.3.3" />
     <PackageReference Include="FSharp.Control.AsyncSeq" Version="3.1.0" />
@@ -43,11 +43,11 @@
     <PackageReference Include="FsToolkit.ErrorHandling" Version="2.7.0" />
     <PackageReference Include="FsToolkit.ErrorHandling.TaskResult" Version="2.7.0" />
     <PackageReference Include="FSharp.SystemTextJson" Version="0.17.4" />
-    <PackageReference Include="System.Text.Json" Version="6.0.0-rc.1.21451.13" />
+    <PackageReference Include="System.Text.Json" Version="6.0.0-rc.2.21480.5" />
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="FSharp.Core" Version="6.0.0" />
+    <PackageReference Update="FSharp.Core" Version="6.0.0"/>
   </ItemGroup>
 
 </Project>
