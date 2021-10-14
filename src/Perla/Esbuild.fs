@@ -58,6 +58,7 @@ let addOutDir (outdir: string option) (args: Builders.ArgumentsBuilder) =
 let addOutFile (outfile: string) (args: Builders.ArgumentsBuilder) =
   args.Add $"--outfile={outfile}"
 
+/// This is used for known file types when compiling on the fly or at build time
 let addLoader (loader: LoaderType) (args: Builders.ArgumentsBuilder) =
   let loader =
     match loader with
@@ -66,6 +67,19 @@ let addLoader (loader: LoaderType) (args: Builders.ArgumentsBuilder) =
     | Jsx -> "jsx"
 
   args.Add $"--loader={loader}"
+
+/// This one is used for unknown file assets like png's, svg's font files and similar assets
+let addDefaultFileLoaders
+  (loaders: Map<string, string>)
+  (args: Builders.ArgumentsBuilder)
+  =
+  let loaders = loaders |> Map.toSeq
+
+  for (extension, loader) in loaders do
+    args.Add $"--loader:{extension}={loader}"
+    |> ignore
+
+  args
 
 let addJsxFactory (factory: string option) (args: Builders.ArgumentsBuilder) =
   match factory with
@@ -184,7 +198,9 @@ let setupEsbuild (esbuildVersion: string) =
     printfn "esbuild is present."
     Task.FromResult(())
 
-
+let private getDefaultLoders config =
+  config.fileLoaders
+  |> Option.defaultValue (BuildConfig.DefaultFileLoaders())
 
 let esbuildJsCmd (entryPoint: string) (config: BuildConfig) =
 
@@ -201,6 +217,8 @@ let esbuildJsCmd (entryPoint: string) (config: BuildConfig) =
   let execBin =
     defaultArg config.esBuildPath esbuildExec
 
+  let fileLoaders = getDefaultLoders config
+
   Cli
     .Wrap(execBin)
     .WithStandardErrorPipe(PipeTarget.ToStream(Console.OpenStandardError()))
@@ -210,6 +228,7 @@ let esbuildJsCmd (entryPoint: string) (config: BuildConfig) =
       |> addEsExternals config.externals
       |> addIsBundle config.bundle
       |> addTarget config.target
+      |> addDefaultFileLoaders fileLoaders
       |> addMinify config.minify
       |> addFormat config.format
       |> addInjects config.injects
@@ -220,6 +239,8 @@ let esbuildCssCmd (entryPoint: string) (config: BuildConfig) =
   let execBin =
     defaultArg config.esBuildPath esbuildExec
 
+  let fileLoaders = getDefaultLoders config
+
   Cli
     .Wrap(execBin)
     .WithStandardErrorPipe(PipeTarget.ToStream(Console.OpenStandardError()))
@@ -229,6 +250,7 @@ let esbuildCssCmd (entryPoint: string) (config: BuildConfig) =
       |> addIsBundle config.bundle
       |> addMinify config.minify
       |> addOutDir config.outDir
+      |> addDefaultFileLoaders fileLoaders
       |> ignore)
 
 let private buildSingleFileCmd
@@ -241,6 +263,8 @@ let private buildSingleFileCmd
 
   let tsconfig = Fs.tryGetTsconfigFile ()
   let (strout, strerr) = strio
+
+  let fileLoaders = getDefaultLoders config
 
   Cli
     .Wrap(execBin)
@@ -256,6 +280,7 @@ let private buildSingleFileCmd
       |> addJsxFragment config.jsxFragment
       |> addInlineSourceMaps
       |> addTsconfigRaw tsconfig
+      |> addDefaultFileLoaders fileLoaders
       |> ignore)
     .WithValidation(CommandResultValidation.None)
 

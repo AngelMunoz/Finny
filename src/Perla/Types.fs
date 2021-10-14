@@ -96,7 +96,8 @@ module Types =
       jsxFactory: string option
       jsxFragment: string option
       injects: (string seq) option
-      externals: (string seq) option }
+      externals: (string seq) option
+      fileLoaders: Map<string, string> option }
 
     static member DefaultExcludes() =
       [ "index.html"
@@ -110,7 +111,16 @@ module Types =
         ".css"
         ".ts"
         ".jsx"
-        ".tsx" ]
+        ".tsx"
+        ".woff"
+        ".woff2" ]
+
+    static member DefaultFileLoaders() =
+      [ ".png", "file"
+        ".woff", "file"
+        ".woff2", "file"
+        ".svg", "file" ]
+      |> Map.ofList
 
     static member DefaultConfig() =
       { esBuildPath = None
@@ -130,7 +140,8 @@ module Types =
         jsxFactory = None
         jsxFragment = None
         injects = None
-        externals = None }
+        externals = None
+        fileLoaders = BuildConfig.DefaultFileLoaders() |> Some }
 
   type FdsConfig =
     { ``$schema``: string option
