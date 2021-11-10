@@ -104,14 +104,12 @@ let addInjects (injects: string seq option) (args: Builders.ArgumentsBuilder) =
 let addTsconfigRaw (tsconfig: string option) (args: Builders.ArgumentsBuilder) =
   match tsconfig with
   | Some tsconfig ->
-    let tsconfig =
-      tsconfig.Replace("\n", "").Replace("\u0022", "\"")
+    let tsconfig = tsconfig.Replace("\n", "").Replace("\u0022", "\"")
 
     args.Add $"""--tsconfig-raw={tsconfig} """
   | None -> args
 
-let private tgzDownloadPath =
-  Path.Combine(Env.getToolsPath (), "esbuild.tgz")
+let private tgzDownloadPath = Path.Combine(Env.getToolsPath (), "esbuild.tgz")
 
 let esbuildExec =
   let bin = if Env.isWindows then "" else "bin"
@@ -119,8 +117,7 @@ let esbuildExec =
   Path.Combine(Env.getToolsPath (), "package", bin, $"esbuild{exec}")
 
 let private tryDownloadEsBuild (esbuildVersion: string) : Task<string option> =
-  let binString =
-    $"esbuild-{Env.platformString}-{Env.archString}"
+  let binString = $"esbuild-{Env.platformString}-{Env.archString}"
 
   let url =
     $"https://registry.npmjs.org/{binString}/-/{binString}-{esbuildVersion}.tgz"
@@ -159,8 +156,7 @@ let private decompressFile (path: Task<string option>) =
 
       use stream = new GZipInputStream(File.OpenRead path)
 
-      use archive =
-        TarArchive.CreateInputTarArchive(stream, Text.Encoding.UTF8)
+      use archive = TarArchive.CreateInputTarArchive(stream, Text.Encoding.UTF8)
 
       archive.ExtractContents(Path.Combine(Path.GetDirectoryName path))
 
@@ -214,8 +210,7 @@ let esbuildJsCmd (entryPoint: string) (config: BuildConfig) =
     | Some outdir -> Path.Combine(outdir, dirName) |> Some
     | None -> Path.Combine("./dist", dirName) |> Some
 
-  let execBin =
-    defaultArg config.esBuildPath esbuildExec
+  let execBin = defaultArg config.esBuildPath esbuildExec
 
   let fileLoaders = getDefaultLoders config
 
@@ -236,8 +231,7 @@ let esbuildJsCmd (entryPoint: string) (config: BuildConfig) =
       |> ignore)
 
 let esbuildCssCmd (entryPoint: string) (config: BuildConfig) =
-  let execBin =
-    defaultArg config.esBuildPath esbuildExec
+  let execBin = defaultArg config.esBuildPath esbuildExec
 
   let fileLoaders = getDefaultLoders config
 
@@ -258,8 +252,7 @@ let private buildSingleFileCmd
   (strio: StringBuilder * StringBuilder)
   (content: string, loader: LoaderType)
   : Command =
-  let execBin =
-    defaultArg config.esBuildPath esbuildExec
+  let execBin = defaultArg config.esBuildPath esbuildExec
 
   let tsconfig = Fs.tryGetTsconfigFile ()
   let (strout, strerr) = strio
@@ -280,22 +273,19 @@ let private buildSingleFileCmd
       |> addJsxFragment config.jsxFragment
       |> addInlineSourceMaps
       |> addTsconfigRaw tsconfig
-      |> addDefaultFileLoaders fileLoaders
       |> ignore)
     .WithValidation(CommandResultValidation.None)
 
 let tryCompileFile filepath config =
   taskResult {
-    let config =
-      (defaultArg config (BuildConfig.DefaultConfig()))
+    let config = (defaultArg config (BuildConfig.DefaultConfig()))
 
     let! res = Fs.tryReadFile filepath
     let strout = StringBuilder()
     let strerr = StringBuilder()
     let (_, loader) = res
 
-    let cmd =
-      buildSingleFileCmd config (strout, strerr) res
+    let cmd = buildSingleFileCmd config (strout, strerr) res
 
     do! (cmd.ExecuteAsync()).Task :> Task
 

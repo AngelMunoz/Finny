@@ -8,8 +8,7 @@
       "ESNext"
     ],
     "allowJs": false,
-    "skipLibCheck": false,
-    "esModuleInterop": false,
+    "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "strict": true,
     "forceConsistentCasingInFileNames": true,
@@ -27,7 +26,10 @@
     "enable": true,
     "include": [
       "react",
-      "react-dom"
+      "react-dom",
+      "@shoelace-style/shoelace",
+      "navigo",
+      "rxjs"
     ]
   }
 }
