@@ -62,8 +62,6 @@ module Middleware =
 
           Path.Combine(baseDir, fileName)
 
-        let filename = Path.GetFileName filePath
-
         logger.LogInformation("Transforming CSS")
 
         let! content = File.ReadAllTextAsync(filePath)
@@ -73,7 +71,7 @@ module Middleware =
 const css = `{content}`
 const style = document.createElement('style')
 style.innerHTML = css
-style.setAttribute("filename", "{filename}");
+style.setAttribute("filename", "{filePath}");
 document.head.appendChild(style)"""
 
         ctx.SetContentType "text/javascript"
@@ -282,7 +280,7 @@ module Server =
                         match value with
                         | Css -> value
                         | _ -> "")
-                     name = event.name
+                     name = event.path
                      content = content |}
                 )
 
