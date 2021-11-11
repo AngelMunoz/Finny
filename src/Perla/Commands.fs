@@ -464,8 +464,8 @@ Updated: {package.updatedAt.ToShortDateString()}"""
           |> Async.AwaitTask
           |> Async.Ignore
       | err ->
-        parsed.Raise("No Commands Specified", showUsage = true)
-        return! CommandNotParsedException $"%A{err}" |> Error
+        parser.PrintUsage("No Commands Specified") |> printfn "%s"
+        return! async { return () }
     }
 
   let startInteractive (configuration: FdsConfig) =
