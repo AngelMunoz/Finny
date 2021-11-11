@@ -1,54 +1,53 @@
 import "./App.css";
 import { useEffect, useState } from "react";
-import { Page, Router } from "./router.js";
-import { fetchMarkdown } from "./markdown.js";
-import { Index } from "./Components/Index.js";
-import { buildUrl } from "./utils.js";
-
-function MarkdownContent({ filename, section }: MarkdownContentProps) {
-  const [content, setContent] = useState("");
-  const [error, setError] = useState("");
-
-  useEffect(() => {
-    const url = buildUrl(filename, section);
-    fetchMarkdown(url).then(setContent).catch(setError);
-  });
-
-  return content ? (
-    <article
-      className="markdown"
-      dangerouslySetInnerHTML={{ __html: content }}
-    ></article>
-  ) : (
-    <article className="markdown markdown-error">{error}</article>
-  );
-}
+//@ts-ignore
+import { SlButton } from "@shoelace-style/shoelace/dist/react/index.js";
+import { Page } from "./router.js";
+import { Index } from "./Components/Index.jsx";
+import { MarkdownContent } from "./Components/MarkdownContent.jsx";
 
 function Navbar() {
   return (
     <>
       <nav className="perla-nav">
-        <div>Logo</div>
+        <div>
+          <SlButton href="/#/" type="text" size="large">
+            Perla
+          </SlButton>
+        </div>
         <section className="nav-links">
           <ul className="link-list">
-            <li>Docs</li>
-            <li>Blog</li>
-          </ul>
-          <ul className="link-list">
-            <li>Github</li>
-            <li>Twitter</li>
+            <li>
+              <SlButton href="/#/content/index" type="text">
+                Docs
+              </SlButton>
+            </li>
+            <li>
+              <SlButton href="/#/blog" type="text">
+                Blog
+              </SlButton>
+            </li>
+            <li>
+              <SlButton
+                target="_blank"
+                href="https://github.com/AngelMunoz/Perla"
+                type="text"
+              >
+                Github
+              </SlButton>
+            </li>
           </ul>
         </section>
       </nav>
     </>
   );
 }
-//<MarkdownContent filename={ data?.filename } section = { data?.section } />
+
 function App() {
   const [content, setContent] = useState(<Index />);
 
   useEffect(() => {
-    const sub = Page.subscribe((page) => {
+    const sub = Page.subscribe((page: Page) => {
       if (page === "Home") {
         setContent(<Index />);
       } else {

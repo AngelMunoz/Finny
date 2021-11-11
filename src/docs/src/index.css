@@ -1,3 +1,18 @@
+:root {
+  /* Generate the colors here: https://codepen.io/claviska/full/QWveRgL */
+  --sl-color-primary-50: 251 249 247;
+  --sl-color-primary-100: 241 236 227;
+  --sl-color-primary-200: 231 221 205;
+  --sl-color-primary-300: 219 205 182;
+  --sl-color-primary-400: 204 183 151;
+  --sl-color-primary-500: 184 155 111;
+  --sl-color-primary-600: 162 126 70;
+  --sl-color-primary-700: 133 103 57;
+  --sl-color-primary-800: 110 85 47;
+  --sl-color-primary-900: 78 60 34;
+  --sl-color-primary-950: 48 37 21;
+}
+
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen",
@@ -11,6 +26,8 @@ body {
 
 main {
   padding: 1em;
+  height: calc(100vh - 108px);
+  overflow-y: auto;
 }
 
 code {

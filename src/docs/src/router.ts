@@ -1,5 +1,7 @@
+//@ts-ignore
 import Navigo from 'navigo';
 
+//@ts-ignore
 import { BehaviorSubject } from 'rxjs';
 
 export const Router = new Navigo("/", {
@@ -21,6 +23,13 @@ Router
             if (!data?.filename) return;
             Page.next(['Docs', data.section, data.filename]);
         }
-    );
+    )
+    .on("blog/:filename", ({ data }: { data?: MarkdownContentProps; }) => {
+        if (!data?.filename) return;
+        Page.next(['Blog', data.section, data.filename]);
+    })
+    .notFound(() => {
+        Page.next(['Blog', undefined, "not-found"]);
+    });
 
 Router.resolve();

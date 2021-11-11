@@ -15,5 +15,21 @@ type FeatureListProps = {
 
 type Page =
     | 'Home'
-    | ['Content', string | undefined, string]
-    | ['Docs', string | undefined, string];
+    | ['Content' | 'Docs' | 'Blog',
+        string | undefined,
+        string];
+
+type ToCLink = {
+    title: string;
+    url: string;
+};
+
+type ToCSection = {
+    label: string;
+    sections: ToCLink[];
+};
+
+type ToC = {
+    Features: ToCSection;
+    GettingStarted: ToCSection;
+};

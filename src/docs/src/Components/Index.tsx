@@ -1,6 +1,5 @@
 //@ts-ignore
 import { SlButton } from "@shoelace-style/shoelace/dist/react/index.js";
-import { Router } from "../router.js";
 
 function FeatureListItem({ header, content }: FeatureListItemProps) {
   return (
@@ -99,7 +98,7 @@ export function Index() {
         <SlButton type="primary" outline href="#/content/index">
           Get Started
         </SlButton>
-        <SlButton type="primary" outline href="">
+        <SlButton type="primary" outline href="/#/content/learn">
           Learn More
         </SlButton>
       </section>

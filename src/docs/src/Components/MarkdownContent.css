@@ -1,0 +1,24 @@
+.markdown-page {
+  display: flex;
+  justify-content: space-between;
+  height: 100%;
+}
+
+.markdown-content {
+  margin-right: auto;
+  padding: 0 1em;
+}
+
+.markdown-error {
+  margin: auto;
+  font-size: 36px;
+  font-weight: bolder;
+  font-family: monospace;
+  text-align: center;
+}
+
+.markdown-aside {
+  border-right: 1px inset rgb(var(--sl-color-primary-500));
+  overflow-y: auto;
+  width: 24vw;
+}
