@@ -4,20 +4,11 @@
         "sections": [
             {
                 "title": "Overview",
-                "url": "/#/docs/getting-started/overview"
+                "url": "/#/content/index"
             },
             {
                 "title": "Install",
-                "url": "/#/docs/getting-started/install"
-            }
-        ]
-    },
-    "Learn": {
-        "label": "Learn About Perla",
-        "sections": [
-            {
-                "title": "Why Perla",
-                "url": "/#/content/learn"
+                "url": "/#/content/install"
             },
             {
                 "title": "Project Structure",

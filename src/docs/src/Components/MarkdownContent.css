@@ -7,6 +7,8 @@
 .markdown-content {
   margin-right: auto;
   padding: 0 1em;
+  display: flex;
+  flex-direction: column;
 }
 
 .markdown-error {
@@ -21,4 +23,11 @@
   border-right: 1px inset rgb(var(--sl-color-primary-500));
   overflow-y: auto;
   width: 24vw;
+}
+
+.markdown-content .remarks {
+  margin-top: auto;
+  margin-left: auto;
+  margin-right: auto;
+  max-width: 80%;
 }
