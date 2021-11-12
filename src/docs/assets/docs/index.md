@@ -5,6 +5,27 @@
 
 # Perla Dev Server
 
-> The simplest cross-platform dev server you will find.
+The simplest cross-platform dev server you will find.
 
-Perla aims to bring the front-end tooling complexity down and leverage the browser standards to keep you focused on developing **Single Page Applications** rather than fighting tooling all around!
+Our Belief is that you shouldn't be obligated to learn node.js to develop a **SPA** (Single Page Application) you should be able to:
+
+- Install a tool.
+- Run the tool.
+- Develop your SPA.
+- Build your production ready SPA.
+
+If you are learning or are a seasoned developer, the priority should be on your application, not the tooling around it.
+
+Perla leverages the blazing fast **Go** and **.NET** ecosystems to give you a simple and effective development server.
+
+- Transpile on the fly:
+
+  - Typescript
+  - Javascript
+  - JSX
+  - TSX
+
+- Use import maps to pick npm dependencies from reliable CDN's like
+  - [Skypack]
+  - [JSPM]
+  - [Unpkg]

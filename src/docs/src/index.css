@@ -46,9 +46,20 @@ blockquote {
   font-family: sans-serif;
 }
 
-code {
+pre {
   font-family: source-code-pro, Menlo, Monaco, "Fira Code", "Cascadia Code",
     Consolas, "Courier New", monospace;
+  background-color: #242424;
+  color: rgb(var(--sl-color-primary-50));
+  padding: 0.5em;
+}
+
+code:not([class]),
+a[class=""] {
+  background-color: rgb(var(--sl-color-amber-300));
+  color: rgb(var(--sl-color-amber-900));
+  padding: 1px;
+  border-radius: 5px;
 }
 
 @media (prefers-color-scheme: light) {
