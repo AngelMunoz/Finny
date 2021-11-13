@@ -53,8 +53,8 @@ pre {
   color: rgb(var(--sl-color-primary-50));
   padding: 0.5em;
   max-width: 50vw;
+  margin: 0.5em 2em;
   overflow: auto;
-  margin: 0.5em auto;
 }
 
 code:not([class]),

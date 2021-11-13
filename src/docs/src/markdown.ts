@@ -1,11 +1,20 @@
 import MarkdownIt from 'markdown-it';
+//@ts-ignore
 import hljs from 'highlight.js/lib/core.js';
+//@ts-ignore
 import javascript from 'highlight.js/lib/languages/javascript.js';
+//@ts-ignore
+import text from 'highlight.js/lib/languages/plaintext.js';
+//@ts-ignore
 import fsharp from 'highlight.js/lib/languages/fsharp.js';
+//@ts-ignore
 import bash from 'highlight.js/lib/languages/bash.js';
+//@ts-ignore
 import json from 'highlight.js/lib/languages/json.js';
+//@ts-ignore
 import xml from 'highlight.js/lib/languages/xml.js';
 
+hljs.registerLanguage('', text);
 hljs.registerLanguage('javascript', javascript);
 hljs.registerLanguage('fsharp', fsharp);
 hljs.registerLanguage('bash', bash);
