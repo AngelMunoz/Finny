@@ -4,7 +4,7 @@
 
 Once you have Perla [up and running](/#/content/install), you can pick a template from the [Perla Samples] and simply type `perla serve` for your dev server to start working.
 
-Here's the most basic Perla project structure
+Perla has a set of defaults which allow you to keep a very basic structure, in reality you just need an `index.html` and an empty `perla.jsonc` file but the most ideal structure would be something like this
 
 ```sh
 perla.jsonc
@@ -13,21 +13,14 @@ src/
   index.js
 ```
 
+With that, Perla will know what should be served and where
+
 - `perla.jsonc` must have at least these fields
 
 ```json
 {
   "$schema": "https://raw.githubusercontent.com/AngelMunoz/Perla/v0.14.0/perla.schema.json",
-  "index": "./index.html",
-  "devServer": {
-    "mountDirectories": {
-      "./src": "/src"
-    }
-  },
-  "packages": {
-    "react": "https://cdn.skypack.dev/pin/react@v17.0.1-yH0aYV1FOvoIPeKBbHxg/mode=imports/optimized/react.js",
-    "react-dom": "https://cdn.skypack.dev/pin/react-dom@v17.0.1-oZ1BXZ5opQ1DbTh7nu9r/mode=imports/optimized/react-dom.js"
-  }
+  "index": "./index.html"
 }
 ```
 
@@ -50,6 +43,9 @@ src/
   </head>
   <body>
     <div id="root"></div>
+    <!-- data-entry-point is very important when building for production
+         this attribute tells perla that it must process the file when building
+         you can include multiple `data-entry-pont` scripts -->
     <script data-entry-point type="module" src="./src/index.js"></script>
   </body>
 </html>

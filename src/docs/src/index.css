@@ -52,6 +52,9 @@ pre {
   background-color: #242424;
   color: rgb(var(--sl-color-primary-50));
   padding: 0.5em;
+  max-width: 50vw;
+  overflow: auto;
+  margin: 0.5em auto;
 }
 
 code:not([class]),
@@ -60,6 +63,8 @@ a[class=""] {
   color: rgb(var(--sl-color-amber-900));
   padding: 1px;
   border-radius: 5px;
+  text-decoration: underline;
+  text-underline-offset: 1px;
 }
 
 @media (prefers-color-scheme: light) {

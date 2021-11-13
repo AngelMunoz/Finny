@@ -95,10 +95,10 @@ export function Index() {
       </p>
 
       <section className="action-buttons">
-        <SlButton type="primary" outline href="#/content/index">
+        <SlButton type="primary" outline href="#/content/install">
           Get Started
         </SlButton>
-        <SlButton type="primary" outline href="/#/content/learn">
+        <SlButton type="primary" outline href="/#/content/index">
           Learn More
         </SlButton>
       </section>

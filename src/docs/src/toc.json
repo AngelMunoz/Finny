@@ -44,6 +44,14 @@
                 "url": "/#/docs/features/fable"
             },
             {
+                "title": "Typescript",
+                "url": "/#/docs/features/transpilation"
+            },
+            {
+                "title": "JSX/TSX",
+                "url": "/#/docs/features/transpilation"
+            },
+            {
                 "title": "Transpilation on the fly",
                 "url": "/#/docs/features/transpilation"
             }
