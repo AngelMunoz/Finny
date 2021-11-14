@@ -250,6 +250,10 @@ module Types =
 
   type RemovePackageOptions = { package: string option }
 
+  type ListFormat = HumanReadable | PackageJson
+
+  type ListPackagesOptions = { format: ListFormat }
+
   exception CommandNotParsedException of string
   exception HelpRequestedException
   exception MissingPackageNameException
