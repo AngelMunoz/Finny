@@ -2,7 +2,7 @@
 [build tool]: /#/docs/build/javascript
 [package manager]: /#/docs/features/package-manager
 [pacakge search]: /#/docs/features/package-manager
-[fable]: /#/docs/features/package-manager
+[fable]: /#/docs/features/fable
 [esbuild]: https://esbuild.github.io/
 [perla.jsonc]: /#/docs/reference/perla
 
