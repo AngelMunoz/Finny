@@ -46,7 +46,7 @@ const errorContent = (error: string) => [
 const getUrlForPage = (filename: string, section?: string) => {
   let url =
     // TODO: update this line to point to `main` once we merge the docs into main
-    "https://github.com/AngelMunoz/Perla/tree/docs/src/docs/assets/docs";
+    "https://github.com/AngelMunoz/Perla/edit/docs/src/docs/assets/docs";
   if (section) {
     url += `/${section}`;
   }
