@@ -1,6 +1,10 @@
 .markdown-page {
   display: flex;
+  gap: 2rem;
   justify-content: space-between;
+  position: relative;
+  height: 100%;
+  overflow: auto;
 }
 
 .markdown-content {
@@ -8,6 +12,18 @@
   padding: 0 1em;
   display: flex;
   flex-direction: column;
+}
+
+.markdown-content li {
+  line-height: 2;
+}
+
+.markdown-content p {
+  line-height: 1.5;
+}
+
+.markdown-content ol > li > ul > li {
+  margin: 1rem 0;
 }
 
 .markdown-error {
@@ -21,7 +37,9 @@
 .markdown-aside {
   border-right: 1px inset rgb(var(--sl-color-primary-500));
   overflow-y: auto;
-  width: 24vw;
+  min-width: 20vw;
+  position: sticky;
+  top: 0;
 }
 
 .markdown-content .remarks {
