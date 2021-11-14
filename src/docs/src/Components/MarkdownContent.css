@@ -2,6 +2,9 @@
   display: flex;
   gap: 2rem;
   justify-content: space-between;
+  position: relative;
+  height: 100%;
+  overflow: auto;
 }
 
 .markdown-content {
@@ -31,6 +34,8 @@
   border-right: 1px inset rgb(var(--sl-color-primary-500));
   overflow-y: auto;
   min-width: 20vw;
+  position: sticky;
+  top: 0;
 }
 
 .markdown-content .remarks {
