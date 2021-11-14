@@ -1,5 +1,6 @@
 .markdown-page {
   display: flex;
+  gap: 2rem;
   justify-content: space-between;
 }
 
@@ -21,7 +22,7 @@
 .markdown-aside {
   border-right: 1px inset rgb(var(--sl-color-primary-500));
   overflow-y: auto;
-  width: 24vw;
+  min-width: 20vw;
 }
 
 .markdown-content .remarks {
