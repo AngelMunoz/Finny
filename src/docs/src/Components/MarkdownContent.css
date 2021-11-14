@@ -11,6 +11,14 @@
   flex-direction: column;
 }
 
+.markdown-content p {
+  line-height: 1.5;
+}
+
+.markdown-content ol > li > ul > li {
+  margin: 1rem 0;
+}
+
 .markdown-error {
   margin: auto;
   font-size: 36px;
