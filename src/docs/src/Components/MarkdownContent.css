@@ -30,3 +30,13 @@
   margin-right: auto;
   max-width: 80%;
 }
+
+.markdown-content__section {
+  display: flex;
+  flex-direction: column;
+}
+
+.markdown-content__header {
+  display: flex;
+  justify-content: flex-end;
+}

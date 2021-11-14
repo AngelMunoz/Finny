@@ -43,6 +43,17 @@ const errorContent = (error: string) => [
   <p>{error}</p>,
 ];
 
+const getUrlForPage = (filename: string, section?: string) => {
+  let url =
+    // TODO: update this line to point to `main` once we merge the docs into main
+    "https://github.com/AngelMunoz/Perla/tree/docs/src/docs/assets/docs";
+  if (section) {
+    url += `/${section}`;
+  }
+  url += `/${filename}.md`;
+  return url;
+};
+
 export function MarkdownContent({ filename, section }: MarkdownContentProps) {
   const [content, setContent] = useState("");
   const [error, setError] = useState("");
@@ -60,16 +71,27 @@ export function MarkdownContent({ filename, section }: MarkdownContentProps) {
   return (
     <article className="markdown-page">
       <ToC />
-      {content ? (
-        <article
-          className="markdown-content"
-          dangerouslySetInnerHTML={{ __html: content }}
-        ></article>
-      ) : (
-        <article className="markdown-content markdown-error">
-          {error ? errorContent(error) : null}
-        </article>
-      )}
+      <section className="markdown-content__section">
+        <header className="markdown-content__header">
+          <SlButton
+            type="text"
+            target="_blank"
+            href={getUrlForPage(filename, section)}
+          >
+            Edit this page
+          </SlButton>
+        </header>
+        {content ? (
+          <article
+            className="markdown-content"
+            dangerouslySetInnerHTML={{ __html: content }}
+          ></article>
+        ) : (
+          <article className="markdown-content markdown-error">
+            {error ? errorContent(error) : null}
+          </article>
+        )}
+      </section>
     </article>
   );
 }
