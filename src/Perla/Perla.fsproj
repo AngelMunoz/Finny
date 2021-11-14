@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFrameworks>net6.0;net5.0</TargetFrameworks>
+    <TargetFrameworks>net6.0</TargetFrameworks>
     <WarnOn>3390;$(WarnOn)</WarnOn>
     <Version>0.14.0</Version>
     <IsPackable>true</IsPackable>
