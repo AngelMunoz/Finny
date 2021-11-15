@@ -1,0 +1,102 @@
+{
+    "GettingStarted": {
+        "label": "Getting Started",
+        "sections": [
+            {
+                "title": "Overview",
+                "url": "/#/content/index"
+            },
+            {
+                "title": "Install",
+                "url": "/#/content/install"
+            },
+            {
+                "title": "Project Structure",
+                "url": "/#/content/project-structure"
+            },
+            {
+                "title": "Import Maps",
+                "url": "/#/content/import-maps"
+            },
+            {
+                "title": "Alternatives",
+                "url": "/#/content/alternatives"
+            }
+        ]
+    },
+    "Features": {
+        "label": "Development",
+        "sections": [
+            {
+                "title": "CLI",
+                "url": "/#/docs/features/cli"
+            },
+            {
+                "title": "Dev Server",
+                "url": "/#/docs/features/development"
+            },
+            {
+                "title": "Package Manager",
+                "url": "/#/docs/features/package-manager"
+            },
+            {
+                "title": "Fable",
+                "url": "/#/docs/features/fable"
+            },
+            {
+                "title": "Typescript",
+                "url": "/#/docs/features/transpilation"
+            },
+            {
+                "title": "JSX/TSX",
+                "url": "/#/docs/features/transpilation"
+            },
+            {
+                "title": "Transpilation on the fly",
+                "url": "/#/docs/features/transpilation"
+            }
+        ]
+    },
+    "Build": {
+        "label": "Build",
+        "sections": [
+            {
+                "title": "JavaScript",
+                "url": "/#/docs/build/javascript"
+            },
+            {
+                "title": "TypeScript",
+                "url": "/#/docs/build/typescript"
+            },
+            {
+                "title": "JSX/TSX",
+                "url": "/#/docs/build/jsx-tsx"
+            },
+            {
+                "title": "CSS",
+                "url": "/#/docs/build/jsx-tsx"
+            },
+            {
+                "title": "Other Files",
+                "url": "/#/docs/build/other-files"
+            },
+            {
+                "title": "Esbuild",
+                "url": "/#/docs/build/esbuild"
+            }
+        ]
+    },
+    "Reference": {
+        "label": "Reference",
+        "sections": [
+            {
+                "title": "CLI",
+                "url": "/#/docs/reference/cli"
+            },
+            {
+                "title": "perla.json",
+                "url": "/#/docs/reference/perla"
+            }
+        ]
+    }
+}

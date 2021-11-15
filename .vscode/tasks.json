@@ -10,9 +10,7 @@
             "args": [
                 "build",
                 "src/Perla",
-                // Ask dotnet build to generate full paths for file names.
                 "/property:GenerateFullPaths=true",
-                // Do not generate summary otherwise it leads to duplicate errors in Problems panel
                 "/consoleloggerparameters:NoSummary"
             ],
             "group": "build",
@@ -20,6 +18,31 @@
                 "reveal": "silent"
             },
             "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "docs",
+            "command": "dotnet",
+            "type": "process",
+            "args": [
+                "run",
+                "--project",
+                "../Perla",
+                "-f",
+                "net6.0",
+                "--",
+                "serve"
+            ],
+            "options": {
+                "cwd": "src/docs"
+            },
+            "group": "none",
+            "isBackground": true,
+            "runOptions": {
+                "instanceLimit": 1
+            },
+            "problemMatcher": [
+                "$msCompile"
+            ]
         }
     ]
 }

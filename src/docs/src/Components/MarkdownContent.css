@@ -1,0 +1,60 @@
+.markdown-page {
+  display: flex;
+  gap: 2rem;
+  justify-content: space-between;
+  position: relative;
+  height: 100%;
+  overflow: auto;
+}
+
+.markdown-content {
+  margin-right: auto;
+  padding: 0 1em;
+  display: flex;
+  flex-direction: column;
+}
+
+.markdown-content li {
+  line-height: 2;
+}
+
+.markdown-content p {
+  line-height: 1.5;
+}
+
+.markdown-content ol > li > ul > li {
+  margin: 1rem 0;
+}
+
+.markdown-error {
+  margin: auto;
+  font-size: 36px;
+  font-weight: bolder;
+  font-family: monospace;
+  text-align: center;
+}
+
+.markdown-aside {
+  border-right: 1px inset rgb(var(--sl-color-primary-500));
+  overflow-y: auto;
+  min-width: 20vw;
+  position: sticky;
+  top: 0;
+}
+
+.markdown-content .remarks {
+  margin-top: auto;
+  margin-left: auto;
+  margin-right: auto;
+  max-width: 80%;
+}
+
+.markdown-content__section {
+  display: flex;
+  flex-direction: column;
+}
+
+.markdown-content__header {
+  display: flex;
+  justify-content: flex-end;
+}

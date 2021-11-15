@@ -26,7 +26,7 @@
             "args": [
                 "serve"
             ],
-            "cwd": "${workspaceFolder}/src/react-tsx",
+            "cwd": "${workspaceFolder}/src/docs",
             "stopAtEntry": false,
             "console": "internalConsole"
         },

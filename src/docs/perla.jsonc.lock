@@ -1,0 +1,32 @@
+{
+  "imports": {
+    "@shoelace-style/shoelace": "https://cdn.skypack.dev/pin/@shoelace-style/shoelace@v2.0.0-beta.60-eDIQV0EHf9n8X4vd3EMT/mode=imports,min/optimized/@shoelace-style/shoelace.js",
+    "@shoelace-style/shoelace/dist/react/": "https://cdn.skypack.dev/pin/@shoelace-style/shoelace@v2.0.0-beta.60-eDIQV0EHf9n8X4vd3EMT/mode=imports,min/unoptimized/dist/react/",
+    "@shoelace-style/shoelace/dist/utilities/": "https://cdn.skypack.dev/pin/@shoelace-style/shoelace@v2.0.0-beta.60-eDIQV0EHf9n8X4vd3EMT/mode=imports,min/unoptimized/dist/utilities/",
+    "highlight.js/lib/core.js": "https://ga.jspm.io/npm:highlight.js@11.3.1/lib/core.js",
+    "highlight.js/lib/languages/javascript.js": "https://ga.jspm.io/npm:highlight.js@11.3.1/lib/languages/javascript.js",
+    "highlight.js/lib/languages/plaintext.js": "https://ga.jspm.io/npm:highlight.js@11.3.1/lib/languages/plaintext.js",
+    "highlight.js/lib/languages/fsharp.js": "https://ga.jspm.io/npm:highlight.js@11.3.1/lib/languages/fsharp.js",
+    "highlight.js/lib/languages/bash.js": "https://ga.jspm.io/npm:highlight.js@11.3.1/lib/languages/bash.js",
+    "highlight.js/lib/languages/json.js": "https://ga.jspm.io/npm:highlight.js@11.3.1/lib/languages/json.js",
+    "highlight.js/lib/languages/xml.js": "https://ga.jspm.io/npm:highlight.js@11.3.1/lib/languages/xml.js",
+    "markdown-it": "https://ga.jspm.io/npm:markdown-it@12.2.0/index.js",
+    "navigo": "https://cdn.skypack.dev/pin/navigo@v8.11.1-P7FrCxiJCiPJPMdihh6j/mode=imports,min/optimized/navigo.js",
+    "react": "https://cdn.skypack.dev/pin/react@v17.0.1-yH0aYV1FOvoIPeKBbHxg/mode=imports,min/optimized/react.js",
+    "react-dom": "https://cdn.skypack.dev/pin/react-dom@v17.0.1-oZ1BXZ5opQ1DbTh7nu9r/mode=imports,min/optimized/react-dom.js",
+    "rxjs": "https://cdn.skypack.dev/pin/rxjs@v7.4.0-Kfsr0poLPzx4M3FtCZC1/mode=imports,min/optimized/rxjs.js"
+  },
+  "scopes": {
+    "https://ga.jspm.io/": {
+      "entities/lib/maps/entities.json": "https://ga.jspm.io/npm:entities@2.1.0/lib/maps/entities.json.js",
+      "linkify-it": "https://ga.jspm.io/npm:linkify-it@3.0.3/index.js",
+      "mdurl": "https://ga.jspm.io/npm:mdurl@1.0.1/index.js",
+      "punycode": "https://ga.jspm.io/npm:@jspm/core@2.0.0-beta.12/nodelibs/browser/punycode.js",
+      "uc.micro": "https://ga.jspm.io/npm:uc.micro@1.0.6/index.js",
+      "uc.micro/categories/Cc/regex": "https://ga.jspm.io/npm:uc.micro@1.0.6/categories/Cc/regex.js",
+      "uc.micro/categories/P/regex": "https://ga.jspm.io/npm:uc.micro@1.0.6/categories/P/regex.js",
+      "uc.micro/categories/Z/regex": "https://ga.jspm.io/npm:uc.micro@1.0.6/categories/Z/regex.js",
+      "uc.micro/properties/Any/regex": "https://ga.jspm.io/npm:uc.micro@1.0.6/properties/Any/regex.js"
+    }
+  }
+}

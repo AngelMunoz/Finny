@@ -1,7 +1,6 @@
 ﻿namespace Perla
 
 open System
-open System.Text.Json
 open FSharp.Control
 open FsToolkit.ErrorHandling
 
@@ -530,8 +529,8 @@ Updated: {package.updatedAt.ToShortDateString()}"""
           |> Async.AwaitTask
           |> Async.Ignore
       | err ->
-        parsed.Raise($"Hello Commands Specified {err}", showUsage = true)
-        return! CommandNotParsedException $"%A{err}" |> Error
+        parser.PrintUsage("No Commands Specified") |> printfn "%s"
+        return! async { return () }
     }
 
   let startInteractive (configuration: FdsConfig) =
