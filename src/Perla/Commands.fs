@@ -355,8 +355,6 @@ Updated: {package.updatedAt.ToShortDateString()}"""
         None
 
     taskResult {
-      let! lockFile = Fs.getorCreateLockFile (GetFdsConfigPath())
-
       let parseUrl url =
         match url with
         | ParseRegex @"https://cdn.skypack.dev/pin/(@?[^@]+)@v([\d.]+)"
@@ -369,22 +367,22 @@ Updated: {package.updatedAt.ToShortDateString()}"""
           Some(name, version)
         | _ -> None
 
+      let! config = Fs.getFdsConfig (GetFdsConfigPath())
+      let installedPackages = config.packages |> Option.defaultValue Map.empty
       match options.format with
       | HumanReadable ->
         printfn "Installed packages (alias: packageName@version)"
         printfn ""
-        for importMap in lockFile.imports do
+        for importMap in installedPackages do
           match parseUrl importMap.Value with
           | Some (name, version) -> printfn $"{importMap.Key}: {name}@{version}"
           | None -> printfn $"{importMap.Key}: Couldn't parse {importMap.Value}"
       | PackageJson ->
-        let dependencies =
-          lockFile.imports
-          |> Map.toList
-          |> List.choose (fun (_alias, importMap) -> parseUrl importMap)
-          |> Map.ofList
-
-        JsonSerializer.Serialize({| dependencies = dependencies |}, JsonSerializerOptions(WriteIndented=true))
+        installedPackages
+        |> Map.toList
+        |> List.choose (fun (_alias, importMap) -> parseUrl importMap)
+        |> Map.ofList
+        |> Json.ToPackageJson
         |> printfn "%s"
       return 0
     }

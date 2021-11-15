@@ -69,6 +69,9 @@ module internal Json =
     opts.WriteIndented <- false
     JsonSerializer.Serialize(value, opts)
 
+  let ToPackageJson dependencies =
+    JsonSerializer.Serialize({| dependencies = dependencies |}, jsonOptions ())
+
 [<RequireQualifiedAccessAttribute>]
 module internal Http =
   open Flurl
