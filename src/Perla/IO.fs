@@ -256,6 +256,11 @@ module Fs =
       findConfigFile (Path.GetFullPath workDir)
       |> Option.defaultValue (Path.Combine(workDir, FdsConfigName))
 
+    static member SetCurrentDirectoryToFdsConfigDirectory() =
+      Paths.GetFdsConfigPath()
+      |> Path.GetDirectoryName
+      |> Directory.SetCurrentDirectory
+
   let getFdsConfig filepath =
     try
       let bytes = File.ReadAllBytes filepath

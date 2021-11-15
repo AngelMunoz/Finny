@@ -48,12 +48,14 @@ let main argv =
           let buildConfig =
             Commands.getBuildOptions (items.GetAllResults())
 
+          Fs.Paths.SetCurrentDirectoryToFdsConfigDirectory()
           do! Commands.startBuild buildConfig :> Task
           return! Ok 0
         | Some (Serve items) ->
           let serverConfig =
             Commands.getServerOptions (items.GetAllResults())
 
+          Fs.Paths.SetCurrentDirectoryToFdsConfigDirectory()
           do! Commands.startInteractive serverConfig
 
           return! Ok 0
