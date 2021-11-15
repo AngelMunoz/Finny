@@ -73,6 +73,8 @@ let main argv =
             |> Commands.runSearch
         | Some (Show subcmd) ->
           return! subcmd |> ShowArgs.ToOptions |> Commands.runShow
+        | Some (List subcmd) ->
+          return! subcmd |> ListArgs.ToOptions |> Commands.runList
         | err ->
           parsed.Raise("No Commands Specified", showUsage = true)
           return! CommandNotParsedException $"%A{err}" |> Error
