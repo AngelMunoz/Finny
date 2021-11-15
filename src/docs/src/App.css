@@ -60,3 +60,9 @@
   margin-bottom: 1em;
   align-self: stretch;
 }
+
+@media (min-width: 1024px) {
+  .menu-btn {
+    display: none;
+  }
+}

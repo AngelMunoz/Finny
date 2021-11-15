@@ -2,41 +2,10 @@ import "./MarkdownContent.css";
 import { useEffect, useState } from "react";
 import { fetchMarkdown } from "../markdown.js";
 import { buildUrl } from "../utils.js";
+import { ToC } from "./ToC.jsx";
 
 //@ts-ignore
 import { SlButton } from "@shoelace-style/shoelace/dist/react/index.js";
-//@ts-ignore
-import _toc from "../toc.json?module";
-
-const toc: ToC = _toc;
-
-const getEntryTpl = (section: ToCSection) => {
-  const getEntriesForSection = ({ title, url }: ToCLink) => {
-    return (
-      <li>
-        <SlButton type="text" href={url}>
-          {title}
-        </SlButton>
-      </li>
-    );
-  };
-  return (
-    <section>
-      <h4>{section.label}</h4>
-      <ul className="link-list">
-        {section.sections.map(getEntriesForSection)}
-      </ul>
-    </section>
-  );
-};
-
-function ToC() {
-  return (
-    <aside className="markdown-aside">
-      {Object.entries(toc).map(([, section]) => getEntryTpl(section))}
-    </aside>
-  );
-}
 
 const errorContent = (error: string) => [
   <p>Well, Well, Well... How the turntables have turned...</p>,
@@ -69,7 +38,7 @@ export function MarkdownContent({ filename, section }: MarkdownContentProps) {
 
   return (
     <article className="markdown-page">
-      <ToC />
+      <ToC isAside={true} />
       <section className="markdown-content__section">
         <header className="markdown-content__header">
           <SlButton

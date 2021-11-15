@@ -1,7 +1,7 @@
 .markdown-page {
   display: flex;
   gap: 2rem;
-  justify-content: space-between;
+  justify-content: space-evenly;
   position: relative;
   height: 100%;
   overflow: auto;
@@ -52,9 +52,16 @@
 .markdown-content__section {
   display: flex;
   flex-direction: column;
+  justify-content: flex-start;
 }
 
 .markdown-content__header {
   display: flex;
   justify-content: flex-end;
+}
+
+@media (max-width: 768px) {
+  .markdown-aside {
+    display: none;
+  }
 }
