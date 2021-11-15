@@ -244,7 +244,25 @@ module Fs =
 
   type Paths() =
     static member GetFdsConfigPath(?path: string) =
-      $"{defaultArg path (Environment.CurrentDirectory)}/{FdsConfigName}"
+      let rec findConfigFile currDir =
+        let path = Path.Combine (currDir, FdsConfigName)
+        if File.Exists path then
+          Some path
+        else
+          let parent = Path.GetDirectoryName currDir
+          if parent <> currDir then
+            findConfigFile parent
+          else
+            None
+
+      let workDir = defaultArg path Environment.CurrentDirectory
+      findConfigFile (Path.GetFullPath workDir)
+      |> Option.defaultValue (Path.Combine(workDir, FdsConfigName))
+
+    static member SetCurrentDirectoryToFdsConfigDirectory() =
+      Paths.GetFdsConfigPath()
+      |> Path.GetDirectoryName
+      |> Directory.SetCurrentDirectory
 
   let getFdsConfig filepath =
     try

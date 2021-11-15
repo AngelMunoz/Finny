@@ -538,13 +538,13 @@ Updated: {package.updatedAt.ToShortDateString()}"""
     let onStdinAsync =
       serverActions tryExecPerlaCommand configuration
 
-    let deServer =
+    let devServer =
       defaultArg configuration.devServer (DevServerConfig.DefaultConfig())
 
     let fableConfig =
       defaultArg configuration.fable (FableConfig.DefaultConfig())
 
-    let autoStartServer = defaultArg deServer.autoStart true
+    let autoStartServer = defaultArg devServer.autoStart true
     let autoStartFable = defaultArg fableConfig.autoStart true
 
     let esbuildVersion =
