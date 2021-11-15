@@ -1,4 +1,4 @@
-import MarkdownIt from 'markdown-it';
+import { marked } from 'marked';
 //@ts-ignore
 import hljs from 'highlight.js/lib/core.js';
 //@ts-ignore
@@ -21,23 +21,20 @@ hljs.registerLanguage('bash', bash);
 hljs.registerLanguage('json', json);
 hljs.registerLanguage('html', xml);
 
-
-
-const md = new MarkdownIt({
-    typographer: true,
-    linkify: true,
-    html: true,
-    highlight(str, language, attrs) {
-        return hljs.highlight(str, { language }).value;
+marked.setOptions({
+    smartLists: true,
+    smartypants: true,
+    headerIds: true,
+    highlight(code, language) {
+        return hljs.highlight(code, { language }).value;
     }
 });
-
 
 export async function fetchMarkdown(url: string) {
     const res = await fetch(url);
     if (res.ok) {
         const content = await res.text();
-        return md.render(content);
+        return marked.parse(content);
     }
     return Promise.reject(`${res.status} - ${res.statusText}`);
 }
