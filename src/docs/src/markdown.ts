@@ -25,6 +25,7 @@ marked.setOptions({
     smartLists: true,
     smartypants: true,
     headerIds: true,
+    langPrefix: 'hljs language-',
     highlight(code, language) {
         return hljs.highlight(code, { language }).value;
     }

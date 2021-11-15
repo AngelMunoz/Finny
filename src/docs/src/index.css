@@ -51,12 +51,14 @@ blockquote {
 pre {
   font-family: source-code-pro, Menlo, Monaco, "Fira Code", "Cascadia Code",
     Consolas, "Courier New", monospace;
-  background-color: #242424;
   color: rgb(var(--sl-color-primary-50));
   padding: 1em 1.5em;
   max-width: 50vw;
   margin: 0.5em 2em;
   overflow: auto;
+}
+
+pre code {
   border-radius: 8px;
 }
 
