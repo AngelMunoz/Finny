@@ -111,6 +111,19 @@ type AddArgs =
       | Source _ ->
         "The name of the source you want to install a package from. e.g. unpkg or skypack."
 
+type ListArgs =
+  | As_Package_Json
+
+  static member ToOptions(args: ParseResults<ListArgs>) : ListPackagesOptions =
+    match args.TryGetResult(As_Package_Json) with
+    | Some _ -> { format = PackageJson }
+    | _ -> { format = HumanReadable }
+
+  interface IArgParserTemplate with
+    member this.Usage: string =
+      match this with
+      | As_Package_Json -> "List packages in npm's package.json format."
+
 type DevServerArgs =
   | [<CliPrefix(CliPrefix.None); AltCommandLine("s")>] Serve of
     ParseResults<ServerArgs>
@@ -122,6 +135,7 @@ type DevServerArgs =
   | [<CliPrefix(CliPrefix.None)>] Show of ParseResults<ShowArgs>
   | [<CliPrefix(CliPrefix.None)>] Add of ParseResults<AddArgs>
   | [<CliPrefix(CliPrefix.None)>] Remove of ParseResults<RemoveArgs>
+  | [<CliPrefix(CliPrefix.None)>] List of ParseResults<ListArgs>
   | [<AltCommandLine("-v")>] Version
 
   interface IArgParserTemplate with
@@ -135,6 +149,7 @@ type DevServerArgs =
       | Show _ -> "Gets the skypack information about a package."
       | Add _ -> "Generates an entry in the import map."
       | Remove _ -> "Removes an entry in the import map."
+      | List _ -> "List entries in the import map."
       | Version _ -> "Prints out the cli version to the console."
 
 module Commands =
@@ -328,6 +343,49 @@ Updated: {package.updatedAt.ToShortDateString()}"""
       return 0
     }
 
+  let runList (options: ListPackagesOptions) =
+    let (|ParseRegex|_|) regex str =
+      let m =
+        Text.RegularExpressions.Regex(regex).Match(str)
+
+      if m.Success then
+        Some(List.tail [ for x in m.Groups -> x.Value ])
+      else
+        None
+
+    taskResult {
+      let parseUrl url =
+        match url with
+        | ParseRegex @"https://cdn.skypack.dev/pin/(@?[^@]+)@v([\d.]+)"
+                     [ name; version ]
+        | ParseRegex @"https://cdn.jsdelivr.net/npm/(@?[^@]+)@([\d.]+)"
+                     [ name; version ]
+        | ParseRegex @"https://ga.jspm.io/npm:(@?[^@]+)@([\d.]+)"
+                     [ name; version ]
+        | ParseRegex @"https://unpkg.com/(@?[^@]+)@([\d.]+)" [ name; version ] ->
+          Some(name, version)
+        | _ -> None
+
+      let! config = Fs.getFdsConfig (GetFdsConfigPath())
+      let installedPackages = config.packages |> Option.defaultValue Map.empty
+      match options.format with
+      | HumanReadable ->
+        printfn "Installed packages (alias: packageName@version)"
+        printfn ""
+        for importMap in installedPackages do
+          match parseUrl importMap.Value with
+          | Some (name, version) -> printfn $"{importMap.Key}: {name}@{version}"
+          | None -> printfn $"{importMap.Key}: Couldn't parse {importMap.Value}"
+      | PackageJson ->
+        installedPackages
+        |> Map.toList
+        |> List.choose (fun (_alias, importMap) -> parseUrl importMap)
+        |> Map.ofList
+        |> Json.ToPackageJson
+        |> printfn "%s"
+      return 0
+    }
+
   let runRemove (options: RemovePackageOptions) =
     taskResult {
       let name = defaultArg options.package ""
@@ -461,6 +519,13 @@ Updated: {package.updatedAt.ToShortDateString()}"""
           subcmd
           |> ShowArgs.ToOptions
           |> runShow
+          |> Async.AwaitTask
+          |> Async.Ignore
+      | Some (List subcmd) ->
+        return!
+          subcmd
+          |> ListArgs.ToOptions
+          |> runList
           |> Async.AwaitTask
           |> Async.Ignore
       | err ->
