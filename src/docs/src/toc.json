@@ -44,16 +44,16 @@
                 "url": "/#/docs/features/fable"
             },
             {
-                "title": "Typescript",
+                "title": "Transpilation",
                 "url": "/#/docs/features/transpilation"
             },
             {
                 "title": "JSX/TSX",
-                "url": "/#/docs/features/transpilation"
+                "url": "/#/docs/features/jsx-tsx"
             },
             {
-                "title": "Transpilation on the fly",
-                "url": "/#/docs/features/transpilation"
+                "title": "CSS/JSON",
+                "url": "/#/docs/features/css-json"
             }
         ]
     },
@@ -61,28 +61,8 @@
         "label": "Build",
         "sections": [
             {
-                "title": "JavaScript",
-                "url": "/#/docs/build/javascript"
-            },
-            {
-                "title": "TypeScript",
-                "url": "/#/docs/build/typescript"
-            },
-            {
-                "title": "JSX/TSX",
-                "url": "/#/docs/build/jsx-tsx"
-            },
-            {
-                "title": "CSS",
-                "url": "/#/docs/build/jsx-tsx"
-            },
-            {
-                "title": "Other Files",
-                "url": "/#/docs/build/other-files"
-            },
-            {
-                "title": "Esbuild",
-                "url": "/#/docs/build/esbuild"
+                "title": "Production Builds",
+                "url": "/#/docs/build/production-builds"
             }
         ]
     },
