@@ -11,6 +11,17 @@ export const Router = new Navigo("/", {
 
 export const Page = new BehaviorSubject<Page>('Home');
 
+const setHeaderPosition = ({ params }: Match) => {
+    const id = params?.id;
+    const el = document.querySelector(`#${id}`);
+    el?.scrollIntoView(true);
+};
+
+Router.hooks({
+    after: setHeaderPosition,
+    already: setHeaderPosition
+});
+
 Router
     .on("", () => Page.next('Home'))
     .on("content/:filename", ({ data }: { data?: MarkdownContentProps; }) => {
@@ -33,3 +44,8 @@ Router
     });
 
 Router.resolve();
+
+setTimeout(() => {
+    const location: Match = Router.getCurrentLocation();
+    setHeaderPosition(location);
+}, 1000);
