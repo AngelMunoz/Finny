@@ -43,6 +43,51 @@
             "problemMatcher": [
                 "$msCompile"
             ]
+        },
+        {
+            "label": "build docs",
+            "command": "dotnet",
+            "type": "process",
+            "args": [
+                "run",
+                "--project",
+                "../Perla",
+                "-f",
+                "net6.0",
+                "--",
+                "build"
+            ],
+            "options": {
+                "cwd": "src/docs"
+            },
+            "group": "none",
+            "isBackground": false,
+            "runOptions": {
+                "instanceLimit": 1
+            },
+            "problemMatcher": [
+                "$msCompile"
+            ]
+        },
+        {
+            "label": "publish docs",
+            "command": "firebase",
+            "type": "process",
+            "args": [
+                "deploy"
+            ],
+            "options": {
+                "cwd": "src/docs"
+            },
+            "group": "none",
+            "isBackground": false,
+            "runOptions": {
+                "instanceLimit": 1
+            },
+            "dependsOn": [
+                "build docs"
+            ],
+            "problemMatcher": []
         }
     ]
 }
