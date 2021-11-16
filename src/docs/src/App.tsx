@@ -37,7 +37,7 @@ function OffCanvas({
 function Navbar({ requestMenu }: { requestMenu?: () => void }) {
   return (
     <>
-      <nav className="perla-nav">
+      <nav className="perla-nav with-box-shadow">
         <section>
           <SlButton
             className="menu-btn"
