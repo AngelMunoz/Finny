@@ -18,7 +18,7 @@ Perla provides two ways for installation
      ```sh
      # replace $HOME/Apps/perla with your chosen location
      export PERLA_PATH=$HOME/Apps/perla
-     export PATH=PERLA_PATH:$PATH
+     export PATH=$PERLA_PATH:$PATH
      ```
      - Log out and Log in again for it to make effect
    - MacOS
@@ -26,7 +26,7 @@ Perla provides two ways for installation
      ```sh
      # replace $HOME/Apps/perla with your chosen location
      export PERLA_PATH=$HOME/Apps/perla
-     export PATH=PERLA_PATH:$PATH
+     export PATH=$PERLA_PATH:$PATH
      ```
      - Log out and Log in again for it to make effect
    - Windows
