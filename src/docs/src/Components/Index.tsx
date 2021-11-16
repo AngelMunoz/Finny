@@ -94,9 +94,10 @@ export function Index() {
     <article className="page index-page">
       <header className="index-header">
         <h1>Welcome to Perla!</h1>
+        <p>Perla is a take on modern tooling for front-end development.</p>
         <p>
-          Perla is a take modern, fast and simple to use JS tooling that doesn't
-          require node.js
+          A fast, and simple to use development server. No node.js knowledge
+          required.
         </p>
       </header>
 
