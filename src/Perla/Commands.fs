@@ -559,6 +559,7 @@ Updated: {package.updatedAt.ToShortDateString()}"""
     Console.CancelKeyPress.Add
       (fun _ ->
         printfn "Got it, see you around!..."
+        onStdinAsync "exit" |> Async.RunSynchronously
         exit 0)
 
     asyncSeq {
