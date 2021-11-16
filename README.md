@@ -7,23 +7,10 @@
 [skypack cdn]: https://www.skypack.dev/
 [jspm cdn]: https://jspm.org/docs/cdn
 
-> Check the sample https://github.com/AngelMunoz/perla-sample
+> Check the samples https://github.com/AngelMunoz/perla-samples
 
-> **Not using .NET?** check the releases tab for a binary distribution, no need to install anything, just get the binary on your path and run it.
+[Check The docs!](https://perla-docs.web.app/)
 
-## Install
-
-- .NET Users
-    - `dotnet tool install perla`
-- Windows Users
-    ```pwsh
-    iwr -useb https://gist.githubusercontent.com/AngelMunoz/2f12b5d5d343338a509a216868d2bc2e/raw/3602e5b7f172af2bbf790fb6e303305ec7442213/install-perla.ps1 -OutFile ./install-perla.ps1
-    # verify the contents of the script if you want then invoke
-    ./install-perla.ps1 -Version # <CurrentVersion>
-    ```
-    > Once we release a stable version you will be able to omit `-Version <CurrentVersion>`
-- Unix/MacOS
-    > Soon   
 
 This is an experimental project that aims to replace common and almost obligated nodejs tooling for greenfield projects using some state of the art technologies like
 
@@ -60,40 +47,15 @@ THis project is in its early stages of development, current goals at this point 
 ### Future Goals
 
 Including the previous goals the future goals include
-- [ ] HMR
+- [ ] HMR (for other than CSS)
 - [ ] Plugin System
-
-### Quick Command View
-```
-USAGE: perla [--help] [--version] [<subcommand> [<options>]]
-
-SUBCOMMANDS:
-
-    serve, s <options>    Starts a development server for modern Javascript development
-    build, b <options>    Builds the specified JS and CSS resources for production
-    init <options>        Creates basic files and directories to start using fds.
-    search, se <options>  Searches a package in the skypack API.
-    show <options>        Gets the skypack information about a package.
-    add <options>         Generates an entry in the import map.
-    remove <options>      Removes an entry in the import map.
-
-    Use 'perla <subcommand> --help' for additional information.
-
-OPTIONS:
-
-    --version, -v         Prints out the cli version to the console.
-    --help                display this list of options.
-```
-
-> <sup>\*</sup>: The first releases are aimed at the .NET community via _dotnet tools_ but, if this project turns out to be useful beyond that we will enable binary distributions which should be executable for any environment
-
 
 ## Existing tools
 
 If you actually use and like nodejs, then you would be better taking a look at the tools that inspired this repository
 
-- [snowpack](https://www.snowpack.dev/)
 - [vite](https://vitejs.dev/)
+- [snowpack](https://www.snowpack.dev/)
 
 These tools have a bigger community and rely on an even bigger ecosystem plus they support plugins via npm so if you're using node stick with them they are a better choice
 Perla's unbundled development was inspired by both snowpack and vite, CDN dependencies were inspired by snowpack's remote sources development
