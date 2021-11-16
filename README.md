@@ -2,7 +2,7 @@
 
 > Check the samples https://github.com/AngelMunoz/perla-samples
 
-Perla is a cross-platform single executable binary CLI Tool for Development Server of Single Page Applications.
+Perla is a cross-platform single executable binary CLI Tool for a Development Server of Single Page Applications.
 
 If that sounds like something nice, [Check The docs!](https://perla-docs.web.app/)
 
