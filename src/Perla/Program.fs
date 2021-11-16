@@ -27,8 +27,7 @@ let main argv =
     let parser = ArgumentParser.Create<DevServerArgs>()
 
     try
-      let parsed =
-        parser.ParseCommandLine(inputs = argv, raiseOnUsage = true)
+      let parsed = parser.ParseCommandLine(inputs = argv, raiseOnUsage = true)
 
       match parsed.TryGetResult(Version) with
       | Some Version ->
@@ -45,15 +44,13 @@ let main argv =
       | _ ->
         match parsed.TryGetSubCommand() with
         | Some (Build items) ->
-          let buildConfig =
-            Commands.getBuildOptions (items.GetAllResults())
+          let buildConfig = Commands.getBuildOptions (items.GetAllResults())
 
           Fs.Paths.SetCurrentDirectoryToFdsConfigDirectory()
           do! Commands.startBuild buildConfig :> Task
           return! Ok 0
         | Some (Serve items) ->
-          let serverConfig =
-            Commands.getServerOptions (items.GetAllResults())
+          let serverConfig = Commands.getServerOptions (items.GetAllResults())
 
           Fs.Paths.SetCurrentDirectoryToFdsConfigDirectory()
           do! Commands.startInteractive serverConfig

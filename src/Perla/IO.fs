@@ -18,8 +18,7 @@ module Env =
 
     Path.Combine(user, FdsDirectoryName)
 
-  let isWindows =
-    RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+  let isWindows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
 
   let platformString =
     if RuntimeInformation.IsOSPlatform(OSPlatform.Windows) then
@@ -137,16 +136,16 @@ module internal Http =
         {| install = [| $"{name}" |]
            env = "browser"
            provider =
-             match source with
-             | Source.Skypack -> "skypack"
-             | Source.Jspm -> "jspm"
-             | Source.Jsdelivr -> "jsdelivr"
-             | Source.Unpkg -> "unpkg"
-             | _ ->
-               printfn
-                 $"Warn: An unknown provider has been specied: [{source}] defaulting to jspm"
+            match source with
+            | Source.Skypack -> "skypack"
+            | Source.Jspm -> "jspm"
+            | Source.Jsdelivr -> "jsdelivr"
+            | Source.Unpkg -> "unpkg"
+            | _ ->
+              printfn
+                $"Warn: An unknown provider has been specied: [{source}] defaulting to jspm"
 
-               "jspm" |}
+              "jspm" |}
 
       try
         let! res =
@@ -239,23 +238,27 @@ module Fs =
 
   type IFileWatcher =
     inherit IDisposable
-    abstract member FileChanged : IObservable<FileChangedEvent>
+    abstract member FileChanged: IObservable<FileChangedEvent>
 
 
   type Paths() =
     static member GetFdsConfigPath(?path: string) =
       let rec findConfigFile currDir =
-        let path = Path.Combine (currDir, FdsConfigName)
+        let path = Path.Combine(currDir, FdsConfigName)
+
         if File.Exists path then
           Some path
         else
-          let parent = Path.GetDirectoryName currDir
-          if parent <> currDir then
-            findConfigFile parent
-          else
-            None
+          match Path.GetDirectoryName currDir |> Option.ofObj with
+          | Some parent ->
+            if parent <> currDir then
+              findConfigFile parent
+            else
+              None
+          | None -> None
 
       let workDir = defaultArg path Environment.CurrentDirectory
+
       findConfigFile (Path.GetFullPath workDir)
       |> Option.defaultValue (Path.Combine(workDir, FdsConfigName))
 
@@ -358,66 +361,60 @@ module Fs =
   let getFileWatcher (config: WatchConfig) =
     let watchers =
       (defaultArg config.directories ([ "./src" ] |> Seq.ofList))
-      |> Seq.map
-           (fun dir ->
-             let fsw = new FileSystemWatcher(dir)
-             fsw.IncludeSubdirectories <- true
-             fsw.NotifyFilter <- NotifyFilters.FileName ||| NotifyFilters.Size
+      |> Seq.map (fun dir ->
+        let fsw = new FileSystemWatcher(dir)
+        fsw.IncludeSubdirectories <- true
+        fsw.NotifyFilter <- NotifyFilters.FileName ||| NotifyFilters.Size
 
-             let filters =
-               defaultArg
-                 config.extensions
-                 (Seq.ofList [ "*.js"
-                               "*.css"
-                               "*.ts"
-                               "*.tsx"
-                               "*.jsx"
-                               "*.json" ])
+        let filters =
+          defaultArg
+            config.extensions
+            (Seq.ofList [ "*.js"
+                          "*.css"
+                          "*.ts"
+                          "*.tsx"
+                          "*.jsx"
+                          "*.json" ])
 
-             for filter in filters do
-               fsw.Filters.Add(filter)
+        for filter in filters do
+          fsw.Filters.Add(filter)
 
-             fsw.EnableRaisingEvents <- true
-             fsw)
+        fsw.EnableRaisingEvents <- true
+        fsw)
 
 
     let subs =
       watchers
-      |> Seq.map
-           (fun watcher ->
-             [ watcher.Renamed
-               |> Observable.throttle (TimeSpan.FromMilliseconds(400.))
-               |> Observable.map
-                    (fun e ->
-                      { oldName = Some e.OldName
-                        ChangeType = Renamed
-                        name = e.Name
-                        path = e.FullPath })
-               watcher.Changed
-               |> Observable.throttle (TimeSpan.FromMilliseconds(400.))
-               |> Observable.map
-                    (fun e ->
-                      { oldName = None
-                        ChangeType = Changed
-                        name = e.Name
-                        path = e.FullPath })
-               watcher.Deleted
-               |> Observable.throttle (TimeSpan.FromMilliseconds(400.))
-               |> Observable.map
-                    (fun e ->
-                      { oldName = None
-                        ChangeType = Deleted
-                        name = e.Name
-                        path = e.FullPath })
-               watcher.Created
-               |> Observable.throttle (TimeSpan.FromMilliseconds(400.))
-               |> Observable.map
-                    (fun e ->
-                      { oldName = None
-                        ChangeType = Created
-                        name = e.Name
-                        path = e.FullPath }) ]
-             |> Observable.mergeSeq)
+      |> Seq.map (fun watcher ->
+        [ watcher.Renamed
+          |> Observable.throttle (TimeSpan.FromMilliseconds(400.))
+          |> Observable.map (fun e ->
+            { oldName = Some e.OldName
+              ChangeType = Renamed
+              name = e.Name
+              path = e.FullPath })
+          watcher.Changed
+          |> Observable.throttle (TimeSpan.FromMilliseconds(400.))
+          |> Observable.map (fun e ->
+            { oldName = None
+              ChangeType = Changed
+              name = e.Name
+              path = e.FullPath })
+          watcher.Deleted
+          |> Observable.throttle (TimeSpan.FromMilliseconds(400.))
+          |> Observable.map (fun e ->
+            { oldName = None
+              ChangeType = Deleted
+              name = e.Name
+              path = e.FullPath })
+          watcher.Created
+          |> Observable.throttle (TimeSpan.FromMilliseconds(400.))
+          |> Observable.map (fun e ->
+            { oldName = None
+              ChangeType = Created
+              name = e.Name
+              path = e.FullPath }) ]
+        |> Observable.mergeSeq)
 
     { new IFileWatcher with
         override _.Dispose() : unit =

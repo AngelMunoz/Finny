@@ -12,8 +12,7 @@ module Fable =
 
   let private killActiveProcess pid =
     try
-      let activeProcess =
-        System.Diagnostics.Process.GetProcessById pid
+      let activeProcess = System.Diagnostics.Process.GetProcessById pid
 
       activeProcess.Kill()
     with
