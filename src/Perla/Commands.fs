@@ -90,8 +90,7 @@ type RemoveArgs =
   interface IArgParserTemplate with
     member this.Usage: string =
       match this with
-      | Package _ ->
-        "The name of the package to remove from the import map this can also be aliased name."
+      | Package _ -> "Package name (or alias) to remove from the import map."
 
 type AddArgs =
   | [<AltCommandLine("-p")>] Package of string
