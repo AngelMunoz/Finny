@@ -84,7 +84,7 @@ module Build =
     script.SetAttribute("type", "importmap")
 
     task {
-      match! Fs.getorCreateLockFile (Fs.Paths.GetFdsConfigPath()) with
+      match! Fs.getorCreateLockFile (Fs.Paths.GetPerlaConfigPath()) with
       | Ok lock ->
         let map: ImportMap =
           { imports = lock.imports
@@ -132,7 +132,7 @@ module Build =
 
   let getExcludes config =
     task {
-      match! Fs.getorCreateLockFile (Fs.Paths.GetFdsConfigPath()) with
+      match! Fs.getorCreateLockFile (Fs.Paths.GetPerlaConfigPath()) with
       | Ok lock ->
         let excludes =
           lock.imports

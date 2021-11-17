@@ -45,13 +45,13 @@ let main argv =
         | Some (Build items) ->
           let buildConfig = Commands.getBuildOptions (items.GetAllResults())
 
-          Fs.Paths.SetCurrentDirectoryToFdsConfigDirectory()
+          Fs.Paths.SetCurrentDirectoryToPerlaConfigDirectory()
           do! Commands.startBuild buildConfig :> Task
           return! Ok 0
         | Some (Serve items) ->
           let serverConfig = Commands.getServerOptions (items.GetAllResults())
 
-          Fs.Paths.SetCurrentDirectoryToFdsConfigDirectory()
+          Fs.Paths.SetCurrentDirectoryToPerlaConfigDirectory()
           do! Commands.startInteractive serverConfig
 
           return! Ok 0

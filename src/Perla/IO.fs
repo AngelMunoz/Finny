@@ -222,7 +222,10 @@ module Fs =
   open FSharp.Control.Reactive
 
   [<Literal>]
-  let FdsConfigName = "perla.jsonc"
+  let PerlaConfigName = "perla.jsonc"
+
+  [<Literal>]
+  let ProxyConfigName = "proxy-config.json"
 
   type ChangeKind =
     | Created
@@ -242,9 +245,9 @@ module Fs =
 
 
   type Paths() =
-    static member GetFdsConfigPath(?path: string) =
+    static member GetPerlaConfigPath(?directoryPath: string) =
       let rec findConfigFile currDir =
-        let path = Path.Combine(currDir, FdsConfigName)
+        let path = Path.Combine(currDir, PerlaConfigName)
 
         if File.Exists path then
           Some path
@@ -257,22 +260,32 @@ module Fs =
               None
           | None -> None
 
-      let workDir = defaultArg path Environment.CurrentDirectory
+      let workDir = defaultArg directoryPath Environment.CurrentDirectory
 
       findConfigFile (Path.GetFullPath workDir)
-      |> Option.defaultValue (Path.Combine(workDir, FdsConfigName))
+      |> Option.defaultValue (Path.Combine(workDir, PerlaConfigName))
 
-    static member SetCurrentDirectoryToFdsConfigDirectory() =
-      Paths.GetFdsConfigPath()
+    static member GetProxyConfigPath(?directoryPath: string) =
+      $"{defaultArg directoryPath (Environment.CurrentDirectory)}/{ProxyConfigName}"
+
+    static member SetCurrentDirectoryToPerlaConfigDirectory() =
+      Paths.GetPerlaConfigPath()
       |> Path.GetDirectoryName
       |> Directory.SetCurrentDirectory
 
-  let getFdsConfig filepath =
+  let getPerlaConfig filepath =
     try
       let bytes = File.ReadAllBytes filepath
       Json.FromBytes<FdsConfig> bytes |> Ok
     with
     | ex -> ex |> Error
+
+  let getProxyConfig filepath =
+    try
+      let bytes = File.ReadAllBytes filepath
+      Json.FromBytes<Map<string, string>> bytes |> Some
+    with
+    | ex -> None
 
   let ensureParentDirectory path =
     try
@@ -280,7 +293,7 @@ module Fs =
     with
     | ex -> ex |> Error
 
-  let createFdsConfig path config =
+  let createPerlaConfig path config =
     let serialized = Json.ToBytes config
 
     try
@@ -350,7 +363,7 @@ module Fs =
       | ex -> return! ex |> Error
     }
 
-  let CompileErrWatcherEvent = lazy (new Event<string>())
+  let CompileErrWatcherEvent = lazy (Event<string>())
 
   let PublishCompileErr err =
     CompileErrWatcherEvent.Value.Trigger err
