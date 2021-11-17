@@ -41,7 +41,7 @@ module Types =
       outDir: string option }
 
     static member DefaultConfig() =
-      { autoStart = Some true
+      { autoStart = Some false
         project = Some "./src/App.fsproj"
         extension = None
         outDir = None }
