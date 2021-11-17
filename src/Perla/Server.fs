@@ -4,6 +4,7 @@ open System
 open System.IO
 open System.Diagnostics
 open System.Net
+open System.Net.Http
 open System.Net.NetworkInformation
 open System.Threading.Tasks
 
@@ -32,6 +33,9 @@ open CliWrap
 open Types
 open Fable
 open System.Text
+open Yarp.ReverseProxy
+open Yarp.ReverseProxy.Forwarder
+open Microsoft.Extensions.DependencyInjection
 
 [<RequireQualifiedAccess>]
 module Middleware =
@@ -184,7 +188,8 @@ document.head.appendChild(style)"""
     let serverConfig =
       defaultArg config.devServer (DevServerConfig.DefaultConfig())
 
-    let mountedDirs = defaultArg serverConfig.mountDirectories Map.empty
+    let mountedDirs =
+      defaultArg serverConfig.mountDirectories Map.empty
 
     appConfig
       .Use(Func<HttpContext, Func<Task>, Task>(jsonImport mountedDirs))
@@ -268,49 +273,53 @@ module Server =
 
       let onChangeSub =
         watcher.FileChanged
-        |> Observable.map (fun event ->
-          task {
-            match Path.GetExtension event.name with
-            | Css ->
-              let! content = File.ReadAllTextAsync event.path
+        |> Observable.map
+             (fun event ->
+               task {
+                 match Path.GetExtension event.name with
+                 | Css ->
+                   let! content = File.ReadAllTextAsync event.path
 
-              let data =
-                Json.ToTextMinified(
-                  {| oldName =
-                      event.oldName
-                      |> Option.map (fun value ->
-                        match value with
-                        | Css -> value
-                        | _ -> "")
-                     name = event.path
-                     content = content |}
-                )
+                   let data =
+                     Json.ToTextMinified(
+                       {| oldName =
+                            event.oldName
+                            |> Option.map
+                                 (fun value ->
+                                   match value with
+                                   | Css -> value
+                                   | _ -> "")
+                          name = event.path
+                          content = content |}
+                     )
 
-              do! res.WriteAsync $"event:replace-css\ndata:{data}\n\n"
-              return! res.Body.FlushAsync()
-            | Typescript
-            | Javascript
-            | Jsx
-            | Json
-            | Other _ ->
-              let data =
-                Json.ToTextMinified(
-                  {| oldName = event.oldName
-                     name = event.name |}
-                )
+                   do! res.WriteAsync $"event:replace-css\ndata:{data}\n\n"
+                   return! res.Body.FlushAsync()
+                 | Typescript
+                 | Javascript
+                 | Jsx
+                 | Json
+                 | Other _ ->
+                   let data =
+                     Json.ToTextMinified(
+                       {| oldName = event.oldName
+                          name = event.name |}
+                     )
 
-              logger.LogInformation $"LiveReload File Changed: {event.name}"
+                   logger.LogInformation
+                     $"LiveReload File Changed: {event.name}"
 
-              do! res.WriteAsync $"event:reload\ndata:{data}\n\n"
-              return! res.Body.FlushAsync()
-          })
+                   do! res.WriteAsync $"event:reload\ndata:{data}\n\n"
+                   return! res.Body.FlushAsync()
+               })
         |> Observable.switchTask
         |> Observable.subscribe ignore
 
-      ctx.RequestAborted.Register (fun _ ->
-        watcher.Dispose()
-        onChangeSub.Dispose()
-        onCompileErrSub.Dispose())
+      ctx.RequestAborted.Register
+        (fun _ ->
+          watcher.Dispose()
+          onChangeSub.Dispose()
+          onCompileErrSub.Dispose())
       |> ignore
 
       while true do
@@ -323,7 +332,8 @@ module Server =
     let (didParse, address) = IPEndPoint.TryParse($"{address}:{port}")
 
     if didParse then
-      let props = IPGlobalProperties.GetIPGlobalProperties()
+      let props =
+        IPGlobalProperties.GetIPGlobalProperties()
 
       let listeners = props.GetActiveTcpListeners()
 
@@ -351,9 +361,11 @@ module Server =
 
         let indexFile = defaultArg config.index "index.html"
 
-        let content = File.ReadAllText(Path.GetFullPath(indexFile))
+        let content =
+          File.ReadAllText(Path.GetFullPath(indexFile))
 
-        let context = BrowsingContext.New(Configuration.Default)
+        let context =
+          BrowsingContext.New(Configuration.Default)
 
         let parser = context.GetService<IHtmlParser>()
         let doc = parser.ParseDocument content
@@ -401,7 +413,8 @@ module Server =
     let useSSL = defaultArg serverConfig.useSSL false
     let liveReload = defaultArg serverConfig.liveReload true
 
-    let mountedDirs = defaultArg serverConfig.mountDirectories Map.empty
+    let mountedDirs =
+      defaultArg serverConfig.mountDirectories Map.empty
 
     let watchConfig =
       defaultArg serverConfig.watchConfig (WatchConfig.Default())
@@ -473,14 +486,51 @@ module Server =
           appConfig.UseStaticFiles staticFileOptions
           |> ignore
 
-        appConfig.UseWhen(
-          Middleware.transformPredicate ignoreStatic,
-          Middleware.configureTransformMiddleware config
-        )
+        appConfig
+          .UseWhen(
+            Middleware.transformPredicate ignoreStatic,
+            Middleware.configureTransformMiddleware config
+          )
+          .UseRouting()
+          .UseEndpoints(fun endpoints ->
+            let socketsHandler = new SocketsHttpHandler()
+            socketsHandler.UseProxy <- false
+            socketsHandler.AllowAutoRedirect <- false
+            socketsHandler.AutomaticDecompression <- DecompressionMethods.None
+            socketsHandler.UseCookies <- false
+            let client = new HttpMessageInvoker(socketsHandler)
+            let reqConfig = ForwarderRequestConfig()
+            reqConfig.ActivityTimeout <- TimeSpan.FromSeconds(100.)
+            endpoints.Map(
+              "/api/{**catch-all}",
+              Func<HttpContext, IHttpForwarder, Task>
+                (fun (ctx: HttpContext) (forwarder: IHttpForwarder) ->
+                  task {
+                    let logger = ctx.GetLogger("Perla Proxy")
+                    let! error =
+                      forwarder.SendAsync(
+                        ctx,
+                        "http://localhost:5000/api",
+                        client,
+                        reqConfig
+                      )
+                    if error <> ForwarderError.None then
+                        let errorFeat = ctx.GetForwarderErrorFeature()
+                        let ex = errorFeat.Exception
+                        logger.LogWarning($"{ex.Message}")
+                    ()
+                  } :> Task)
+            )
+            |> ignore
 
+            ())
+
+      let setServices (services: IServiceCollection) =
+        services.AddHttpForwarder()
 
       application {
         app_config withAppConfig
+        service_config setServices
         webhost_config withWebhostConfig
         use_router urls
         use_gzip
