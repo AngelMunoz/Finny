@@ -401,7 +401,7 @@ Updated: {package.updatedAt.ToShortDateString()}"""
         return! PackageNotFoundException |> Error
 
       let! fdsConfig = Fs.getPerlaConfig (GetPerlaConfigPath())
-      let! lockFile = Fs.getorCreateLockFile (GetPerlaConfigPath())
+      let! lockFile = Fs.getOrCreateLockFile (GetPerlaConfigPath())
 
       let deps =
         fdsConfig.packages
@@ -447,7 +447,7 @@ Updated: {package.updatedAt.ToShortDateString()}"""
         Http.getPackageUrlInfo $"{package}{version}" alias source
 
       let! fdsConfig = Fs.getPerlaConfig (GetPerlaConfigPath())
-      let! lockFile = Fs.getorCreateLockFile (GetPerlaConfigPath())
+      let! lockFile = Fs.getOrCreateLockFile (GetPerlaConfigPath())
 
       let packages =
         fdsConfig.packages

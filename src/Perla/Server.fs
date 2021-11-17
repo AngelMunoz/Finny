@@ -368,7 +368,7 @@ module Server =
         liveReload.SetAttribute("type", "text/javascript")
         liveReload.SetAttribute("src", "/~perla~/livereload.js")
 
-        match! Fs.getorCreateLockFile (Fs.Paths.GetPerlaConfigPath()) with
+        match! Fs.getOrCreateLockFile (Fs.Paths.GetPerlaConfigPath()) with
         | Ok lock ->
           let map: ImportMap =
             { imports = lock.imports

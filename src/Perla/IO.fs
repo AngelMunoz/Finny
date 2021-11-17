@@ -301,7 +301,7 @@ module Fs =
     with
     | ex -> Error ex
 
-  let getorCreateLockFile configPath =
+  let getOrCreateLockFile configPath =
     taskResult {
       try
         let path = Path.GetFullPath($"%s{configPath}.lock")
