@@ -22,7 +22,7 @@ type ServerArgs =
   interface IArgParserTemplate with
     member this.Usage =
       match this with
-      | Port _ -> "Select the server port, defaults to 7331"
+      | Port _ -> "Selects the server port, defaults to 7331"
       | Host _ -> "Server host, defaults to localhost"
       | Use_Ssl _ -> "Forces the requests to go through HTTPS. Defaults to true"
       | Auto_Start _ -> "Starts the server without action required by the user."
@@ -37,7 +37,7 @@ type BuildArgs =
       | Index_File _ ->
         "The Entry File for the web application. Defaults to \"index.html\""
       | Esbuild_Version _ ->
-        "Use a specific esbuild version. defaults to \"0.12.9\""
+        "Uses a specific esbuild version. defaults to \"0.12.9\""
       | Out_Dir _ -> "Where to output the files. Defaults to \"./dist\""
 
 type InitArgs =
@@ -52,7 +52,7 @@ type InitArgs =
     member this.Usage: string =
       match this with
       | Path _ -> "Where to write the config file"
-      | With_Fable _ -> "Include fable options in the config file"
+      | With_Fable _ -> "Includes fable options in the config file"
 
 type SearchArgs =
   | [<AltCommandLine("-n")>] Name of string
@@ -90,8 +90,7 @@ type RemoveArgs =
   interface IArgParserTemplate with
     member this.Usage: string =
       match this with
-      | Package _ ->
-        "The name of the package to remove from the import map this can also be aliased name."
+      | Package _ -> "Package name (or alias) to remove from the import map."
 
 type AddArgs =
   | [<AltCommandLine("-p")>] Package of string
@@ -122,7 +121,7 @@ type ListArgs =
   interface IArgParserTemplate with
     member this.Usage: string =
       match this with
-      | As_Package_Json -> "List packages in npm's package.json format."
+      | As_Package_Json -> "Lists packages in npm's package.json format."
 
 type DevServerArgs =
   | [<CliPrefix(CliPrefix.None); AltCommandLine("s")>] Serve of
@@ -149,7 +148,7 @@ type DevServerArgs =
       | Show _ -> "Gets the skypack information about a package."
       | Add _ -> "Generates an entry in the import map."
       | Remove _ -> "Removes an entry in the import map."
-      | List _ -> "List entries in the import map."
+      | List _ -> "Lists entries in the import map."
       | Version _ -> "Prints out the cli version to the console."
 
 module Commands =
@@ -401,7 +400,7 @@ Updated: {package.updatedAt.ToShortDateString()}"""
         return! PackageNotFoundException |> Error
 
       let! fdsConfig = Fs.getPerlaConfig (GetPerlaConfigPath())
-      let! lockFile = Fs.getorCreateLockFile (GetPerlaConfigPath())
+      let! lockFile = Fs.getOrCreateLockFile (GetPerlaConfigPath())
 
       let deps =
         fdsConfig.packages
@@ -447,7 +446,7 @@ Updated: {package.updatedAt.ToShortDateString()}"""
         Http.getPackageUrlInfo $"{package}{version}" alias source
 
       let! fdsConfig = Fs.getPerlaConfig (GetPerlaConfigPath())
-      let! lockFile = Fs.getorCreateLockFile (GetPerlaConfigPath())
+      let! lockFile = Fs.getOrCreateLockFile (GetPerlaConfigPath())
 
       let packages =
         fdsConfig.packages
@@ -533,7 +532,7 @@ Updated: {package.updatedAt.ToShortDateString()}"""
           |> Async.AwaitTask
           |> Async.Ignore
       | err ->
-        parser.PrintUsage("No Commands Specified", hideSyntax = true)
+        parser.PrintUsage("No command specified", hideSyntax = true)
         |> printfn "%s"
 
         return! async { return () }

@@ -368,7 +368,7 @@ module Server =
         liveReload.SetAttribute("type", "text/javascript")
         liveReload.SetAttribute("src", "/~perla~/livereload.js")
 
-        match! Fs.getorCreateLockFile (Fs.Paths.GetPerlaConfigPath()) with
+        match! Fs.getOrCreateLockFile (Fs.Paths.GetPerlaConfigPath()) with
         | Ok lock ->
           let map: ImportMap =
             { imports = lock.imports
@@ -469,7 +469,7 @@ module Server =
             $"https://{customHost}:{customPort + 1}"
           | true ->
             printfn
-              $"Address {customHost}:{customPort} is Busy, selecting a dynamic port."
+              $"Address {customHost}:{customPort} is busy, selecting a dynamic port."
 
             $"http://{customHost}:{0}", $"https://{customHost}:{0}"
 
