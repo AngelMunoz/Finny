@@ -54,6 +54,10 @@
             {
                 "title": "CSS/JSON",
                 "url": "/#/docs/features/css-json"
+            },
+            {
+                "title": "Dev Proxy",
+                "url": "/#/docs/features/dev-proxy"
             }
         ]
     },

@@ -20,6 +20,7 @@ open Microsoft.Extensions.Hosting
 open Microsoft.Extensions.Logging
 open Microsoft.Extensions.FileProviders
 open Microsoft.AspNetCore.StaticFiles
+open Perla
 open Yarp.ReverseProxy
 open Yarp.ReverseProxy.Forwarder
 
@@ -342,7 +343,7 @@ module Server =
     task {
       let logger = ctx.GetLogger("Perla:Index")
 
-      match Fs.getFdsConfig (Fs.Paths.GetFdsConfigPath()) with
+      match Fs.getPerlaConfig (Fs.Paths.GetPerlaConfigPath()) with
       | Error err ->
         logger.Log(
           LogLevel.Error,
@@ -367,7 +368,7 @@ module Server =
         liveReload.SetAttribute("type", "text/javascript")
         liveReload.SetAttribute("src", "/~perla~/livereload.js")
 
-        match! Fs.getorCreateLockFile (Fs.Paths.GetFdsConfigPath()) with
+        match! Fs.getorCreateLockFile (Fs.Paths.GetPerlaConfigPath()) with
         | Ok lock ->
           let map: ImportMap =
             { imports = lock.imports
@@ -389,6 +390,36 @@ module Server =
 
   let mutable private app: IHost option = None
 
+  let private getHttpClientAndForwarder () =
+    let socketsHandler = new SocketsHttpHandler()
+    socketsHandler.UseProxy <- false
+    socketsHandler.AllowAutoRedirect <- false
+    socketsHandler.AutomaticDecompression <- DecompressionMethods.None
+    socketsHandler.UseCookies <- false
+    let client = new HttpMessageInvoker(socketsHandler)
+    let reqConfig = ForwarderRequestConfig()
+    reqConfig.ActivityTimeout <- TimeSpan.FromSeconds(100.)
+    client, reqConfig
+
+  let private getProxyHandler
+    (target: string)
+    (httpClient: HttpMessageInvoker)
+    (forwardConfig: ForwarderRequestConfig)
+    : Func<HttpContext, IHttpForwarder, Task> =
+    let toFunc (ctx: HttpContext) (forwarder: IHttpForwarder) =
+      task {
+        let logger = ctx.GetLogger("Perla Proxy")
+        let! error = forwarder.SendAsync(ctx, target, httpClient, forwardConfig)
+
+        if error <> ForwarderError.None then
+          let errorFeat = ctx.GetForwarderErrorFeature()
+          let ex = errorFeat.Exception
+          logger.LogWarning($"{ex.Message}")
+      }
+      :> Task
+
+    Func<HttpContext, IHttpForwarder, Task>(toFunc)
+
   let private startFable =
     let getFableCmd (config: FableConfig option) =
       (fableCmd (Some true) (defaultArg config (FableConfig.DefaultConfig())))
@@ -399,6 +430,10 @@ module Server =
   let private devServer (config: FdsConfig) =
     let serverConfig =
       defaultArg config.devServer (DevServerConfig.DefaultConfig())
+
+    let getProxyConfig =
+      let path = Fs.Paths.GetProxyConfigPath()
+      Fs.getProxyConfig (path)
 
     let customHost = defaultArg serverConfig.host "127.0.0.1"
     let customPort = defaultArg serverConfig.port 7331
@@ -477,56 +512,35 @@ module Server =
           appConfig.UseStaticFiles staticFileOptions
           |> ignore
 
-        appConfig
-          .UseWhen(
+        let appConfig =
+          appConfig.UseWhen(
             Middleware.transformPredicate ignoreStatic,
             Middleware.configureTransformMiddleware config
           )
-          .UseRouting()
-          .UseEndpoints(fun endpoints ->
-            let socketsHandler = new SocketsHttpHandler()
-            socketsHandler.UseProxy <- false
-            socketsHandler.AllowAutoRedirect <- false
-            socketsHandler.AutomaticDecompression <- DecompressionMethods.None
-            socketsHandler.UseCookies <- false
-            let client = new HttpMessageInvoker(socketsHandler)
-            let reqConfig = ForwarderRequestConfig()
-            reqConfig.ActivityTimeout <- TimeSpan.FromSeconds(100.)
 
-            endpoints.Map(
-              "/api/{**catch-all}",
-              Func<HttpContext, IHttpForwarder, Task>
-                (fun (ctx: HttpContext) (forwarder: IHttpForwarder) ->
-                  task {
-                    let logger = ctx.GetLogger("Perla Proxy")
+        match getProxyConfig with
+        | Some proxyConfig ->
+          appConfig
+            .UseRouting()
+            .UseEndpoints(fun endpoints ->
+              let (client, reqConfig) = getHttpClientAndForwarder ()
 
-                    let! error =
-                      forwarder.SendAsync(
-                        ctx,
-                        "http://localhost:5000/api",
-                        client,
-                        reqConfig
-                      )
+              for (from, target) in proxyConfig |> Map.toSeq do
+                let handler = getProxyHandler target client reqConfig
+                endpoints.Map(from, handler) |> ignore)
+        | None -> appConfig
 
-                    if error <> ForwarderError.None then
-                      let errorFeat = ctx.GetForwarderErrorFeature()
-                      let ex = errorFeat.Exception
-                      logger.LogWarning($"{ex.Message}")
-
-                    ()
-                  }
-                  :> Task)
-            )
-            |> ignore
-
-            ())
-
-      let setServices (services: IServiceCollection) =
-        services.AddHttpForwarder()
+      let setServices
+        (proxyConfig: Map<string, string> option)
+        (services: IServiceCollection)
+        =
+        match proxyConfig with
+        | Some _ -> services.AddHttpForwarder()
+        | None -> services
 
       application {
         app_config withAppConfig
-        service_config setServices
+        service_config (setServices getProxyConfig)
         webhost_config withWebhostConfig
         use_endpoint_router urls
         use_gzip
