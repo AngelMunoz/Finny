@@ -1,7 +1,5 @@
 ﻿namespace Perla
 
-open FSharp.Control.Tasks
-
 open CliWrap
 
 open Types
@@ -12,8 +10,7 @@ module Fable =
 
   let private killActiveProcess pid =
     try
-      let activeProcess =
-        System.Diagnostics.Process.GetProcessById pid
+      let activeProcess = System.Diagnostics.Process.GetProcessById pid
 
       activeProcess.Kill()
     with

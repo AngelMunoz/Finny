@@ -9,11 +9,24 @@
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build",
-            "program": "${workspaceFolder}/src/Perla/bin/Debug/net5.0/Perla.dll",
+            "program": "${workspaceFolder}/src/Perla/bin/Debug/net6.0/Perla.dll",
             "args": [
                 "serve"
             ],
             "cwd": "${workspaceFolder}/src/App",
+            "stopAtEntry": false,
+            "console": "internalConsole"
+        },
+        {
+            "name": "Perla init",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build",
+            "program": "${workspaceFolder}/src/Perla/bin/Debug/net6.0/Perla.dll",
+            "args": [
+                "init"
+            ],
+            "cwd": "${workspaceFolder}",
             "stopAtEntry": false,
             "console": "internalConsole"
         },
@@ -70,19 +83,6 @@
                 "build"
             ],
             "cwd": "${workspaceFolder}/src/react-tsx",
-            "stopAtEntry": false,
-            "console": "integratedTerminal"
-        },
-        {
-            "name": "NET5 build",
-            "type": "coreclr",
-            "request": "launch",
-            "preLaunchTask": "build",
-            "program": "${workspaceFolder}/src/Perla/bin/Debug/net5.0/Perla.dll",
-            "args": [
-                "build"
-            ],
-            "cwd": "${workspaceFolder}/src/App",
             "stopAtEntry": false,
             "console": "integratedTerminal"
         }

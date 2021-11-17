@@ -5,8 +5,6 @@ open System.IO
 open System.Net.Http
 open System.Threading.Tasks
 
-open FSharp.Control.Tasks
-
 open AngleSharp
 open AngleSharp.Html.Parser
 
@@ -27,13 +25,11 @@ module Build =
       | CSS -> "CSS"
 
   let private getEntryPoints (type': ResourceType) (config: FdsConfig) =
-    let context =
-      BrowsingContext.New(Configuration.Default)
+    let context = BrowsingContext.New(Configuration.Default)
 
     let indexFile = defaultArg config.index "index.html"
 
-    let content =
-      File.ReadAllText(Path.GetFullPath(indexFile))
+    let content = File.ReadAllText(Path.GetFullPath(indexFile))
 
     let parser = context.GetService<IHtmlParser>()
     let doc = parser.ParseDocument content
@@ -70,11 +66,9 @@ module Build =
       |> Option.flatten
       |> Option.defaultValue "./dist"
 
-    let content =
-      File.ReadAllText(Path.GetFullPath(indexFile))
+    let content = File.ReadAllText(Path.GetFullPath(indexFile))
 
-    let context =
-      BrowsingContext.New(Configuration.Default)
+    let context = BrowsingContext.New(Configuration.Default)
 
     let parser = context.GetService<IHtmlParser>()
     let doc = parser.ParseDocument content
@@ -90,7 +84,7 @@ module Build =
     script.SetAttribute("type", "importmap")
 
     task {
-      match! Fs.getorCreateLockFile (Fs.Paths.GetFdsConfigPath()) with
+      match! Fs.getorCreateLockFile (Fs.Paths.GetPerlaConfigPath()) with
       | Ok lock ->
         let map: ImportMap =
           { imports = lock.imports
@@ -138,7 +132,7 @@ module Build =
 
   let getExcludes config =
     task {
-      match! Fs.getorCreateLockFile (Fs.Paths.GetFdsConfigPath()) with
+      match! Fs.getorCreateLockFile (Fs.Paths.GetPerlaConfigPath()) with
       | Ok lock ->
         let excludes =
           lock.imports
@@ -147,12 +141,11 @@ module Build =
 
         return
           config.externals
-          |> Option.map
-               (fun ex ->
-                 seq {
-                   yield! ex
-                   yield! excludes
-                 })
+          |> Option.map (fun ex ->
+            seq {
+              yield! ex
+              yield! excludes
+            })
           |> Option.defaultValue excludes
 
       | Error ex ->
@@ -161,8 +154,7 @@ module Build =
     }
 
   let execBuild (config: FdsConfig) =
-    let buildConfig =
-      defaultArg config.build (BuildConfig.DefaultConfig())
+    let buildConfig = defaultArg config.build (BuildConfig.DefaultConfig())
 
     let devServer =
       defaultArg config.devServer (DevServerConfig.DefaultConfig())
@@ -176,7 +168,7 @@ module Build =
       match buildConfig.copyPaths with
       | None -> BuildConfig.DefaultExcludes()
       | Some paths ->
-        paths.exclude
+        paths.excludes
         |> Option.map List.ofSeq
         |> Option.defaultValue (BuildConfig.DefaultExcludes())
 
@@ -184,15 +176,14 @@ module Build =
       match buildConfig.copyPaths with
       | None -> List.empty
       | Some paths ->
-        paths.``include``
+        paths.includes
         |> Option.map List.ofSeq
         |> Option.defaultValue List.empty
 
     task {
       match config.fable with
       | Some fable ->
-        let cmdResult =
-          (fableCmd (Some false) fable).ExecuteAsync()
+        let cmdResult = (fableCmd (Some false) fable).ExecuteAsync()
 
         printfn $"Starting Fable with pid: [{cmdResult.ProcessId}]"
 
@@ -215,9 +206,7 @@ module Build =
 
       let! excludes = getExcludes buildConfig
 
-      let buildConfig =
-        { buildConfig with
-            externals = excludes |> Some }
+      let buildConfig = { buildConfig with externals = excludes |> Some }
 
       do!
         Task.WhenAll(
@@ -239,45 +228,40 @@ module Build =
 
         let includedFiles =
           totalPaths
-          |> Array.filter
-               (fun path ->
-                 copyIncludes
-                 |> List.exists
-                      (fun ext ->
-                        let ext =
-                          let ext =
-                            ext.Replace('/', Path.DirectorySeparatorChar)
+          |> Array.filter (fun path ->
+            copyIncludes
+            |> List.exists (fun ext ->
+              let ext =
+                let ext = ext.Replace('/', Path.DirectorySeparatorChar)
 
-                          if ext.StartsWith "." then
-                            ext.Substring(2)
-                          else
-                            ext
+                if ext.StartsWith "." then
+                  ext.Substring(2)
+                else
+                  ext
 
-                        path.Contains(ext)))
+              path.Contains(ext)))
 
 
         let excludedFiles =
           totalPaths
-          |> Array.filter
-               (fun path ->
-                 copyExcludes
-                 |> List.exists (fun ext -> path.Contains(ext))
-                 |> not)
+          |> Array.filter (fun path ->
+            copyExcludes
+            |> List.exists (fun ext -> path.Contains(ext))
+            |> not)
 
         [| yield! excludedFiles
            yield! includedFiles |]
-        |> Array.Parallel.iter
-             (fun path ->
-               let posPath = path.Replace(root, $"{outDir}")
+        |> Array.Parallel.iter (fun path ->
+          let posPath = path.Replace(root, $"{outDir}")
 
-               try
-                 Path.GetDirectoryName posPath
-                 |> Directory.CreateDirectory
-                 |> ignore
-               with
-               | _ -> ()
+          try
+            Path.GetDirectoryName posPath
+            |> Directory.CreateDirectory
+            |> ignore
+          with
+          | _ -> ()
 
-               File.Copy(path, posPath))
+          File.Copy(path, posPath))
 
       devServer.mountDirectories
       |> Option.map getDirectories
@@ -285,8 +269,7 @@ module Build =
 
       let cssFiles =
         [ for jsFile in jsFiles do
-            let name =
-              (Path.GetFileName jsFile).Replace(".js", ".css")
+            let name = (Path.GetFileName jsFile).Replace(".js", ".css")
 
             let dirName =
               (Path.GetDirectoryName jsFile)

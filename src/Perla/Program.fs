@@ -1,6 +1,5 @@
 ﻿// Learn more about F# at http://docs.microsoft.com/dotnet/fsharp
 open System.Threading.Tasks
-open FSharp.Control.Tasks
 
 open Argu
 
@@ -27,8 +26,7 @@ let main argv =
     let parser = ArgumentParser.Create<DevServerArgs>()
 
     try
-      let parsed =
-        parser.ParseCommandLine(inputs = argv, raiseOnUsage = true)
+      let parsed = parser.ParseCommandLine(inputs = argv, raiseOnUsage = true)
 
       match parsed.TryGetResult(Version) with
       | Some Version ->
@@ -45,17 +43,15 @@ let main argv =
       | _ ->
         match parsed.TryGetSubCommand() with
         | Some (Build items) ->
-          let buildConfig =
-            Commands.getBuildOptions (items.GetAllResults())
+          let buildConfig = Commands.getBuildOptions (items.GetAllResults())
 
-          Fs.Paths.SetCurrentDirectoryToFdsConfigDirectory()
+          Fs.Paths.SetCurrentDirectoryToPerlaConfigDirectory()
           do! Commands.startBuild buildConfig :> Task
           return! Ok 0
         | Some (Serve items) ->
-          let serverConfig =
-            Commands.getServerOptions (items.GetAllResults())
+          let serverConfig = Commands.getServerOptions (items.GetAllResults())
 
-          Fs.Paths.SetCurrentDirectoryToFdsConfigDirectory()
+          Fs.Paths.SetCurrentDirectoryToPerlaConfigDirectory()
           do! Commands.startInteractive serverConfig
 
           return! Ok 0

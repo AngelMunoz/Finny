@@ -4,7 +4,9 @@ open System
 open System.IO
 open System.Diagnostics
 open System.Net
+open System.Net.Http
 open System.Net.NetworkInformation
+open System.Text
 open System.Threading.Tasks
 
 open AngleSharp
@@ -13,25 +15,28 @@ open AngleSharp.Html.Parser
 open Microsoft.AspNetCore.Builder
 open Microsoft.AspNetCore.Http
 open Microsoft.AspNetCore.Hosting
+open Microsoft.Extensions.DependencyInjection
 open Microsoft.Extensions.Hosting
 open Microsoft.Extensions.Logging
 open Microsoft.Extensions.FileProviders
 open Microsoft.AspNetCore.StaticFiles
+open Perla
+open Yarp.ReverseProxy
+open Yarp.ReverseProxy.Forwarder
 
 open FSharp.Control
 open FSharp.Control.Reactive
-open FSharp.Control.Tasks
 
 open FsToolkit.ErrorHandling
 
 open Giraffe
 open Saturn
+open Saturn.Endpoint.Router
 
 open CliWrap
 
 open Types
 open Fable
-open System.Text
 
 [<RequireQualifiedAccess>]
 module Middleware =
@@ -184,8 +189,7 @@ document.head.appendChild(style)"""
     let serverConfig =
       defaultArg config.devServer (DevServerConfig.DefaultConfig())
 
-    let mountedDirs =
-      defaultArg serverConfig.mountDirectories Map.empty
+    let mountedDirs = defaultArg serverConfig.mountDirectories Map.empty
 
     appConfig
       .Use(Func<HttpContext, Func<Task>, Task>(jsonImport mountedDirs))
@@ -269,53 +273,49 @@ module Server =
 
       let onChangeSub =
         watcher.FileChanged
-        |> Observable.map
-             (fun event ->
-               task {
-                 match Path.GetExtension event.name with
-                 | Css ->
-                   let! content = File.ReadAllTextAsync event.path
+        |> Observable.map (fun event ->
+          task {
+            match Path.GetExtension event.name with
+            | Css ->
+              let! content = File.ReadAllTextAsync event.path
 
-                   let data =
-                     Json.ToTextMinified(
-                       {| oldName =
-                            event.oldName
-                            |> Option.map
-                                 (fun value ->
-                                   match value with
-                                   | Css -> value
-                                   | _ -> "")
-                          name = event.path
-                          content = content |}
-                     )
+              let data =
+                Json.ToTextMinified(
+                  {| oldName =
+                      event.oldName
+                      |> Option.map (fun value ->
+                        match value with
+                        | Css -> value
+                        | _ -> "")
+                     name = event.path
+                     content = content |}
+                )
 
-                   do! res.WriteAsync $"event:replace-css\ndata:{data}\n\n"
-                   return! res.Body.FlushAsync()
-                 | Typescript
-                 | Javascript
-                 | Jsx
-                 | Json
-                 | Other _ ->
-                   let data =
-                     Json.ToTextMinified(
-                       {| oldName = event.oldName
-                          name = event.name |}
-                     )
+              do! res.WriteAsync $"event:replace-css\ndata:{data}\n\n"
+              return! res.Body.FlushAsync()
+            | Typescript
+            | Javascript
+            | Jsx
+            | Json
+            | Other _ ->
+              let data =
+                Json.ToTextMinified(
+                  {| oldName = event.oldName
+                     name = event.name |}
+                )
 
-                   logger.LogInformation
-                     $"LiveReload File Changed: {event.name}"
+              logger.LogInformation $"LiveReload File Changed: {event.name}"
 
-                   do! res.WriteAsync $"event:reload\ndata:{data}\n\n"
-                   return! res.Body.FlushAsync()
-               })
+              do! res.WriteAsync $"event:reload\ndata:{data}\n\n"
+              return! res.Body.FlushAsync()
+          })
         |> Observable.switchTask
         |> Observable.subscribe ignore
 
-      ctx.RequestAborted.Register
-        (fun _ ->
-          watcher.Dispose()
-          onChangeSub.Dispose()
-          onCompileErrSub.Dispose())
+      ctx.RequestAborted.Register (fun _ ->
+        watcher.Dispose()
+        onChangeSub.Dispose()
+        onCompileErrSub.Dispose())
       |> ignore
 
       while true do
@@ -328,8 +328,7 @@ module Server =
     let (didParse, address) = IPEndPoint.TryParse($"{address}:{port}")
 
     if didParse then
-      let props =
-        IPGlobalProperties.GetIPGlobalProperties()
+      let props = IPGlobalProperties.GetIPGlobalProperties()
 
       let listeners = props.GetActiveTcpListeners()
 
@@ -344,7 +343,7 @@ module Server =
     task {
       let logger = ctx.GetLogger("Perla:Index")
 
-      match Fs.getFdsConfig (Fs.Paths.GetFdsConfigPath()) with
+      match Fs.getPerlaConfig (Fs.Paths.GetPerlaConfigPath()) with
       | Error err ->
         logger.Log(
           LogLevel.Error,
@@ -357,11 +356,9 @@ module Server =
 
         let indexFile = defaultArg config.index "index.html"
 
-        let content =
-          File.ReadAllText(Path.GetFullPath(indexFile))
+        let content = File.ReadAllText(Path.GetFullPath(indexFile))
 
-        let context =
-          BrowsingContext.New(Configuration.Default)
+        let context = BrowsingContext.New(Configuration.Default)
 
         let parser = context.GetService<IHtmlParser>()
         let doc = parser.ParseDocument content
@@ -371,7 +368,7 @@ module Server =
         liveReload.SetAttribute("type", "text/javascript")
         liveReload.SetAttribute("src", "/~perla~/livereload.js")
 
-        match! Fs.getorCreateLockFile (Fs.Paths.GetFdsConfigPath()) with
+        match! Fs.getorCreateLockFile (Fs.Paths.GetPerlaConfigPath()) with
         | Ok lock ->
           let map: ImportMap =
             { imports = lock.imports
@@ -393,6 +390,36 @@ module Server =
 
   let mutable private app: IHost option = None
 
+  let private getHttpClientAndForwarder () =
+    let socketsHandler = new SocketsHttpHandler()
+    socketsHandler.UseProxy <- false
+    socketsHandler.AllowAutoRedirect <- false
+    socketsHandler.AutomaticDecompression <- DecompressionMethods.None
+    socketsHandler.UseCookies <- false
+    let client = new HttpMessageInvoker(socketsHandler)
+    let reqConfig = ForwarderRequestConfig()
+    reqConfig.ActivityTimeout <- TimeSpan.FromSeconds(100.)
+    client, reqConfig
+
+  let private getProxyHandler
+    (target: string)
+    (httpClient: HttpMessageInvoker)
+    (forwardConfig: ForwarderRequestConfig)
+    : Func<HttpContext, IHttpForwarder, Task> =
+    let toFunc (ctx: HttpContext) (forwarder: IHttpForwarder) =
+      task {
+        let logger = ctx.GetLogger("Perla Proxy")
+        let! error = forwarder.SendAsync(ctx, target, httpClient, forwardConfig)
+
+        if error <> ForwarderError.None then
+          let errorFeat = ctx.GetForwarderErrorFeature()
+          let ex = errorFeat.Exception
+          logger.LogWarning($"{ex.Message}")
+      }
+      :> Task
+
+    Func<HttpContext, IHttpForwarder, Task>(toFunc)
+
   let private startFable =
     let getFableCmd (config: FableConfig option) =
       (fableCmd (Some true) (defaultArg config (FableConfig.DefaultConfig())))
@@ -404,13 +431,16 @@ module Server =
     let serverConfig =
       defaultArg config.devServer (DevServerConfig.DefaultConfig())
 
+    let getProxyConfig =
+      let path = Fs.Paths.GetProxyConfigPath()
+      Fs.getProxyConfig (path)
+
     let customHost = defaultArg serverConfig.host "127.0.0.1"
     let customPort = defaultArg serverConfig.port 7331
     let useSSL = defaultArg serverConfig.useSSL false
     let liveReload = defaultArg serverConfig.liveReload true
 
-    let mountedDirs =
-      defaultArg serverConfig.mountDirectories Map.empty
+    let mountedDirs = defaultArg serverConfig.mountDirectories Map.empty
 
     let watchConfig =
       defaultArg serverConfig.watchConfig (WatchConfig.Default())
@@ -482,16 +512,37 @@ module Server =
           appConfig.UseStaticFiles staticFileOptions
           |> ignore
 
-        appConfig.UseWhen(
-          Middleware.transformPredicate ignoreStatic,
-          Middleware.configureTransformMiddleware config
-        )
+        let appConfig =
+          appConfig.UseWhen(
+            Middleware.transformPredicate ignoreStatic,
+            Middleware.configureTransformMiddleware config
+          )
 
+        match getProxyConfig with
+        | Some proxyConfig ->
+          appConfig
+            .UseRouting()
+            .UseEndpoints(fun endpoints ->
+              let (client, reqConfig) = getHttpClientAndForwarder ()
+
+              for (from, target) in proxyConfig |> Map.toSeq do
+                let handler = getProxyHandler target client reqConfig
+                endpoints.Map(from, handler) |> ignore)
+        | None -> appConfig
+
+      let setServices
+        (proxyConfig: Map<string, string> option)
+        (services: IServiceCollection)
+        =
+        match proxyConfig with
+        | Some _ -> services.AddHttpForwarder()
+        | None -> services
 
       application {
         app_config withAppConfig
+        service_config (setServices getProxyConfig)
         webhost_config withWebhostConfig
-        use_router urls
+        use_endpoint_router urls
         use_gzip
       }
 

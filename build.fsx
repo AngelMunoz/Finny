@@ -34,43 +34,34 @@ let runtimes =
 Target.initEnvironment ()
 Target.create "Clean" (fun _ -> !! "dist" |> Shell.cleanDirs)
 
-Target.create
-    "PackNugets"
-    (fun _ ->
-        DotNet.pack
-            (fun opts ->
-                { opts with
-                      Configuration = DotNet.BuildConfiguration.Release
-                      OutputPath = Some $"{output}" })
-            "src/Perla")
-
-Target.create
-    "BuildBinaries"
-    (fun _ ->
-        let args = MSBuild.CliArguments.Create()
-
-        let getOpts (runtime: string) (opts: DotNet.PublishOptions) =
+Target.create "PackNugets" (fun _ ->
+    DotNet.pack
+        (fun opts ->
             { opts with
-                  SelfContained = Some true
-                  Framework = Some "net6.0"
-                  Runtime = Some runtime
-                  Configuration = DotNet.BuildConfiguration.Release
-                  OutputPath = Some $"{output}/{runtime}"
-                  MSBuildParams =
-                      { args with
-                            Properties = [ "PublishSingleFile", "true" ] } }
+                Configuration = DotNet.BuildConfiguration.Release
+                OutputPath = Some $"{output}" })
+        "src/Perla")
 
-        let getPublishCmd getOpts runtime =
-            DotNet.publish (getOpts runtime) "src/Perla/Perla.fsproj"
+Target.create "BuildBinaries" (fun _ ->
+    let args = MSBuild.CliArguments.Create()
 
-        Array.iter (getPublishCmd getOpts) runtimes)
+    let getOpts (runtime: string) (opts: DotNet.PublishOptions) =
+        { opts with
+            SelfContained = Some true
+            Framework = Some "net6.0"
+            Runtime = Some runtime
+            Configuration = DotNet.BuildConfiguration.Release
+            OutputPath = Some $"{output}/{runtime}"
+            MSBuildParams = { args with Properties = [ "PublishSingleFile", "true" ] } }
 
-Target.create
-    "Zip"
-    (fun _ ->
-        runtimes
-        |> Array.Parallel.iter
-            (fun runtime -> ZipFile.CreateFromDirectory($"{output}/{runtime}", $"{output}/{runtime}.zip")))
+    let getPublishCmd getOpts runtime =
+        DotNet.publish (getOpts runtime) "src/Perla/Perla.fsproj"
+
+    Array.iter (getPublishCmd getOpts) runtimes)
+
+Target.create "Zip" (fun _ ->
+    runtimes
+    |> Array.Parallel.iter (fun runtime -> ZipFile.CreateFromDirectory($"{output}/{runtime}", $"{output}/{runtime}.zip")))
 
 Target.create "Default" (fun _ -> Target.runSimple "Zip" [] |> ignore)
 

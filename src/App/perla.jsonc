@@ -15,7 +15,7 @@
   "build": {
     "minify": false,
     "copyPaths": {
-      "include": [
+      "includes": [
         "./src/translations.json"
       ]
     }

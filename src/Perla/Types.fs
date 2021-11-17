@@ -81,8 +81,8 @@ module Types =
         useSSL = Some false }
 
   type CopyPaths =
-    { ``include``: (string seq) option
-      exclude: (string seq) option }
+    { includes: (string seq) option
+      excludes: (string seq) option }
 
   type BuildConfig =
     { esBuildPath: string option
@@ -126,8 +126,8 @@ module Types =
       { esBuildPath = None
         esbuildVersion = Some Constants.Esbuild_Version
         copyPaths =
-          { ``include`` = None
-            exclude =
+          { includes = None
+            excludes =
               BuildConfig.DefaultExcludes()
               |> Seq.ofList
               |> Some }
@@ -250,7 +250,9 @@ module Types =
 
   type RemovePackageOptions = { package: string option }
 
-  type ListFormat = HumanReadable | PackageJson
+  type ListFormat =
+    | HumanReadable
+    | PackageJson
 
   type ListPackagesOptions = { format: ListFormat }
 

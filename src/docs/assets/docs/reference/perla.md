@@ -92,7 +92,7 @@ A full `perla.jsonc` file looks like this:
       ],
       // ensure a particular resource is copied even if it's
       // under a non-copy'able location
-      "include": ["./src/sample.png"]
+      "includes": ["./src/sample.png"]
     },
     // ensure esbuild ignores a particular dependency
     "externals": ["my-undeclared-dependency", "@undeclared/dep"],

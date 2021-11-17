@@ -148,7 +148,7 @@
           "description": "Include/Exclude content to be copied to the final bundle",
           "type": "object",
           "properties": {
-            "include": {
+            "includes": {
               "type": "array",
               "description": "Files/directories to include in the out directory",
               "examples": [

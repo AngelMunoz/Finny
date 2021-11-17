@@ -41,11 +41,11 @@ type BuildArgs =
       | Out_Dir _ -> "Where to output the files. Defaults to \"./dist\""
 
 type InitArgs =
-  | [<AltCommandLine("-p")>] Path of string
+  | [<AltCommandLine("-p")>] Path of string option
   | [<AltCommandLine("-wf")>] With_Fable of bool option
 
   static member ToOptions(args: ParseResults<InitArgs>) : InitOptions =
-    { path = args.TryGetResult(Path)
+    { path = args.TryGetResult(Path) |> Option.flatten
       withFable = args.TryGetResult(With_Fable) |> Option.flatten }
 
   interface IArgParserTemplate with
@@ -156,7 +156,7 @@ module Commands =
 
   let getServerOptions (serverargs: ServerArgs list) =
     let config =
-      match Fs.getFdsConfig (Fs.Paths.GetFdsConfigPath()) with
+      match Fs.getPerlaConfig (Fs.Paths.GetPerlaConfigPath()) with
       | Ok config -> config
       | Error err ->
         eprintfn "%s" err.Message
@@ -184,7 +184,7 @@ module Commands =
 
   let getBuildOptions (serverargs: BuildArgs list) =
     let config =
-      match Fs.getFdsConfig (Fs.Paths.GetFdsConfigPath()) with
+      match Fs.getPerlaConfig (Fs.Paths.GetPerlaConfigPath()) with
       | Ok config -> config
       | Error err ->
         eprintfn "%s" err.Message
@@ -198,8 +198,7 @@ module Commands =
     let foldBuildOptions (build: BuildConfig) (next: BuildArgs) =
       match next with
       | Esbuild_Version (Some value) ->
-        { build with
-            esbuildVersion = Some value }
+        { build with esbuildVersion = Some value }
       | Out_Dir (Some value) -> { build with outDir = Some value }
       | _ -> build
 
@@ -223,8 +222,7 @@ module Commands =
     let getVersion parts =
 
       let version =
-        let version =
-          parts |> Seq.tryLast |> Option.defaultValue ""
+        let version = parts |> Seq.tryLast |> Option.defaultValue ""
 
         if String.IsNullOrWhiteSpace version then
           None
@@ -257,13 +255,21 @@ module Commands =
     result {
       let path =
         match options.path with
-        | Some path -> GetFdsConfigPath(path)
-        | None -> GetFdsConfigPath()
+        | Some path -> GetPerlaConfigPath(path)
+        | None -> GetPerlaConfigPath()
+
+      let config = FdsConfig.DefaultConfig(defaultArg options.withFable false)
+
+      let fable =
+        config.fable
+        |> Option.map (fun fable -> { fable with autoStart = Some true })
 
       let config =
-        FdsConfig.DefaultConfig(defaultArg options.withFable false)
+        {| ``$schema`` = config.``$schema``
+           index = config.index
+           fable = fable |}
 
-      do! Fs.createFdsConfig path config
+      do! Fs.createPerlaConfig path config
 
       return 0
     }
@@ -279,23 +285,22 @@ module Commands =
 
       results.results
       |> Seq.truncate 5
-      |> Seq.iter
-           (fun package ->
-             let maintainers =
-               package.maintainers
-               |> Seq.fold
-                    (fun curr next -> $"{curr}{next.name} - {next.email}\n\t")
-                    "\n\t"
+      |> Seq.iter (fun package ->
+        let maintainers =
+          package.maintainers
+          |> Seq.fold
+               (fun curr next -> $"{curr}{next.name} - {next.email}\n\t")
+               "\n\t"
 
-             printfn "%s" ("".PadRight(10, '-'))
+        printfn "%s" ("".PadRight(10, '-'))
 
-             printfn
-               $"""name: {package.name}
+        printfn
+          $"""name: {package.name}
 Description: {package.description}
 Maintainers:{maintainers}
 Updated: {package.updatedAt.ToShortDateString()}"""
 
-             printfn "%s" ("".PadRight(10, '-')))
+        printfn "%s" ("".PadRight(10, '-')))
 
       printfn $"Found: {results.meta.totalCount}"
       printfn $"Page {results.meta.page} of {results.meta.totalPages}"
@@ -345,8 +350,7 @@ Updated: {package.updatedAt.ToShortDateString()}"""
 
   let runList (options: ListPackagesOptions) =
     let (|ParseRegex|_|) regex str =
-      let m =
-        Text.RegularExpressions.Regex(regex).Match(str)
+      let m = Text.RegularExpressions.Regex(regex).Match(str)
 
       if m.Success then
         Some(List.tail [ for x in m.Groups -> x.Value ])
@@ -366,12 +370,14 @@ Updated: {package.updatedAt.ToShortDateString()}"""
           Some(name, version)
         | _ -> None
 
-      let! config = Fs.getFdsConfig (GetFdsConfigPath())
+      let! config = Fs.getPerlaConfig (GetPerlaConfigPath())
       let installedPackages = config.packages |> Option.defaultValue Map.empty
+
       match options.format with
       | HumanReadable ->
         printfn "Installed packages (alias: packageName@version)"
         printfn ""
+
         for importMap in installedPackages do
           match parseUrl importMap.Value with
           | Some (name, version) -> printfn $"{importMap.Key}: {name}@{version}"
@@ -383,6 +389,7 @@ Updated: {package.updatedAt.ToShortDateString()}"""
         |> Map.ofList
         |> Json.ToPackageJson
         |> printfn "%s"
+
       return 0
     }
 
@@ -393,8 +400,8 @@ Updated: {package.updatedAt.ToShortDateString()}"""
       if name = "" then
         return! PackageNotFoundException |> Error
 
-      let! fdsConfig = Fs.getFdsConfig (GetFdsConfigPath())
-      let! lockFile = Fs.getorCreateLockFile (GetFdsConfigPath())
+      let! fdsConfig = Fs.getPerlaConfig (GetPerlaConfigPath())
+      let! lockFile = Fs.getorCreateLockFile (GetPerlaConfigPath())
 
       let deps =
         fdsConfig.packages
@@ -410,12 +417,12 @@ Updated: {package.updatedAt.ToShortDateString()}"""
 
       do!
         Fs.writeLockFile
-          (GetFdsConfigPath())
+          (GetPerlaConfigPath())
           { lockFile with
               scopes = scopes
               imports = imports }
 
-      do! Fs.createFdsConfig (GetFdsConfigPath()) opts
+      do! Fs.createPerlaConfig (GetPerlaConfigPath()) opts
 
       return 0
     }
@@ -427,8 +434,7 @@ Updated: {package.updatedAt.ToShortDateString()}"""
         | Some package -> parsePackageName package |> Ok
         | None -> MissingPackageNameException |> Error
 
-      let alias =
-        options.alias |> Option.defaultValue package
+      let alias = options.alias |> Option.defaultValue package
 
       let source = defaultArg options.source Source.Skypack
 
@@ -440,8 +446,8 @@ Updated: {package.updatedAt.ToShortDateString()}"""
       let! (deps, scopes) =
         Http.getPackageUrlInfo $"{package}{version}" alias source
 
-      let! fdsConfig = Fs.getFdsConfig (GetFdsConfigPath())
-      let! lockFile = Fs.getorCreateLockFile (GetFdsConfigPath())
+      let! fdsConfig = Fs.getPerlaConfig (GetPerlaConfigPath())
+      let! lockFile = Fs.getorCreateLockFile (GetPerlaConfigPath())
 
       let packages =
         fdsConfig.packages
@@ -450,9 +456,7 @@ Updated: {package.updatedAt.ToShortDateString()}"""
         |> fun existing -> existing @ deps
         |> Map.ofList
 
-      let fdsConfig =
-        { fdsConfig with
-            packages = packages |> Some }
+      let fdsConfig = { fdsConfig with packages = packages |> Some }
 
       let lockFile =
         let imports =
@@ -469,8 +473,8 @@ Updated: {package.updatedAt.ToShortDateString()}"""
             imports = imports
             scopes = scopes }
 
-      do! Fs.createFdsConfig (GetFdsConfigPath()) fdsConfig
-      do! Fs.writeLockFile (GetFdsConfigPath()) lockFile
+      do! Fs.createPerlaConfig (GetPerlaConfigPath()) fdsConfig
+      do! Fs.writeLockFile (GetPerlaConfigPath()) lockFile
 
       return 0
     }
@@ -529,13 +533,14 @@ Updated: {package.updatedAt.ToShortDateString()}"""
           |> Async.AwaitTask
           |> Async.Ignore
       | err ->
-        parser.PrintUsage("No Commands Specified") |> printfn "%s"
+        parser.PrintUsage("No Commands Specified", hideSyntax = true)
+        |> printfn "%s"
+
         return! async { return () }
     }
 
   let startInteractive (configuration: FdsConfig) =
-    let onStdinAsync =
-      serverActions tryExecPerlaCommand configuration
+    let onStdinAsync = serverActions tryExecPerlaCommand configuration
 
     let devServer =
       defaultArg configuration.devServer (DevServerConfig.DefaultConfig())
@@ -556,11 +561,10 @@ Updated: {package.updatedAt.ToShortDateString()}"""
     |> Async.AwaitTask
     |> Async.StartImmediate
 
-    Console.CancelKeyPress.Add
-      (fun _ ->
-        printfn "Got it, see you around!..."
-        onStdinAsync "exit" |> Async.RunSynchronously
-        exit 0)
+    Console.CancelKeyPress.Add (fun _ ->
+      printfn "Got it, see you around!..."
+      onStdinAsync "exit" |> Async.RunSynchronously
+      exit 0)
 
     asyncSeq {
       if autoStartServer then "start"
