@@ -149,7 +149,7 @@ type DevServerArgs =
       | Show _ -> "Gets the skypack information about a package."
       | Add _ -> "Generates an entry in the import map."
       | Remove _ -> "Removes an entry in the import map."
-      | List _ -> "List entries in the import map."
+      | List _ -> "Lists entries in the import map."
       | Version _ -> "Prints out the cli version to the console."
 
 module Commands =
@@ -533,7 +533,7 @@ Updated: {package.updatedAt.ToShortDateString()}"""
           |> Async.AwaitTask
           |> Async.Ignore
       | err ->
-        parser.PrintUsage("No Commands Specified", hideSyntax = true)
+        parser.PrintUsage("No command specified", hideSyntax = true)
         |> printfn "%s"
 
         return! async { return () }

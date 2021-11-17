@@ -143,7 +143,7 @@ module internal Http =
             | Source.Unpkg -> "unpkg"
             | _ ->
               printfn
-                $"Warn: An unknown provider has been specied: [{source}] defaulting to jspm"
+                $"Warn: an unknown provider has been specified: [{source}] defaulting to jspm"
 
               "jspm" |}
 

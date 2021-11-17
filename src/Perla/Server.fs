@@ -469,7 +469,7 @@ module Server =
             $"https://{customHost}:{customPort + 1}"
           | true ->
             printfn
-              $"Address {customHost}:{customPort} is Busy, selecting a dynamic port."
+              $"Address {customHost}:{customPort} is busy, selecting a dynamic port."
 
             $"http://{customHost}:{0}", $"https://{customHost}:{0}"
 
