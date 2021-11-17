@@ -1,7 +1,5 @@
 ﻿namespace Perla
 
-open FSharp.Control.Tasks
-
 open CliWrap
 
 open Types

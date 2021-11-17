@@ -5,8 +5,6 @@ open System.IO
 open System.Net.Http
 open System.Threading.Tasks
 
-open FSharp.Control.Tasks
-
 open AngleSharp
 open AngleSharp.Html.Parser
 
