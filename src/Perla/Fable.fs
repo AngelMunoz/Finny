@@ -14,7 +14,7 @@ module Fable =
 
       activeProcess.Kill()
     with
-    | ex -> printfn $"Failed to Kill Procees with PID: [{pid}]\n{ex.Message}"
+    | ex -> printfn $"Failed to kill process with PID: [{pid}]\n{ex.Message}"
 
   let private addOutDir
     (outdir: string option)

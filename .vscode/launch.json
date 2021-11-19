@@ -74,7 +74,7 @@
             "console": "integratedTerminal"
         },
         {
-            "name": "NET6 build react-tsx",
+            "name": "NET6 build docs",
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build",
@@ -82,7 +82,7 @@
             "args": [
                 "build"
             ],
-            "cwd": "${workspaceFolder}/src/react-tsx",
+            "cwd": "${workspaceFolder}/src/docs",
             "stopAtEntry": false,
             "console": "integratedTerminal"
         }

@@ -143,7 +143,7 @@ module internal Http =
             | Source.Unpkg -> "unpkg"
             | _ ->
               printfn
-                $"Warn: An unknown provider has been specied: [{source}] defaulting to jspm"
+                $"Warn: an unknown provider has been specified: [{source}] defaulting to jspm"
 
               "jspm" |}
 
@@ -301,7 +301,7 @@ module Fs =
     with
     | ex -> Error ex
 
-  let getorCreateLockFile configPath =
+  let getOrCreateLockFile configPath =
     taskResult {
       try
         let path = Path.GetFullPath($"%s{configPath}.lock")

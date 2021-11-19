@@ -182,7 +182,7 @@ let private cleanup (path: Task<string option>) =
   }
 
 let setupEsbuild (esbuildVersion: string) =
-  printfn "Checking esbuild is present..."
+  printfn "Checking whether esbuild is present..."
 
   if not <| File.Exists(esbuildExec) then
     printfn "esbuild is not present, setting esbuild..."
@@ -227,6 +227,8 @@ let esbuildJsCmd (entryPoint: string) (config: BuildConfig) =
       |> addMinify config.minify
       |> addFormat config.format
       |> addInjects config.injects
+      |> addJsxFactory config.jsxFactory
+      |> addJsxFragment config.jsxFragment
       |> addOutDir outDir
       |> ignore)
 
@@ -305,7 +307,7 @@ let tryCompileFile filepath config =
           $"{injects}\n{strout}"
         with
         | ex ->
-          printfn $"Perla Serve: Failed to inject, {ex.Message}"
+          printfn $"Perla Serve: failed to inject, {ex.Message}"
           strout
       | _ -> strout
 
