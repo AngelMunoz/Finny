@@ -227,6 +227,8 @@ let esbuildJsCmd (entryPoint: string) (config: BuildConfig) =
       |> addMinify config.minify
       |> addFormat config.format
       |> addInjects config.injects
+      |> addJsxFactory config.jsxFactory
+      |> addJsxFragment config.jsxFragment
       |> addOutDir outDir
       |> ignore)
 
