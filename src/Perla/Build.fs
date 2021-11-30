@@ -75,7 +75,12 @@ module Build =
 
     let styles =
       [ for (file: string) in cssFiles do
-          let file = if file.EndsWith("x") then file.Substring(0, file.Length - 1) else file
+          let file =
+            if file.EndsWith("x") then
+              file.Substring(0, file.Length - 1)
+            else
+              file
+
           let style = doc.CreateElement("link")
           style.SetAttribute("rel", "stylesheet")
           style.SetAttribute("href", file)
@@ -85,12 +90,17 @@ module Build =
     script.SetAttribute("type", "importmap")
 
     doc.Body.QuerySelectorAll("[data-entry-point][type=module]")
-    |> Seq.iter(fun el ->
+    |> Seq.iter (fun el ->
       match el.GetAttribute("src") |> Option.ofObj with
       | Some src ->
-        el.SetAttribute("src", if src.EndsWith("x") then src.Substring(0, src.Length - 1) else src)
-      | None -> ()
-    )
+        el.SetAttribute(
+          "src",
+          if src.EndsWith("x") then
+            src.Substring(0, src.Length - 1)
+          else
+            src
+        )
+      | None -> ())
 
     task {
       match! Fs.getOrCreateLockFile (Fs.Paths.GetPerlaConfigPath()) with
