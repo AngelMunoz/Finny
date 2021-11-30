@@ -3,6 +3,7 @@ open System.Threading.Tasks
 
 open Argu
 
+open Clam.Types
 open FsToolkit.ErrorHandling
 open Perla
 open Perla.Types
@@ -73,6 +74,23 @@ let main argv =
           return! subcmd |> ShowArgs.ToOptions |> Commands.runShow
         | Some (List subcmd) ->
           return! subcmd |> ListArgs.ToOptions |> Commands.runList
+        | Some (New subcmd) ->
+          return!
+            subcmd
+            |> NewProjectArgs.ToOptions
+            |> Commands.runNew
+        | Some List_Templates -> return Commands.runListTemplates ()
+        | Some (Add_Template subcmd) ->
+          return!
+            subcmd
+            |> RepositoryArgs.ToOptions
+            |> Commands.runAddTemplate
+        | Some (Update_Template subcmd) ->
+          return!
+            subcmd
+            |> RepositoryArgs.ToOptions
+            |> Commands.runUpdateTemplate
+        | Some (Remove_Template name) -> return! Commands.deleteTemplate name
         | err ->
           parsed.Raise("No Commands Specified", showUsage = true)
           return! CommandNotParsedException $"%A{err}" |> Error

@@ -3,7 +3,17 @@
     "Serve App": {
       "commandName": "Project",
       "commandLineArgs": "serve",
-      "workingDirectory": "..\\App"
+      "workingDirectory": "../App"
+    },
+    "Add Template": {
+      "commandName": "Project",
+      "commandLineArgs": "add-template -n AngelMunoz/perla-samples -b clam-poc",
+      "workingDirectory": "../"
+    },
+    "Create Project": {
+      "commandName": "Project",
+      "commandLineArgs": "new -t perla-samples/lit-js -n clam-poc",
+      "workingDirectory": "../"
     }
   }
 }

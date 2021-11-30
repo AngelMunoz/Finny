@@ -1,6 +1,7 @@
 ﻿namespace Perla
 
 open System
+open Clam.Types
 open FsToolkit.ErrorHandling
 open Types
 
@@ -220,6 +221,7 @@ module internal Http =
 module Fs =
   open System.IO
   open FSharp.Control.Reactive
+  open Clam
 
   [<Literal>]
   let PerlaConfigName = "perla.jsonc"
@@ -243,6 +245,45 @@ module Fs =
     inherit IDisposable
     abstract member FileChanged: IObservable<FileChangedEvent>
 
+
+  ///<summary>
+  /// Gets the base templates directory (next to the perla binary)
+  /// and appends the final path repository name
+  /// </summary>
+  let getClamRepoPath (repositoryName: string) (branch: string) =
+    Path.Combine(PathExt.TemplatesDirectory, $"{repositoryName}-{branch}")
+    |> Path.GetFullPath
+
+  let getClamTplPath (repo: ClamRepo) (child: string option) =
+    match child with
+    | Some child -> Path.Combine(repo.path, child)
+    | None -> repo.path
+    |> Path.GetFullPath
+
+  let getClamTplTarget projectName =
+    Path.Combine("./", projectName)
+    |> Path.GetFullPath
+
+  let removeClamRepo (repository: ClamRepo) =
+    Directory.Delete(repository.path, true)
+
+  let getClamTplScriptContent templatePath clamRepoPath =
+    let readTemplateScript =
+      try
+        File.ReadAllText(Path.Combine(templatePath, "templating.fsx"))
+        |> Some
+      with
+      | _ -> None
+
+    let readRepoScript () =
+      try
+        File.ReadAllText(Path.Combine(clamRepoPath, "templating.fsx"))
+        |> Some
+      with
+      | _ -> None
+
+    readTemplateScript
+    |> Option.orElseWith (fun () -> readRepoScript ())
 
   type Paths() =
     static member GetPerlaConfigPath(?directoryPath: string) =

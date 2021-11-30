@@ -3,7 +3,9 @@
 open System
 open FSharp.Control
 open FsToolkit.ErrorHandling
-
+open Clam
+open Clam.Types
+open Perla
 open Types
 open Server
 open Build
@@ -123,6 +125,38 @@ type ListArgs =
       match this with
       | As_Package_Json -> "Lists packages in npm's package.json format."
 
+type RepositoryArgs =
+  | [<AltCommandLine("-n")>] Repository_Name of string
+  | [<AltCommandLine("-b")>] Branch of string option
+
+  static member ToOptions
+    (args: ParseResults<RepositoryArgs>)
+    : RepositoryOptions =
+    { fullRepositoryName = args.GetResult(Repository_Name)
+      branch =
+        args.GetResult(Branch)
+        |> Option.defaultValue "main" }
+
+  interface IArgParserTemplate with
+    member s.Usage =
+      match s with
+      | Repository_Name _ -> "Name of the repository where the template lives"
+      | Branch _ -> "Branch to pick the repository from, defaults to \"main\""
+
+type NewProjectArgs =
+  | [<AltCommandLine("-t")>] Template of string
+  | [<AltCommandLine("-n")>] ProjectName of string
+
+  static member ToOptions(args: ParseResults<NewProjectArgs>) : ProjectOptions =
+    { projectName = args.GetResult(ProjectName)
+      templateName = args.GetResult(Template) }
+
+  interface IArgParserTemplate with
+    member s.Usage =
+      match s with
+      | ProjectName _ -> "Name of the project to create."
+      | Template _ -> "Template to use for this project."
+
 type DevServerArgs =
   | [<CliPrefix(CliPrefix.None); AltCommandLine("s")>] Serve of
     ParseResults<ServerArgs>
@@ -135,6 +169,12 @@ type DevServerArgs =
   | [<CliPrefix(CliPrefix.None)>] Add of ParseResults<AddArgs>
   | [<CliPrefix(CliPrefix.None)>] Remove of ParseResults<RemoveArgs>
   | [<CliPrefix(CliPrefix.None)>] List of ParseResults<ListArgs>
+  | [<CliPrefix(CliPrefix.None)>] New of ParseResults<NewProjectArgs>
+  | [<CliPrefix(CliPrefix.None)>] Add_Template of ParseResults<RepositoryArgs>
+  | [<CliPrefix(CliPrefix.None)>] Update_Template of
+    ParseResults<RepositoryArgs>
+  | [<AltCommandLine("-lt")>] List_Templates
+  | [<AltCommandLine("-rt")>] Remove_Template of string
   | [<AltCommandLine("-v")>] Version
 
   interface IArgParserTemplate with
@@ -149,6 +189,13 @@ type DevServerArgs =
       | Add _ -> "Generates an entry in the import map."
       | Remove _ -> "Removes an entry in the import map."
       | List _ -> "Lists entries in the import map."
+      | New _ -> "Creates a new Perla based project."
+      | List_Templates -> "Shows existing templates available to scaffold."
+      | Add_Template _ ->
+        "Downloads a GitHub repository to the templates directory."
+      | Update_Template _ ->
+        "Downloads a new version of the specified template."
+      | Remove_Template _ -> "Removes an existing templating repository."
       | Version _ -> "Prints out the cli version to the console."
 
 module Commands =
@@ -250,7 +297,27 @@ module Commands =
       else
         name, None
 
-  let runInit options =
+  let private getRepositoryName (fullRepoName: string) =
+    match
+      fullRepoName.Split("/")
+      |> Array.filter (String.IsNullOrWhiteSpace >> not)
+      with
+    | [| _; repoName |] -> Ok repoName
+    | [| _ |] -> Error MissingRepoName
+    | _ -> Error WrongGithubFormat
+
+  let private getTemplateAndChild (templateName: string) =
+    match
+      templateName.Split("/")
+      |> Array.filter (String.IsNullOrWhiteSpace >> not)
+      with
+    | [| user; template; child |] -> Some user, template, Some child
+    | [| template; child |] -> None, template, Some child
+    | [| template |] -> None, template, None
+    | _ -> None, templateName, None
+
+
+  let runInit (options: InitOptions) =
     result {
       let path =
         match options.path with
@@ -370,6 +437,7 @@ Updated: {package.updatedAt.ToShortDateString()}"""
         | _ -> None
 
       let! config = Fs.getPerlaConfig (GetPerlaConfigPath())
+
       let installedPackages = config.packages |> Option.defaultValue Map.empty
 
       match options.format with
@@ -425,6 +493,142 @@ Updated: {package.updatedAt.ToShortDateString()}"""
 
       return 0
     }
+
+  let runNew (opts: ProjectOptions) =
+    let (user, template, child) = getTemplateAndChild opts.templateName
+
+    result {
+      let repository =
+        match user, child with
+        | Some user, Some _ -> Database.findByFullName $"{user}/{template}"
+        | Some _, None -> Database.findByFullName opts.templateName
+        | None, _ -> Database.findByName template
+
+      match repository with
+      | Some clamRepo ->
+        let templatePath = Fs.getClamTplPath clamRepo child
+        let targetPath = Fs.getClamTplTarget opts.projectName
+
+        let content = Fs.getClamTplScriptContent templatePath clamRepo.path
+
+        match content with
+        | Some content ->
+          Extensibility.getConfigurationFromScript content
+          |> Scaffolding.compileAndCopy templatePath targetPath
+        | None -> Scaffolding.compileAndCopy templatePath targetPath None
+
+        return 0
+      | None ->
+        return!
+          TemplateNotFoundException
+            $"Template [{opts.templateName}] was not found"
+          |> Error
+    }
+
+  let runListTemplates () =
+    let results = Database.listEntries ()
+
+    for result in results do
+      let printedDate =
+        result.updatedAt
+        |> Option.ofNullable
+        |> Option.defaultValue result.createdAt
+        |> (fun x -> x.ToShortDateString())
+
+      printfn $"[{printedDate}] - [{result.fullName}] - {result.path}"
+
+    0
+
+  let runAddTemplate (opts: RepositoryOptions) =
+    result {
+      match getRepositoryName opts.fullRepositoryName with
+      | Error err ->
+        return!
+          err.AsString
+          |> FailedToParseNameException
+          |> Error
+      | Ok simpleName ->
+        if Database.existsByFullName opts.fullRepositoryName then
+          printfn
+            "\"{opts.repositoryName}\" already exists, Do you want to update it? [y/N]"
+
+          match Console.ReadKey().Key with
+          | ConsoleKey.Y ->
+            let updateOperation =
+              option {
+                let! repo = Database.findByFullName opts.fullRepositoryName
+                let repo = { repo with branch = opts.branch }
+
+                return!
+                  repo
+                  |> Scaffolding.downloadRepo
+                  |> Scaffolding.unzipAndClean
+                  |> Database.updateEntry
+              }
+
+            match updateOperation with
+            | Some true ->
+              printfn
+                $"{opts.fullRepositoryName} - {opts.branch} updated correctly"
+
+              return 0
+            | _ -> return! UpdateTemplateFailedException |> Error
+          | _ -> return 0
+        else
+          let path = Fs.getClamRepoPath opts.fullRepositoryName opts.branch
+
+          let addedRepository =
+            (simpleName, opts.fullRepositoryName, opts.branch)
+            |> (ClamRepo.NewClamRepo path)
+            |> Scaffolding.downloadRepo
+            |> Scaffolding.unzipAndClean
+            |> Database.createEntry
+
+          match addedRepository with
+          | Some repository ->
+            printfn
+              $"Succesfully added {repository.fullName} at {repository.path}"
+
+            return 0
+          | None -> return! AddTemplateFailedException |> Error
+    }
+
+  let deleteTemplate (name: string) =
+    let deleteOperation =
+      option {
+        let! repo = Database.findByFullName name
+        Fs.removeClamRepo repo
+        return! Database.deleteByFullName repo.fullName
+      }
+
+    match deleteOperation with
+    | Some true ->
+      printfn $"{name} deleted from repositories."
+      Ok 0
+    | Some false ->
+      printfn $"{name} could not be deleted from repositories."
+      DeleteTemplateFailedException |> Error
+    | None -> name |> TemplateNotFoundException |> Error
+
+  let runUpdateTemplate (opts: RepositoryOptions) =
+    let updateOperation =
+      option {
+        let! repo = Database.findByFullName opts.fullRepositoryName
+        let repo = { repo with branch = opts.branch }
+
+        return!
+          repo
+          |> Scaffolding.downloadRepo
+          |> Scaffolding.unzipAndClean
+          |> Database.updateEntry
+      }
+
+    match updateOperation with
+    | Some true ->
+      printfn $"{opts.fullRepositoryName} - {opts.branch} updated correctly"
+
+      Ok 0
+    | _ -> UpdateTemplateFailedException |> Error
 
   let runAdd (options: AddPackageOptions) =
     taskResult {

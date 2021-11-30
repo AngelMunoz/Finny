@@ -262,3 +262,8 @@ module Types =
   exception MissingImportMapPathException
   exception PackageNotFoundException
   exception HeaderNotFoundException of string
+  exception TemplateNotFoundException of string
+  exception FailedToParseNameException of string
+  exception AddTemplateFailedException
+  exception UpdateTemplateFailedException
+  exception DeleteTemplateFailedException
