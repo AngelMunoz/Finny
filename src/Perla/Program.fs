@@ -3,6 +3,7 @@ open System.Threading.Tasks
 
 open Argu
 
+open Clam.Types
 open FsToolkit.ErrorHandling
 open Perla
 open Perla.Types
@@ -26,10 +27,15 @@ let main argv =
     let parser = ArgumentParser.Create<DevServerArgs>()
 
     try
-      let parsed = parser.ParseCommandLine(inputs = argv, raiseOnUsage = true)
+      let parsed =
+        parser.ParseCommandLine(
+          inputs = argv,
+          raiseOnUsage = true,
+          ignoreMissing = true
+        )
 
-      match parsed.TryGetResult(Version) with
-      | Some Version ->
+      match parsed.GetAllResults() with
+      | [ Version ] ->
         let version =
           System
             .Reflection
@@ -40,6 +46,8 @@ let main argv =
 
         printfn $"{version.Major}.{version.Minor}.{version.Build}"
         return! Ok 0
+      | [ List_Templates ] -> return Commands.runListTemplates ()
+      | [ Remove_Template name ] -> return! Commands.runRemoveTemplate name
       | _ ->
         match parsed.TryGetSubCommand() with
         | Some (Build items) ->
@@ -73,6 +81,21 @@ let main argv =
           return! subcmd |> ShowArgs.ToOptions |> Commands.runShow
         | Some (List subcmd) ->
           return! subcmd |> ListArgs.ToOptions |> Commands.runList
+        | Some (New subcmd) ->
+          return!
+            subcmd
+            |> NewProjectArgs.ToOptions
+            |> Commands.runNew
+        | Some (Add_Template subcmd) ->
+          return!
+            subcmd
+            |> RepositoryArgs.ToOptions
+            |> Commands.runAddTemplate None
+        | Some (Update_Template subcmd) ->
+          return!
+            subcmd
+            |> RepositoryArgs.ToOptions
+            |> Commands.runUpdateTemplate
         | err ->
           parsed.Raise("No Commands Specified", showUsage = true)
           return! CommandNotParsedException $"%A{err}" |> Error

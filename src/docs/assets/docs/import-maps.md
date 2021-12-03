@@ -12,7 +12,7 @@ Import Maps are a way to tell the browser how to load dependencies as the import
 >
 > The mechanism for doing this is via an import map which can be used to control the resolution of module specifiers generally. As an introductory example, consider the code
 
-Our "[package manager]" is nothing but a collector of URL's which generate an import map that is injected in the `index.html` at dev and build time, you will be able to find this import map in your repository under the name of `perla.jsonc.lock`. For example this very documentation website (which is dogfooding Perla) has a _lock file_ that looks like the following:
+Our "[package manager]" is nothing but a collector of URL's which generate an import map that is injected in the `index.html` at dev and build time, you will be able to find this import map in your repository under the name of `perla.jsonc.importmap`. For example this very documentation website (which is dogfooding Perla) has an _import map file_ that looks like the following:
 
 ```json
 {
