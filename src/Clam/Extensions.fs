@@ -1,5 +1,4 @@
-[<AutoOpen>]
-module Clam.Extensions
+namespace Clam
 
 open System
 open System.Diagnostics
