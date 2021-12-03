@@ -87,14 +87,16 @@ module Database =
       use db = new LiteDatabase(PathExt.LocalDBPath)
       let clamRepos = clamRepos db
       let repo = { repo with updatedAt = Nullable(DateTime.Now) }
-
-      clamRepos.Update(repo)
+      clamRepos.Update(BsonValue(repo._id), repo)
     | None -> false
 
   let updateEntry (repo: ClamRepo option) =
     option {
       let! repo = repo
-      return! updateByName repo.fullName
+      use db = new LiteDatabase(PathExt.LocalDBPath)
+      let clamRepos = clamRepos db
+      let repo = { repo with updatedAt = Nullable(DateTime.Now) }
+      return clamRepos.Update(BsonValue(repo._id), repo)
     }
 
   let deleteByFullName fullName =
