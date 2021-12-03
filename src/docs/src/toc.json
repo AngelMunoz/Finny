@@ -32,6 +32,10 @@
                 "url": "/#/docs/features/cli"
             },
             {
+                "title": "Scaffolding",
+                "url": "/#/docs/features/scaffolding"
+            },
+            {
                 "title": "Dev Server",
                 "url": "/#/docs/features/development"
             },

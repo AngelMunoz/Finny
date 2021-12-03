@@ -192,7 +192,7 @@ type DevServerArgs =
       | Serve _ ->
         "Starts a development server for modern Javascript development"
       | Build _ -> "Builds the specified JS and CSS resources for production"
-      | Init _ -> "Creates basic files and directories to start using fds."
+      | Init _ -> "Sets perla up to start new projects."
       | Search _ -> "Searches a package in the skypack API."
       | Show _ -> "Gets the skypack information about a package."
       | Add _ -> "Generates an entry in the import map."
