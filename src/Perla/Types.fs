@@ -13,7 +13,7 @@ module Constants =
   let Default_Templates_Repository = "AngelMunoz/perla-samples"
 
   [<Literal>]
-  let Default_Templates_Repository_Branch = "clam-poc"
+  let Default_Templates_Repository_Branch = "main"
 
 module Types =
 
