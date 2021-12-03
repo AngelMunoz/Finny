@@ -20,18 +20,18 @@ Getting started with Perla projects is very simple
 
 Once you have templates in place you can start creating new perla projects using `perla new`, using `perla-samples` as our example repository we can create a new project doing any of the following actions:
 
-- `perla new -t react-jsx -n my-react-project`
-- `perla new -t vue-jsx -n my-react-project`
-- `perla new -t lit-js -n my-lit-project`
-- `perla new -t fable-feliz -n my-feliz-project`
-- `perla new -t fable-sutil -n my-sutil-project`
+- `perla new -t perla-samples/react-jsx -n my-react-project`
+- `perla new -t perla-samples/vue-jsx -n my-react-project`
+- `perla new -t perla-samples/lit-js -n my-lit-project`
+- `perla new -t perla-samples/fable-feliz -n my-feliz-project`
+- `perla new -t perla-samples/fable-sutil -n my-sutil-project`
 
 A full initial workflow would look like this
 
 ```sh
 # download/install perla
 perla init -k full -y true
-perla new -t react-jsx -n my-react-project
+perla new -t perla-samples/react-jsx -n my-react-project
 cd my-react-project
 perla serve
 # after you're done with your website
