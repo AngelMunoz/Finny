@@ -1,22 +1,13 @@
 ﻿namespace Perla
 
 open System
+open Clam.Types
 open FsToolkit.ErrorHandling
 open Types
 
 [<RequireQualifiedAccess>]
 module Env =
-  open System.IO
   open System.Runtime.InteropServices
-
-  [<Literal>]
-  let FdsDirectoryName = ".fsdevserver"
-
-  let getToolsPath () =
-    let user =
-      Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData)
-
-    Path.Combine(user, FdsDirectoryName)
 
   let isWindows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
 
@@ -220,6 +211,7 @@ module internal Http =
 module Fs =
   open System.IO
   open FSharp.Control.Reactive
+  open Clam
 
   [<Literal>]
   let PerlaConfigName = "perla.jsonc"
@@ -243,6 +235,48 @@ module Fs =
     inherit IDisposable
     abstract member FileChanged: IObservable<FileChangedEvent>
 
+
+  ///<summary>
+  /// Gets the base templates directory (next to the perla binary)
+  /// and appends the final path repository name
+  /// </summary>
+  let getClamRepoPath (repositoryName: string) (branch: string) =
+    Path.Combine(PathExt.TemplatesDirectory, $"{repositoryName}-{branch}")
+    |> Path.GetFullPath
+
+  let getClamTplPath (repo: ClamRepo) (child: string option) =
+    match child with
+    | Some child -> Path.Combine(repo.path, child)
+    | None -> repo.path
+    |> Path.GetFullPath
+
+  let getClamTplTarget projectName =
+    Path.Combine("./", projectName)
+    |> Path.GetFullPath
+
+  let removeClamRepo (repository: ClamRepo) =
+    Directory.Delete(repository.path, true)
+
+  let getClamTplScriptContent templatePath clamRepoPath =
+    let readTemplateScript =
+      try
+        File.ReadAllText(Path.Combine(templatePath, "templating.fsx"))
+        |> Some
+      with
+      | _ -> None
+
+    let readRepoScript () =
+      try
+        File.ReadAllText(Path.Combine(clamRepoPath, "templating.fsx"))
+        |> Some
+      with
+      | _ -> None
+
+    readTemplateScript
+    |> Option.orElseWith (fun () -> readRepoScript ())
+
+  let getClamRepoChildren (repo: ClamRepo) =
+    DirectoryInfo(repo.path).GetDirectories()
 
   type Paths() =
     static member GetPerlaConfigPath(?directoryPath: string) =
@@ -304,7 +338,7 @@ module Fs =
   let getOrCreateLockFile configPath =
     taskResult {
       try
-        let path = Path.GetFullPath($"%s{configPath}.lock")
+        let path = Path.GetFullPath($"%s{configPath}.importmap")
 
         do! ensureParentDirectory (Path.GetDirectoryName(path))
 
@@ -320,7 +354,7 @@ module Fs =
     }
 
   let writeLockFile configPath (fdsLock: PackagesLock) =
-    let path = Path.GetFullPath($"%s{configPath}.lock")
+    let path = Path.GetFullPath($"%s{configPath}.importmap")
     let serialized = Json.ToBytes fdsLock
 
     try

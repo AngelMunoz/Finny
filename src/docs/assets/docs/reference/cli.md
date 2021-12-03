@@ -36,13 +36,19 @@
 
 - Init - `perla init`
 
-  Creates basic files and directories to start using perla.
+  Sets perla up to start new projects.
 
-  - Path - `perla init -p ./client`, `perla init --path ./client`
+  - Set up esbuild & default templates - `perla init -k full`, `perla init --init-kind full`
+
+    - Skip prompts - `perla init -k full -y true`, `perla init --init-kind full --yes true`
+
+  Generate an empty `perla.jsonc` file:
+
+  - Path - `perla init -k simple -p ./client`, `perla init --init-kind simple --path ./client`
 
     Where to write the config file
 
-  - With Fable - `perla init --wf true`, `perla init --with-fable true`
+  - With Fable - `perla init -k simple --wf true`, `perla init --init-kind simple --with-fable true`
 
     Include fable options in the config file
 
@@ -100,6 +106,26 @@
   - As Package Json - `perla list --as-package-json`
 
   List packages in npm's package.json format.
+
+- New - `perla new -t template-name -n project-name`
+
+  Creates a new Perla based project.
+
+- List Template - `perla List Template`
+
+  - Shows existing templates available to scaffold.
+
+- Add Template - `perla add-template -n GitHubUsername/repository -b main`
+
+  - Downloads a GitHub repository to the templates directory.
+
+- Update Template - `perla update-template -n GitHubUsername/repository -b main`
+
+  - Downloads a new version of the specified template.
+
+- Remove Template - `perla remove-template GitHubUsername/repository`
+
+  - Removes an existing templating repository.
 
 - Version - `perla version`
 

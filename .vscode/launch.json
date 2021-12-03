@@ -18,17 +18,36 @@
             "console": "internalConsole"
         },
         {
-            "name": "Perla init",
+            "name": "Perla init simple",
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build",
             "program": "${workspaceFolder}/src/Perla/bin/Debug/net6.0/Perla.dll",
             "args": [
-                "init"
+                "init",
+                "-k",
+                "simple"
             ],
             "cwd": "${workspaceFolder}",
             "stopAtEntry": false,
             "console": "internalConsole"
+        },
+        {
+            "name": "Perla init full",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build",
+            "program": "${workspaceFolder}/src/Perla/bin/Debug/net6.0/Perla.dll",
+            "args": [
+                "init",
+                "-k",
+                "full",
+                "-y",
+                "true"
+            ],
+            "cwd": "${workspaceFolder}",
+            "stopAtEntry": false,
+            "console": "integratedTerminal"
         },
         {
             "name": "Perla serve tsx",

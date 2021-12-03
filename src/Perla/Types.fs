@@ -7,7 +7,13 @@ open System.Text.Json.Serialization
 
 module Constants =
   [<Literal>]
-  let Esbuild_Version = "0.13.2"
+  let Esbuild_Version = "0.14.1"
+
+  [<Literal>]
+  let Default_Templates_Repository = "AngelMunoz/perla-samples"
+
+  [<Literal>]
+  let Default_Templates_Repository_Branch = "main"
 
 module Types =
 
@@ -181,6 +187,10 @@ module Types =
     | Jsdelivr = 2
     | Unpkg = 3
 
+  type InitKind =
+    | Full = 0
+    | Simple = 1
+
   type SkypackSearchResult =
     { createdAt: DateTime
       description: string
@@ -235,7 +245,9 @@ module Types =
 
   type InitOptions =
     { path: string option
-      withFable: bool option }
+      withFable: bool option
+      initKind: InitKind option
+      yes: bool option }
 
   type SearchOptions =
     { package: string option
@@ -262,3 +274,8 @@ module Types =
   exception MissingImportMapPathException
   exception PackageNotFoundException
   exception HeaderNotFoundException of string
+  exception TemplateNotFoundException of string
+  exception FailedToParseNameException of string
+  exception AddTemplateFailedException
+  exception UpdateTemplateFailedException
+  exception DeleteTemplateFailedException

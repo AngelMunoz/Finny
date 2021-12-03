@@ -5,6 +5,7 @@
 [fable]: /#/docs/features/fable
 [esbuild]: https://esbuild.github.io/
 [perla.jsonc]: /#/docs/reference/perla
+[scaffolding]: /#/docs/features/scaffolding
 
 # Perla CLI
 
@@ -15,11 +16,11 @@ The Perla CLI is (hopefully) very straight forward it provides the following fun
 - [Package Manager]
 - [Pacakge Search]
 - Interactive Mode
-- Scaffolding - WIP
+- [Scaffolding]
 
 ## Dev Server
 
-> Please visit [Dev Server] for a more complete introduction
+> Please visit [Dev Server] for a more complete introduction.
 
 The dev server is as simple as typing `perla serve`, Perla will try to look for the `perla.jsonc` configuration file and depending on the content it will start derving the content in `localhost:7331` by default, if you're not using [Fable] this is instantaneous and you can start modyfing files right away. When you use [Fable] while the dev server is running but your Fable build is still running, once it finishes the website will load as usual and recurrent changes will auto-reload as soon as the files are compiled.
 
@@ -61,4 +62,12 @@ Besides supporting <kbd>Ctrl</kbd> + <kbd>C</kbd> to stop the Perla process, the
 
 ## Scaffolding
 
-WIP
+> Please visit [Scaffolding] for a more complete introduction.
+
+It's quite annoying to have something set up manually each time you need to start a new project, Perla provides scaffolding features that are extensible via Scriban templates (the syntax is like handlebars) and F# script files.
+
+- `perla add GitHubUsername/Repository` - will download that repository for future references
+- `perla list-templates` - Will show you the templates you have downloaded
+- `perla update GitHubUsername/Repository` - Will re-download the github repository
+- `perla remove GitHubUsername/Repository` - will remove said repository
+- `perla new -t Repository/template -n my-new-project` - will create a new prla project under the `my-new-project` directory, if you have multiple repositories with the same name for some reason you can disambiguate by writing the github username as well (`-t GitHubUsername/Repository/template`)
