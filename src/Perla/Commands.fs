@@ -45,16 +45,24 @@ type BuildArgs =
 type InitArgs =
   | [<AltCommandLine("-p")>] Path of string option
   | [<AltCommandLine("-wf")>] With_Fable of bool option
+  | [<AltCommandLine("-k")>] Init_Kind of InitKind option
+  | [<AltCommandLine("-y")>] Yes of bool option
+
 
   static member ToOptions(args: ParseResults<InitArgs>) : InitOptions =
     { path = args.TryGetResult(Path) |> Option.flatten
-      withFable = args.TryGetResult(With_Fable) |> Option.flatten }
+      withFable = args.TryGetResult(With_Fable) |> Option.flatten
+      initKind = args.TryGetResult(Init_Kind) |> Option.flatten
+      yes = args.TryGetResult(Yes) |> Option.flatten }
 
   interface IArgParserTemplate with
     member this.Usage: string =
       match this with
       | Path _ -> "Where to write the config file"
       | With_Fable _ -> "Includes fable options in the config file"
+      | Init_Kind _ ->
+        "Sets whether to do a full perla setup or just create a perla.json file."
+      | Yes _ -> "Skips the full init prompt"
 
 type SearchArgs =
   | [<AltCommandLine("-n")>] Name of string
@@ -173,8 +181,9 @@ type DevServerArgs =
   | [<CliPrefix(CliPrefix.None)>] Add_Template of ParseResults<RepositoryArgs>
   | [<CliPrefix(CliPrefix.None)>] Update_Template of
     ParseResults<RepositoryArgs>
-  | [<AltCommandLine("-lt")>] List_Templates
-  | [<AltCommandLine("-rt")>] Remove_Template of string
+  | [<CliPrefix(CliPrefix.None); AltCommandLine("-lt")>] List_Templates
+  | [<CliPrefix(CliPrefix.None); AltCommandLine("-rt")>] Remove_Template of
+    string
   | [<AltCommandLine("-v")>] Version
 
   interface IArgParserTemplate with
@@ -317,27 +326,165 @@ module Commands =
     | _ -> None, templateName, None
 
 
-  let runInit (options: InitOptions) =
+  let runListTemplates () =
+    let results = Database.listEntries ()
+
+    for result in results do
+      let printedDate =
+        result.updatedAt
+        |> Option.ofNullable
+        |> Option.defaultValue result.createdAt
+        |> (fun x -> x.ToShortDateString())
+
+      printfn $"[{printedDate}] - [{result.fullName}] - {result.path}"
+
+      for template in Fs.getClamRepoChildren result do
+        printfn $"\t {template.Name}"
+
+    0
+
+  let runAddTemplate (autoContinue: bool option) (opts: RepositoryOptions) =
     result {
+      match getRepositoryName opts.fullRepositoryName with
+      | Error err ->
+        return!
+          err.AsString
+          |> FailedToParseNameException
+          |> Error
+      | Ok simpleName ->
+        if Database.existsByFullName opts.fullRepositoryName then
+          match autoContinue with
+          | Some true ->
+            let updateOperation =
+              option {
+                let! repo = Database.findByFullName opts.fullRepositoryName
+                let repo = { repo with branch = opts.branch }
+
+                return!
+                  repo
+                  |> Scaffolding.downloadRepo
+                  |> Scaffolding.unzipAndClean
+                  |> Database.updateEntry
+              }
+
+            match updateOperation with
+            | Some true ->
+              printfn
+                $"{opts.fullRepositoryName} - {opts.branch} updated correctly"
+
+              return 0
+            | _ -> return 0
+          | _ ->
+            printfn
+              $"\"{opts.fullRepositoryName}\" already exists, Do you want to update it? [y/N]"
+
+            match Console.ReadKey().Key with
+            | ConsoleKey.Y ->
+              let updateOperation =
+                option {
+                  let! repo = Database.findByFullName opts.fullRepositoryName
+                  let repo = { repo with branch = opts.branch }
+
+                  return!
+                    repo
+                    |> Scaffolding.downloadRepo
+                    |> Scaffolding.unzipAndClean
+                    |> Database.updateEntry
+                }
+
+              match updateOperation with
+              | Some true ->
+                printfn
+                  $"{opts.fullRepositoryName} - {opts.branch} updated correctly"
+
+                return 0
+              | _ -> return! UpdateTemplateFailedException |> Error
+            | _ -> return 0
+        else
+          let path = Fs.getClamRepoPath opts.fullRepositoryName opts.branch
+
+          let addedRepository =
+            (simpleName, opts.fullRepositoryName, opts.branch)
+            |> (ClamRepo.NewClamRepo path)
+            |> Scaffolding.downloadRepo
+            |> Scaffolding.unzipAndClean
+            |> Database.createEntry
+
+          match addedRepository with
+          | Some repository ->
+            printfn
+              $"Succesfully added {repository.fullName} at {repository.path}"
+
+            return 0
+          | None -> return! AddTemplateFailedException |> Error
+    }
+
+
+  let runInit (options: InitOptions) =
+    taskResult {
       let path =
         match options.path with
         | Some path -> GetPerlaConfigPath(path)
         | None -> GetPerlaConfigPath()
 
-      let config = FdsConfig.DefaultConfig(defaultArg options.withFable false)
+      let initKind = defaultArg options.initKind InitKind.Full
 
-      let fable =
-        config.fable
-        |> Option.map (fun fable -> { fable with autoStart = Some true })
+      match initKind with
+      | InitKind.Full ->
+        printfn "Perla will set up the following resources:"
+        printfn "- Esbuild"
+        printfn "- Default Templates"
 
-      let config =
-        {| ``$schema`` = config.``$schema``
-           index = config.index
-           fable = fable |}
+        printfn
+          "After that you should be able to run 'perla build' or 'perla new'"
 
-      do! Fs.createPerlaConfig path config
+        let canContinue =
+          match options.yes with
+          | Some true -> true
+          | _ ->
+            printfn "Can we start? [N/y]"
 
-      return 0
+            match Console.ReadKey().Key with
+            | ConsoleKey.Y -> true
+            | _ -> false
+
+        if not <| canContinue then
+          return 0
+        else
+          do! Esbuild.setupEsbuild Constants.Esbuild_Version
+
+          do!
+            runAddTemplate
+              (Some true)
+              { branch = Constants.Default_Templates_Repository_Branch
+                fullRepositoryName = Constants.Default_Templates_Repository }
+            |> Result.ignore
+
+          printfn "esbuild and templates have been setup!"
+          runListTemplates () |> ignore
+          printfn "Feel free to create a new perla project"
+
+          printfn "perla new -t perla-samples/<TEMPLATE_NAME> -n <PROJECT_NAME>"
+          return 0
+      | InitKind.Simple ->
+        let config = FdsConfig.DefaultConfig(defaultArg options.withFable false)
+
+        let fable =
+          config.fable
+          |> Option.map (fun fable -> { fable with autoStart = Some true })
+
+        let config =
+          {| ``$schema`` = config.``$schema``
+             index = config.index
+             fable = fable |}
+
+        do! Fs.createPerlaConfig path config
+
+        return 0
+      | _ ->
+        return!
+          (ArgumentException "The provided kind is not supported" :> exn)
+          |> Error
     }
 
   let runSearch (options: SearchOptions) =
@@ -525,75 +672,7 @@ Updated: {package.updatedAt.ToShortDateString()}"""
           |> Error
     }
 
-  let runListTemplates () =
-    let results = Database.listEntries ()
-
-    for result in results do
-      let printedDate =
-        result.updatedAt
-        |> Option.ofNullable
-        |> Option.defaultValue result.createdAt
-        |> (fun x -> x.ToShortDateString())
-
-      printfn $"[{printedDate}] - [{result.fullName}] - {result.path}"
-
-    0
-
-  let runAddTemplate (opts: RepositoryOptions) =
-    result {
-      match getRepositoryName opts.fullRepositoryName with
-      | Error err ->
-        return!
-          err.AsString
-          |> FailedToParseNameException
-          |> Error
-      | Ok simpleName ->
-        if Database.existsByFullName opts.fullRepositoryName then
-          printfn
-            "\"{opts.repositoryName}\" already exists, Do you want to update it? [y/N]"
-
-          match Console.ReadKey().Key with
-          | ConsoleKey.Y ->
-            let updateOperation =
-              option {
-                let! repo = Database.findByFullName opts.fullRepositoryName
-                let repo = { repo with branch = opts.branch }
-
-                return!
-                  repo
-                  |> Scaffolding.downloadRepo
-                  |> Scaffolding.unzipAndClean
-                  |> Database.updateEntry
-              }
-
-            match updateOperation with
-            | Some true ->
-              printfn
-                $"{opts.fullRepositoryName} - {opts.branch} updated correctly"
-
-              return 0
-            | _ -> return! UpdateTemplateFailedException |> Error
-          | _ -> return 0
-        else
-          let path = Fs.getClamRepoPath opts.fullRepositoryName opts.branch
-
-          let addedRepository =
-            (simpleName, opts.fullRepositoryName, opts.branch)
-            |> (ClamRepo.NewClamRepo path)
-            |> Scaffolding.downloadRepo
-            |> Scaffolding.unzipAndClean
-            |> Database.createEntry
-
-          match addedRepository with
-          | Some repository ->
-            printfn
-              $"Succesfully added {repository.fullName} at {repository.path}"
-
-            return 0
-          | None -> return! AddTemplateFailedException |> Error
-    }
-
-  let deleteTemplate (name: string) =
+  let runRemoveTemplate (name: string) =
     let deleteOperation =
       option {
         let! repo = Database.findByFullName name

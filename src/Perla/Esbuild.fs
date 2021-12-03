@@ -109,12 +109,13 @@ let addTsconfigRaw (tsconfig: string option) (args: Builders.ArgumentsBuilder) =
     args.Add $"""--tsconfig-raw={tsconfig} """
   | None -> args
 
-let private tgzDownloadPath = Path.Combine(Env.getToolsPath (), "esbuild.tgz")
+let private tgzDownloadPath =
+  Path.Combine(Clam.PathExt.ClamRootDirectory, "esbuild.tgz")
 
 let esbuildExec =
   let bin = if Env.isWindows then "" else "bin"
   let exec = if Env.isWindows then ".exe" else ""
-  Path.Combine(Env.getToolsPath (), "package", bin, $"esbuild{exec}")
+  Path.Combine(Clam.PathExt.ClamRootDirectory, "package", bin, $"esbuild{exec}")
 
 let private tryDownloadEsBuild (esbuildVersion: string) : Task<string option> =
   let binString = $"esbuild-{Env.platformString}-{Env.archString}"

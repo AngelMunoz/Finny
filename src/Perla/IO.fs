@@ -7,17 +7,7 @@ open Types
 
 [<RequireQualifiedAccess>]
 module Env =
-  open System.IO
   open System.Runtime.InteropServices
-
-  [<Literal>]
-  let FdsDirectoryName = ".fsdevserver"
-
-  let getToolsPath () =
-    let user =
-      Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData)
-
-    Path.Combine(user, FdsDirectoryName)
 
   let isWindows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
 
@@ -285,6 +275,9 @@ module Fs =
     readTemplateScript
     |> Option.orElseWith (fun () -> readRepoScript ())
 
+  let getClamRepoChildren (repo: ClamRepo) =
+    DirectoryInfo(repo.path).GetDirectories()
+
   type Paths() =
     static member GetPerlaConfigPath(?directoryPath: string) =
       let rec findConfigFile currDir =
@@ -345,7 +338,7 @@ module Fs =
   let getOrCreateLockFile configPath =
     taskResult {
       try
-        let path = Path.GetFullPath($"%s{configPath}.lock")
+        let path = Path.GetFullPath($"%s{configPath}.importmap")
 
         do! ensureParentDirectory (Path.GetDirectoryName(path))
 
@@ -361,7 +354,7 @@ module Fs =
     }
 
   let writeLockFile configPath (fdsLock: PackagesLock) =
-    let path = Path.GetFullPath($"%s{configPath}.lock")
+    let path = Path.GetFullPath($"%s{configPath}.importmap")
     let serialized = Json.ToBytes fdsLock
 
     try

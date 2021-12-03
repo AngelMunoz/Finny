@@ -2,11 +2,11 @@
 [json schema]: https://github.com/AngelMunoz/Perla/blob/main/perla.schema.json
 [json schemas]: https://json-schema.org/
 
-## perla.jsonc and perla.jsonc.lock
+## perla.jsonc and perla.jsonc.importmap
 
 The `perla.jsonc` file es the main configuration file with this file you an control most of the Perla CLI.
 
-The `perla.jsonc.lock` is the actual [import map] used by your application in both development and production
+The `perla.jsonc.importmap` is the actual [import map] used by your application in both development and production
 You can write comments on this file to keep tabs on why are things the way they are.
 
 We offer a [JSON schema] for the `perla.jsonc` file so you can get autocompletition in editors like VSCode and any other that supports [JSON Schemas]
