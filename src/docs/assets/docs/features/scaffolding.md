@@ -64,7 +64,9 @@ Sometimes, you want to change certain parts of your template based on user input
 6. Answer the prompts we added in the F# script
 7. `perla serve`
 
-the content of the `index.tpl.html` would look like this
+the content of the `index.tpl.html` would look like this:
+
+> Note: `.tpl.` must exist in the file name for perla to pick it up
 
 ```html
 <!DOCTYPE html>
@@ -112,18 +114,22 @@ Finally the F# script `templating.fsx` would have this content:
 ```fsharp
 open System
 
-printfn "Project Name:"
+printfn "Project Name: (My Project)"
+
 let title =
-    Console.ReadLine()
-    // handle any potential null values
-    |> Option.ofObj
-    // ensure we have a value (in case the user didn't pass any input)
-    |> Option.defaultValue "My Project"
+    match Console.ReadLine() with
+    // the user hit enter without a project name
+    | "" -> "My Project"
+    // the user wrote a project name
+    | title -> title
+
 printfn "Include bulma css? [N/y]"
+
 let include_bulma =
     match Console.ReadKey().Key with
+    // the user pressed Y on the keyboard
     | ConsoleKey.Y -> true
-    // the user entered anything else
+    // the user pressed other key on the keyboard
     | _ -> false
 
 // THIS IS THE IMPORTANT VALUE
@@ -139,4 +145,4 @@ let TemplateConfiguration =
 
 Once you push the template into github you should be able to follow the last steps we wrote above.
 
-You can make any kind of file a template by adding `.tpl,` not just html files, when perla sees that in a filename it knows it needs to compile it using [scriban templates].
+You can make any kind of file a template by adding `.tpl.` not just html files, when perla sees that in a filename it knows it needs to compile it using [scriban templates].
