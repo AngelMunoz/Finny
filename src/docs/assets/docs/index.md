@@ -26,6 +26,25 @@ If you are learning or are a seasoned developer, the priority should be on your 
 
 Perla leverages the blazing fast **.NET** and **Go** ecosystems to give you a simple and effective development server.
 
+Once you [install] it simply run:
+
+```sh
+# run once after you install it
+perla init -k full # download templates
+# generate a new project
+perla new -t perla-samples/vue-jsx -n my-vue-project
+cd my-vue-project
+perla serve # start developing
+```
+
+> Looking for other frameworks?
+>
+> Check the complete list of default templates
+>
+> - `perla -lt` (or the long name: `perla --list-templates`)
+
+Check [scaffolding] to see how you can author your own templates as well!
+
 ### How do Perla projects look like?
 
 Check the [perla samples] where you can projects written in:
