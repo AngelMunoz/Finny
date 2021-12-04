@@ -10,6 +10,7 @@
 [import maps]: /#/content/import-maps
 [perla samples]: https://github.com/AngelMunoz/perla-samples
 [real world fable]: https://github.com/AngelMunoz/real-world-fable
+[scaffolding]: /#/docs/build/scaffolding
 
 # Perla Dev Server
 
