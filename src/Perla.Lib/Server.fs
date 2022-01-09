@@ -1,4 +1,4 @@
-﻿namespace Perla
+﻿namespace Perla.Lib
 
 open System
 open System.IO
@@ -183,7 +183,7 @@ document.head.appendChild(style)"""
     :> Task
 
   let configureTransformMiddleware
-    (config: FdsConfig)
+    (config: PerlaConfig)
     (appConfig: IApplicationBuilder)
     =
     let serverConfig =
@@ -338,12 +338,11 @@ module Server =
     else
       false
 
-
-  let private Index (next) (ctx: HttpContext) =
+  let private Index next (ctx: HttpContext) =
     task {
       let logger = ctx.GetLogger("Perla:Index")
 
-      match Fs.getPerlaConfig (Fs.Paths.GetPerlaConfigPath()) with
+      match Fs.getPerlaConfig (System.IO.Path.GetPerlaConfigPath()) with
       | Error err ->
         logger.Log(
           LogLevel.Error,
@@ -368,7 +367,7 @@ module Server =
         liveReload.SetAttribute("type", "text/javascript")
         liveReload.SetAttribute("src", "/~perla~/livereload.js")
 
-        match! Fs.getOrCreateLockFile (Fs.Paths.GetPerlaConfigPath()) with
+        match! Fs.getOrCreateLockFile (System.IO.Path.GetPerlaConfigPath()) with
         | Ok lock ->
           let map: ImportMap =
             { imports = lock.imports
@@ -427,12 +426,12 @@ module Server =
 
     startFable getFableCmd
 
-  let private devServer (config: FdsConfig) =
+  let private devServer (config: PerlaConfig) =
     let serverConfig =
       defaultArg config.devServer (DevServerConfig.DefaultConfig())
 
     let getProxyConfig =
-      let path = Fs.Paths.GetProxyConfigPath()
+      let path = System.IO.Path.GetProxyConfigPath()
       Fs.getProxyConfig (path)
 
     let customHost = defaultArg serverConfig.host "127.0.0.1"
@@ -561,7 +560,7 @@ module Server =
       :> Task
     | None -> Task.FromResult(()) :> Task
 
-  let private startServer (config: FdsConfig) =
+  let private startServer (config: PerlaConfig) =
     match app with
     | None ->
       let dev = devServer config
@@ -575,7 +574,7 @@ module Server =
 
   let serverActions
     (tryExecCommand: string -> Async<Result<unit, exn>>)
-    (config: FdsConfig)
+    (config: PerlaConfig)
     (value: string)
     =
     async {

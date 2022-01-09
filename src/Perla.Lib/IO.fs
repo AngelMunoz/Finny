@@ -1,7 +1,6 @@
-﻿namespace Perla
+﻿namespace Perla.Lib
 
 open System
-open Clam.Types
 open FsToolkit.ErrorHandling
 open Types
 
@@ -32,7 +31,7 @@ module Env =
     | _ -> failwith "Unsupported Architecture"
 
 [<RequireQualifiedAccess>]
-module internal Json =
+module Json =
   open System.Text.Json
   open System.Text.Json.Serialization
 
@@ -63,7 +62,7 @@ module internal Json =
     JsonSerializer.Serialize({| dependencies = dependencies |}, jsonOptions ())
 
 [<RequireQualifiedAccessAttribute>]
-module internal Http =
+module Http =
   open Flurl
   open Flurl.Http
 
@@ -121,7 +120,7 @@ module internal Http =
       | ex -> return! ex |> Error
     }
 
-  let getJspmInfo name alias source =
+  let private getJspmInfo name alias source =
     taskResult {
       let queryParams =
         {| install = [| $"{name}" |]
@@ -211,13 +210,6 @@ module internal Http =
 module Fs =
   open System.IO
   open FSharp.Control.Reactive
-  open Clam
-
-  [<Literal>]
-  let PerlaConfigName = "perla.jsonc"
-
-  [<Literal>]
-  let ProxyConfigName = "proxy-config.json"
 
   type ChangeKind =
     | Created
@@ -240,24 +232,27 @@ module Fs =
   /// Gets the base templates directory (next to the perla binary)
   /// and appends the final path repository name
   /// </summary>
-  let getClamRepoPath (repositoryName: string) (branch: string) =
-    Path.Combine(PathExt.TemplatesDirectory, $"{repositoryName}-{branch}")
+  let getPerlaRepositoryPath (repositoryName: string) (branch: string) =
+    Path.Combine(Path.TemplatesDirectory, $"{repositoryName}-{branch}")
     |> Path.GetFullPath
 
-  let getClamTplPath (repo: ClamRepo) (child: string option) =
+  let getPerlaTemplatePath
+    (repo: PerlaTemplateRepository)
+    (child: string option)
+    =
     match child with
     | Some child -> Path.Combine(repo.path, child)
     | None -> repo.path
     |> Path.GetFullPath
 
-  let getClamTplTarget projectName =
+  let getPerlaTemplateTarget projectName =
     Path.Combine("./", projectName)
     |> Path.GetFullPath
 
-  let removeClamRepo (repository: ClamRepo) =
+  let removePerlaRepository (repository: PerlaTemplateRepository) =
     Directory.Delete(repository.path, true)
 
-  let getClamTplScriptContent templatePath clamRepoPath =
+  let getPerlaTemplateScriptContent templatePath clamRepoPath =
     let readTemplateScript =
       try
         File.ReadAllText(Path.Combine(templatePath, "templating.fsx"))
@@ -275,42 +270,13 @@ module Fs =
     readTemplateScript
     |> Option.orElseWith (fun () -> readRepoScript ())
 
-  let getClamRepoChildren (repo: ClamRepo) =
+  let getPerlaRepositoryChildren (repo: PerlaTemplateRepository) =
     DirectoryInfo(repo.path).GetDirectories()
-
-  type Paths() =
-    static member GetPerlaConfigPath(?directoryPath: string) =
-      let rec findConfigFile currDir =
-        let path = Path.Combine(currDir, PerlaConfigName)
-
-        if File.Exists path then
-          Some path
-        else
-          match Path.GetDirectoryName currDir |> Option.ofObj with
-          | Some parent ->
-            if parent <> currDir then
-              findConfigFile parent
-            else
-              None
-          | None -> None
-
-      let workDir = defaultArg directoryPath Environment.CurrentDirectory
-
-      findConfigFile (Path.GetFullPath workDir)
-      |> Option.defaultValue (Path.Combine(workDir, PerlaConfigName))
-
-    static member GetProxyConfigPath(?directoryPath: string) =
-      $"{defaultArg directoryPath (Environment.CurrentDirectory)}/{ProxyConfigName}"
-
-    static member SetCurrentDirectoryToPerlaConfigDirectory() =
-      Paths.GetPerlaConfigPath()
-      |> Path.GetDirectoryName
-      |> Directory.SetCurrentDirectory
 
   let getPerlaConfig filepath =
     try
       let bytes = File.ReadAllBytes filepath
-      Json.FromBytes<FdsConfig> bytes |> Ok
+      Json.FromBytes<PerlaConfig> bytes |> Ok
     with
     | ex -> ex |> Error
 
@@ -403,7 +369,6 @@ module Fs =
     CompileErrWatcherEvent.Value.Trigger err
 
   let compileErrWatcher () = CompileErrWatcherEvent.Value.Publish
-
 
   let getFileWatcher (config: WatchConfig) =
     let watchers =

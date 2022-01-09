@@ -1,67 +1,68 @@
-namespace Clam
+﻿namespace Perla.Lib
 
-open System
-open System.Diagnostics
+open System.Threading.Tasks
 open System.IO
 open System.IO.Compression
 open Scriban
-open FsHttp
-open FsHttp.DslCE
+
+open Flurl.Http
 open FsToolkit.ErrorHandling
 
-open Clam.Types
+open Types
 
 module Scaffolding =
 
   let downloadRepo repo =
-    let url =
-      $"https://github.com/{repo.fullName}/archive/refs/heads/{repo.branch}.zip"
+    task {
+      let url =
+        $"https://github.com/{repo.fullName}/archive/refs/heads/{repo.branch}.zip"
 
-    Directory.CreateDirectory PathExt.TemplatesDirectory
-    |> ignore
-
-    try
-      get url { send }
-      |> Response.toBytes
-      |> (fun bytes ->
-        File.WriteAllBytes(
-          Path.Combine(PathExt.TemplatesDirectory, $"{repo.name}.zip"),
-          bytes
-        ))
-
-      Some repo
-    with
-    | ex -> None
-
-  let unzipAndClean repo =
-    match repo with
-    | Some repo ->
-      Directory.CreateDirectory PathExt.TemplatesDirectory
+      Directory.CreateDirectory Path.TemplatesDirectory
       |> ignore
 
-      let username = (Directory.GetParent repo.path).Name
-
       try
-        Directory.Delete(repo.path, true) |> ignore
+        do!
+          url.DownloadFileAsync(Path.TemplatesDirectory, $"{repo.name}.zip")
+          :> Task
+
+        return Some repo
       with
-      | :? DirectoryNotFoundException -> printfn "Didn't delete Directory"
+      | _ -> return None
+    }
 
-      let relativePath =
-        Path.Join(repo.path, "../", "../")
-        |> Path.GetFullPath
+  let unzipAndClean (repo: Task<PerlaTemplateRepository option>) =
+    task {
+      let! repo = repo
 
-      let zipPath =
-        Path.Combine(relativePath, $"{repo.name}.zip")
-        |> Path.GetFullPath
+      match repo with
+      | Some repo ->
+        Directory.CreateDirectory Path.TemplatesDirectory
+        |> ignore
 
-      ZipFile.ExtractToDirectory(
-        zipPath,
-        Path.Combine(PathExt.TemplatesDirectory, username)
-      )
+        let username = (Directory.GetParent repo.path).Name
 
-      File.Delete(zipPath)
-      Some repo
-    | None -> None
+        try
+          Directory.Delete(repo.path, true) |> ignore
+        with
+        | :? DirectoryNotFoundException -> printfn "Didn't delete Directory"
+
+        let relativePath =
+          Path.Join(repo.path, "../", "../")
+          |> Path.GetFullPath
+
+        let zipPath =
+          Path.Combine(relativePath, $"{repo.name}.zip")
+          |> Path.GetFullPath
+
+        ZipFile.ExtractToDirectory(
+          zipPath,
+          Path.Combine(Path.TemplatesDirectory, username)
+        )
+
+        File.Delete(zipPath)
+        return Some repo
+      | None -> return None
+    }
 
   let private collectRepositoryFiles (path: string) =
     let foldFilesAndTemplates (files, templates) (next: string) =

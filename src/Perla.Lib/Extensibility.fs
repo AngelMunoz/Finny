@@ -1,4 +1,4 @@
-namespace Clam
+﻿namespace Perla.Lib
 
 open System.IO
 
@@ -17,9 +17,6 @@ module Extensibility =
 
     FsiEvaluationSession.Create(defConfig, argv, stdin, stdout, stderr, true)
 
-  [<Literal>]
-  let configurationObjName = "TemplateConfiguration"
-
   let getConfigurationFromScript content =
     use stdin = new StringReader("")
     use stdout = new StringWriter()
@@ -29,6 +26,6 @@ module Extensibility =
     session.EvalInteractionNonThrowing(content)
     |> ignore
 
-    match session.TryFindBoundValue configurationObjName with
+    match session.TryFindBoundValue Constants.ScaffoldConfiguration with
     | Some bound -> Some bound.Value.ReflectionValue
     | None -> None

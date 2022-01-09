@@ -1,19 +1,11 @@
-﻿namespace Perla
+﻿namespace Perla.Lib
 
 open System
 open System.Text.Json
 open System.Text.Json.Serialization
 
+open LiteDB
 
-module Constants =
-  [<Literal>]
-  let Esbuild_Version = "0.14.1"
-
-  [<Literal>]
-  let Default_Templates_Repository = "AngelMunoz/perla-samples"
-
-  [<Literal>]
-  let Default_Templates_Repository_Branch = "main"
 
 module Types =
 
@@ -149,7 +141,7 @@ module Types =
         externals = None
         fileLoaders = BuildConfig.DefaultFileLoaders() |> Some }
 
-  type FdsConfig =
+  type PerlaConfig =
     { ``$schema``: string option
       index: string option
       fable: FableConfig option
@@ -171,7 +163,6 @@ module Types =
         devServer = DevServerConfig.DefaultConfig() |> Some
         build = BuildConfig.DefaultConfig() |> Some
         packages = None }
-
 
   type Scope = Map<string, string>
 
@@ -267,6 +258,46 @@ module Types =
     | PackageJson
 
   type ListPackagesOptions = { format: ListFormat }
+
+  [<CLIMutable>]
+  type PerlaTemplateRepository =
+    { _id: ObjectId
+      name: string
+      fullName: string
+      branch: string
+      path: string
+      createdAt: DateTime
+      updatedAt: Nullable<DateTime> }
+
+    static member NewClamRepo
+      (path: string)
+      (name: string, fullName: string, branch: string)
+      =
+      { _id = ObjectId.NewObjectId()
+        name = name
+        fullName = fullName
+        branch = branch
+        path = path
+        createdAt = DateTime.Now
+        updatedAt = Nullable() }
+
+  type NameParsingErrors =
+    | MissingRepoName
+    | WrongGithubFormat
+
+    member this.AsString =
+      match this with
+      | MissingRepoName -> "The repository name is missing"
+      | WrongGithubFormat -> "The repository name is not a valid github name"
+
+  type RepositoryOptions =
+    { fullRepositoryName: string
+      branch: string }
+
+  type ProjectOptions =
+    { projectName: string
+      templateName: string }
+
 
   exception CommandNotParsedException of string
   exception HelpRequestedException

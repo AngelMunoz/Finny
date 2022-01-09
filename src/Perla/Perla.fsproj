@@ -11,43 +11,16 @@
     <PackageProjectUrl>https://github.com/AngelMunoz/Perla</PackageProjectUrl>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="Types.fs" />
-    <Compile Include="IO.fs" />
-    <Compile Include="Esbuild.fs" />
-    <Compile Include="Fable.fs" />
-    <Compile Include="Server.fs" />
-    <Compile Include="Build.fs" />
     <Compile Include="Commands.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="Properties\launchSettings.json" />
-    <None Include="livereload.js">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="worker.js">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-  </ItemGroup>
-
-  <ItemGroup>
-    <PackageReference Include="AngleSharp" Version="0.16.1" />
     <PackageReference Include="Argu" Version="6.1.1" />
-    <PackageReference Include="CliWrap" Version="3.3.3" />
-    <PackageReference Include="FSharp.Control.AsyncSeq" Version="3.2.1" />
-    <PackageReference Include="FSharp.Control.Reactive" Version="5.0.2" />
-    <PackageReference Include="Saturn" Version="0.15.0" />
-    <PackageReference Include="SharpZipLib" Version="1.3.3" />
-    <PackageReference Include="Flurl.Http" Version="3.2.0" />
-    <PackageReference Include="FsToolkit.ErrorHandling" Version="2.11.0" />
-    <PackageReference Include="FsToolkit.ErrorHandling.TaskResult" Version="2.11.0" />
-    <PackageReference Include="FSharp.SystemTextJson" Version="0.17.4" />
-    <PackageReference Include="Yarp.ReverseProxy" Version="1.0.0" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Clam\Clam.fsproj" />
+    <ProjectReference Include="..\Perla.Lib\Perla.Lib.fsproj" />
   </ItemGroup>
 
 </Project>

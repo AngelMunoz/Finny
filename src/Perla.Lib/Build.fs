@@ -1,4 +1,4 @@
-﻿namespace Perla
+﻿namespace Perla.Lib
 
 open System
 open System.IO
@@ -24,7 +24,7 @@ module Build =
       | JS -> "JS"
       | CSS -> "CSS"
 
-  let private getEntryPoints (type': ResourceType) (config: FdsConfig) =
+  let private getEntryPoints (type': ResourceType) (config: PerlaConfig) =
     let context = BrowsingContext.New(Configuration.Default)
 
     let indexFile = defaultArg config.index "index.html"
@@ -103,7 +103,7 @@ module Build =
       | None -> ())
 
     task {
-      match! Fs.getOrCreateLockFile (Fs.Paths.GetPerlaConfigPath()) with
+      match! Fs.getOrCreateLockFile (System.IO.Path.GetPerlaConfigPath()) with
       | Ok lock ->
         let map: ImportMap =
           { imports = lock.imports
@@ -122,7 +122,6 @@ module Build =
         printfn $"Warn: [{err.Message}]"
         ()
     }
-
 
   let private buildFiles
     (type': ResourceType)
@@ -151,7 +150,7 @@ module Build =
 
   let getExcludes config =
     task {
-      match! Fs.getOrCreateLockFile (Fs.Paths.GetPerlaConfigPath()) with
+      match! Fs.getOrCreateLockFile (System.IO.Path.GetPerlaConfigPath()) with
       | Ok lock ->
         let excludes =
           lock.imports
@@ -172,7 +171,7 @@ module Build =
         return Seq.empty
     }
 
-  let execBuild (config: FdsConfig) =
+  let execBuild (config: PerlaConfig) =
     let buildConfig = defaultArg config.build (BuildConfig.DefaultConfig())
 
     let devServer =

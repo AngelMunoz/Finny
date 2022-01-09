@@ -1,4 +1,4 @@
-﻿namespace Perla
+﻿namespace Perla.Lib
 
 open CliWrap
 

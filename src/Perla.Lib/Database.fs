@@ -1,16 +1,18 @@
-namespace Clam
+﻿namespace Perla.Lib
+
 
 open System
-open LiteDB
+open System.IO
 
 open FsToolkit.ErrorHandling
+open LiteDB
 
-open Clam.Types
+open Types
 
 module Database =
 
   let clamRepos (database: ILiteDatabase) =
-    let repo = database.GetCollection<ClamRepo>()
+    let repo = database.GetCollection<PerlaTemplateRepository>()
 
     repo.EnsureIndex(fun clamRepo -> clamRepo.fullName)
     |> ignore
@@ -21,14 +23,14 @@ module Database =
     repo
 
   let listEntries () =
-    use db = new LiteDatabase(PathExt.LocalDBPath)
+    use db = new LiteDatabase(Path.LocalDBPath)
     let clamRepos = clamRepos db
     clamRepos.FindAll() |> Seq.toList
 
-  let createEntry (clamRepo: ClamRepo option) =
+  let createEntry (clamRepo: PerlaTemplateRepository option) =
     option {
       let! clamRepo = clamRepo
-      use db = new LiteDatabase(PathExt.LocalDBPath)
+      use db = new LiteDatabase(Path.LocalDBPath)
       let clamRepos = clamRepos db
       let result = clamRepos.Insert(clamRepo)
 
@@ -44,7 +46,7 @@ module Database =
   /// <param name="fullName">Full name of the template in the Username/Repository scheme</param>
   /// </summary>
   let existsByFullName fullName =
-    use db = new LiteDatabase(PathExt.LocalDBPath)
+    use db = new LiteDatabase(Path.LocalDBPath)
     let clamRepos = clamRepos db
     clamRepos.Exists(fun clamRepo -> clamRepo.fullName = fullName)
 
@@ -53,7 +55,7 @@ module Database =
   /// <param name="name">Simple name of the repository (not including the GitHub owner)</param>
   /// </summary>
   let existsByName name =
-    use db = new LiteDatabase(PathExt.LocalDBPath)
+    use db = new LiteDatabase(Path.LocalDBPath)
     let clamRepos = clamRepos db
     clamRepos.Exists(fun clamRepo -> clamRepo.name = name)
 
@@ -62,38 +64,38 @@ module Database =
   /// <param name="name">Simple name of the repository (not including the GitHub owner)</param>
   /// </summary>
   let findByName name =
-    use db = new LiteDatabase(PathExt.LocalDBPath)
+    use db = new LiteDatabase(Path.LocalDBPath)
     let clamRepos = clamRepos db
 
     clamRepos.FindOne(fun repo -> repo.name = name) :> obj
     |> Option.ofObj
-    |> Option.map (fun o -> o :?> ClamRepo)
+    |> Option.map (fun o -> o :?> PerlaTemplateRepository)
 
   /// <summary>
   /// Finds a repository using the full name of the repository (ex. Username/Repository)
   /// <param name="fullName">Full name of the repository including the GitHub owner</param>
   /// </summary>
   let findByFullName fullName =
-    use db = new LiteDatabase(PathExt.LocalDBPath)
+    use db = new LiteDatabase(Path.LocalDBPath)
     let clamRepos = clamRepos db
 
     clamRepos.FindOne(fun repo -> repo.fullName = fullName) :> obj
     |> Option.ofObj
-    |> Option.map (fun o -> o :?> ClamRepo)
+    |> Option.map (fun o -> o :?> PerlaTemplateRepository)
 
   let updateByName name =
     match findByName name with
     | Some repo ->
-      use db = new LiteDatabase(PathExt.LocalDBPath)
+      use db = new LiteDatabase(Path.LocalDBPath)
       let clamRepos = clamRepos db
       let repo = { repo with updatedAt = Nullable(DateTime.Now) }
       clamRepos.Update(BsonValue(repo._id), repo)
     | None -> false
 
-  let updateEntry (repo: ClamRepo option) =
+  let updateEntry (repo: PerlaTemplateRepository option) =
     option {
       let! repo = repo
-      use db = new LiteDatabase(PathExt.LocalDBPath)
+      use db = new LiteDatabase(Path.LocalDBPath)
       let clamRepos = clamRepos db
       let repo = { repo with updatedAt = Nullable(DateTime.Now) }
       return clamRepos.Update(BsonValue(repo._id), repo)
@@ -102,7 +104,7 @@ module Database =
   let deleteByFullName fullName =
     match findByFullName fullName with
     | Some repo ->
-      use db = new LiteDatabase(PathExt.LocalDBPath)
+      use db = new LiteDatabase(Path.LocalDBPath)
       let clamRepos = clamRepos db
       clamRepos.Delete(BsonValue(repo._id))
     | None -> false

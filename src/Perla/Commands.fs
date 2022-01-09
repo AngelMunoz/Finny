@@ -1,18 +1,16 @@
 ﻿namespace Perla
 
 open System
+open System.IO
 open FSharp.Control
 open FsToolkit.ErrorHandling
-open Clam
-open Clam.Types
-open Perla
+open Perla.Lib
 open Types
 open Server
 open Build
 
 open Argu
 
-open type Fs.Paths
 
 
 type ServerArgs =
@@ -211,11 +209,11 @@ module Commands =
 
   let getServerOptions (serverargs: ServerArgs list) =
     let config =
-      match Fs.getPerlaConfig (Fs.Paths.GetPerlaConfigPath()) with
+      match Fs.getPerlaConfig (Path.GetPerlaConfigPath()) with
       | Ok config -> config
       | Error err ->
         eprintfn "%s" err.Message
-        FdsConfig.DefaultConfig()
+        PerlaConfig.DefaultConfig()
 
     let devServerConfig =
       match config.devServer with
@@ -239,11 +237,11 @@ module Commands =
 
   let getBuildOptions (serverargs: BuildArgs list) =
     let config =
-      match Fs.getPerlaConfig (Fs.Paths.GetPerlaConfigPath()) with
+      match Fs.getPerlaConfig (Path.GetPerlaConfigPath()) with
       | Ok config -> config
       | Error err ->
         eprintfn "%s" err.Message
-        FdsConfig.DefaultConfig()
+        PerlaConfig.DefaultConfig()
 
     let buildConfig =
       match config.build with
@@ -263,7 +261,7 @@ module Commands =
           |> List.fold foldBuildOptions buildConfig
           |> Some }
 
-  let startBuild (configuration: FdsConfig) = execBuild configuration
+  let startBuild (configuration: PerlaConfig) = execBuild configuration
 
 
   let private (|ScopedPackage|Package|) (package: string) =
@@ -338,13 +336,13 @@ module Commands =
 
       printfn $"[{printedDate}] - [{result.fullName}] - {result.path}"
 
-      for template in Fs.getClamRepoChildren result do
+      for template in Fs.getPerlaRepositoryChildren result do
         printfn $"\t {template.Name}"
 
     0
 
   let runAddTemplate (autoContinue: bool option) (opts: RepositoryOptions) =
-    result {
+    taskResult {
       match getRepositoryName opts.fullRepositoryName with
       | Error err ->
         return!
@@ -356,18 +354,19 @@ module Commands =
           match autoContinue with
           | Some true ->
             let updateOperation =
-              option {
+              taskOption {
                 let! repo = Database.findByFullName opts.fullRepositoryName
                 let repo = { repo with branch = opts.branch }
 
-                return!
+                let! repo =
                   repo
                   |> Scaffolding.downloadRepo
                   |> Scaffolding.unzipAndClean
-                  |> Database.updateEntry
+
+                return! Database.updateEntry (Some repo)
               }
 
-            match updateOperation with
+            match! updateOperation with
             | Some true ->
               printfn
                 $"{opts.fullRepositoryName} - {opts.branch} updated correctly"
@@ -381,18 +380,19 @@ module Commands =
             match Console.ReadKey().Key with
             | ConsoleKey.Y ->
               let updateOperation =
-                option {
+                taskOption {
                   let! repo = Database.findByFullName opts.fullRepositoryName
                   let repo = { repo with branch = opts.branch }
 
-                  return!
+                  let! repo =
                     repo
                     |> Scaffolding.downloadRepo
                     |> Scaffolding.unzipAndClean
-                    |> Database.updateEntry
+
+                  return! Database.updateEntry (Some repo)
                 }
 
-              match updateOperation with
+              match! updateOperation with
               | Some true ->
                 printfn
                   $"{opts.fullRepositoryName} - {opts.branch} updated correctly"
@@ -401,16 +401,21 @@ module Commands =
               | _ -> return! UpdateTemplateFailedException |> Error
             | _ -> return 0
         else
-          let path = Fs.getClamRepoPath opts.fullRepositoryName opts.branch
+          let path =
+            Fs.getPerlaRepositoryPath opts.fullRepositoryName opts.branch
 
           let addedRepository =
-            (simpleName, opts.fullRepositoryName, opts.branch)
-            |> (ClamRepo.NewClamRepo path)
-            |> Scaffolding.downloadRepo
-            |> Scaffolding.unzipAndClean
-            |> Database.createEntry
+            taskOption {
+              let! addedRepository =
+                (simpleName, opts.fullRepositoryName, opts.branch)
+                |> (PerlaTemplateRepository.NewClamRepo path)
+                |> Scaffolding.downloadRepo
+                |> Scaffolding.unzipAndClean
 
-          match addedRepository with
+              return! Database.createEntry (Some addedRepository)
+            }
+
+          match! addedRepository with
           | Some repository ->
             printfn
               $"Succesfully added {repository.fullName} at {repository.path}"
@@ -422,10 +427,7 @@ module Commands =
 
   let runInit (options: InitOptions) =
     taskResult {
-      let path =
-        match options.path with
-        | Some path -> GetPerlaConfigPath(path)
-        | None -> GetPerlaConfigPath()
+      let path = Path.GetPerlaConfigPath(?directoryPath = options.path)
 
       let initKind = defaultArg options.initKind InitKind.Full
 
@@ -453,21 +455,26 @@ module Commands =
         else
           do! Esbuild.setupEsbuild Constants.Esbuild_Version
 
-          do!
+          let! res =
             runAddTemplate
               (Some true)
               { branch = Constants.Default_Templates_Repository_Branch
                 fullRepositoryName = Constants.Default_Templates_Repository }
-            |> Result.ignore
 
-          printfn "esbuild and templates have been setup!"
-          runListTemplates () |> ignore
-          printfn "Feel free to create a new perla project"
+          if res <> 0 then
+            return res
+          else
+            printfn "esbuild and templates have been setup!"
+            runListTemplates () |> ignore
+            printfn "Feel free to create a new perla project"
 
-          printfn "perla new -t perla-samples/<TEMPLATE_NAME> -n <PROJECT_NAME>"
-          return 0
+            printfn
+              "perla new -t perla-samples/<TEMPLATE_NAME> -n <PROJECT_NAME>"
+
+            return 0
       | InitKind.Simple ->
-        let config = FdsConfig.DefaultConfig(defaultArg options.withFable false)
+        let config =
+          PerlaConfig.DefaultConfig(defaultArg options.withFable false)
 
         let fable =
           config.fable
@@ -583,7 +590,7 @@ Updated: {package.updatedAt.ToShortDateString()}"""
           Some(name, version)
         | _ -> None
 
-      let! config = Fs.getPerlaConfig (GetPerlaConfigPath())
+      let! config = Fs.getPerlaConfig (Path.GetPerlaConfigPath())
 
       let installedPackages = config.packages |> Option.defaultValue Map.empty
 
@@ -614,8 +621,8 @@ Updated: {package.updatedAt.ToShortDateString()}"""
       if name = "" then
         return! PackageNotFoundException |> Error
 
-      let! fdsConfig = Fs.getPerlaConfig (GetPerlaConfigPath())
-      let! lockFile = Fs.getOrCreateLockFile (GetPerlaConfigPath())
+      let! fdsConfig = Fs.getPerlaConfig (Path.GetPerlaConfigPath())
+      let! lockFile = Fs.getOrCreateLockFile (Path.GetPerlaConfigPath())
 
       let deps =
         fdsConfig.packages
@@ -631,12 +638,12 @@ Updated: {package.updatedAt.ToShortDateString()}"""
 
       do!
         Fs.writeLockFile
-          (GetPerlaConfigPath())
+          (Path.GetPerlaConfigPath())
           { lockFile with
               scopes = scopes
               imports = imports }
 
-      do! Fs.createPerlaConfig (GetPerlaConfigPath()) opts
+      do! Fs.createPerlaConfig (Path.GetPerlaConfigPath()) opts
 
       return 0
     }
@@ -653,10 +660,11 @@ Updated: {package.updatedAt.ToShortDateString()}"""
 
       match repository with
       | Some clamRepo ->
-        let templatePath = Fs.getClamTplPath clamRepo child
-        let targetPath = Fs.getClamTplTarget opts.projectName
+        let templatePath = Fs.getPerlaTemplatePath clamRepo child
+        let targetPath = Fs.getPerlaTemplateTarget opts.projectName
 
-        let content = Fs.getClamTplScriptContent templatePath clamRepo.path
+        let content =
+          Fs.getPerlaTemplateScriptContent templatePath clamRepo.path
 
         match content with
         | Some content ->
@@ -676,7 +684,7 @@ Updated: {package.updatedAt.ToShortDateString()}"""
     let deleteOperation =
       option {
         let! repo = Database.findByFullName name
-        Fs.removeClamRepo repo
+        Fs.removePerlaRepository repo
         return! Database.deleteByFullName repo.fullName
       }
 
@@ -690,24 +698,27 @@ Updated: {package.updatedAt.ToShortDateString()}"""
     | None -> name |> TemplateNotFoundException |> Error
 
   let runUpdateTemplate (opts: RepositoryOptions) =
-    let updateOperation =
-      option {
-        let! repo = Database.findByFullName opts.fullRepositoryName
-        let repo = { repo with branch = opts.branch }
+    taskResult {
+      let updateOperation =
+        taskOption {
+          let! repo = Database.findByFullName opts.fullRepositoryName
+          let repo = { repo with branch = opts.branch }
 
-        return!
-          repo
-          |> Scaffolding.downloadRepo
-          |> Scaffolding.unzipAndClean
-          |> Database.updateEntry
-      }
+          let! repo =
+            repo
+            |> Scaffolding.downloadRepo
+            |> Scaffolding.unzipAndClean
 
-    match updateOperation with
-    | Some true ->
-      printfn $"{opts.fullRepositoryName} - {opts.branch} updated correctly"
+          return! Database.updateEntry (Some repo)
+        }
 
-      Ok 0
-    | _ -> UpdateTemplateFailedException |> Error
+      match! updateOperation with
+      | Some true ->
+        printfn $"{opts.fullRepositoryName} - {opts.branch} updated correctly"
+
+        return 0
+      | _ -> return! UpdateTemplateFailedException |> Error
+    }
 
   let runAdd (options: AddPackageOptions) =
     taskResult {
@@ -728,8 +739,8 @@ Updated: {package.updatedAt.ToShortDateString()}"""
       let! (deps, scopes) =
         Http.getPackageUrlInfo $"{package}{version}" alias source
 
-      let! fdsConfig = Fs.getPerlaConfig (GetPerlaConfigPath())
-      let! lockFile = Fs.getOrCreateLockFile (GetPerlaConfigPath())
+      let! fdsConfig = Fs.getPerlaConfig (Path.GetPerlaConfigPath())
+      let! lockFile = Fs.getOrCreateLockFile (Path.GetPerlaConfigPath())
 
       let packages =
         fdsConfig.packages
@@ -755,8 +766,8 @@ Updated: {package.updatedAt.ToShortDateString()}"""
             imports = imports
             scopes = scopes }
 
-      do! Fs.createPerlaConfig (GetPerlaConfigPath()) fdsConfig
-      do! Fs.writeLockFile (GetPerlaConfigPath()) lockFile
+      do! Fs.createPerlaConfig (Path.GetPerlaConfigPath()) fdsConfig
+      do! Fs.writeLockFile (Path.GetPerlaConfigPath()) lockFile
 
       return 0
     }
@@ -821,7 +832,7 @@ Updated: {package.updatedAt.ToShortDateString()}"""
         return! async { return () }
     }
 
-  let startInteractive (configuration: FdsConfig) =
+  let startInteractive (configuration: PerlaConfig) =
     let onStdinAsync = serverActions tryExecPerlaCommand configuration
 
     let devServer =

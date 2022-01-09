@@ -2,11 +2,10 @@
 open System.Threading.Tasks
 
 open Argu
-
-open Clam.Types
 open FsToolkit.ErrorHandling
+open Perla.Lib
+open Types
 open Perla
-open Perla.Types
 
 
 let processExit (result: Task<Result<int, exn>>) =
@@ -53,13 +52,13 @@ let main argv =
         | Some (Build items) ->
           let buildConfig = Commands.getBuildOptions (items.GetAllResults())
 
-          Fs.Paths.SetCurrentDirectoryToPerlaConfigDirectory()
+          System.IO.Path.SetCurrentDirectoryToPerlaConfigDirectory()
           do! Commands.startBuild buildConfig :> Task
           return! Ok 0
         | Some (Serve items) ->
           let serverConfig = Commands.getServerOptions (items.GetAllResults())
 
-          Fs.Paths.SetCurrentDirectoryToPerlaConfigDirectory()
+          System.IO.Path.SetCurrentDirectoryToPerlaConfigDirectory()
           do! Commands.startInteractive serverConfig
 
           return! Ok 0
