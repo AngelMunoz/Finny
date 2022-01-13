@@ -31,8 +31,41 @@ let runtimes =
        "win10-x64"
        "osx-x64" |]
 
+let fsharpSourceFiles =
+    !! "src/**/*.fs"
+    ++ "src/**/*.fsi"
+    ++ "src/**/*.fsx"
+    ++ "build.fsx"
+    -- "**/obj/**/*.fs"
+    -- "**/fable_modules/**/*.fs"
+
 Target.initEnvironment ()
 Target.create "Clean" (fun _ -> !! "dist" |> Shell.cleanDirs)
+
+Target.create "Format" (fun _ ->
+    let result =
+        fsharpSourceFiles
+        |> Seq.map (sprintf "\"%s\"")
+        |> String.concat " "
+        |> DotNet.exec id "fantomas"
+
+    if not result.OK then
+        printfn $"Errors while formatting all files: %A{result.Messages}")
+
+Target.create "CheckFormat" (fun _ ->
+    let result =
+        fsharpSourceFiles
+        |> Seq.map (sprintf "\"%s\"")
+        |> String.concat " "
+        |> sprintf "%s --check"
+        |> DotNet.exec id "fantomas"
+
+    if result.ExitCode = 0 then
+        Trace.log "No files need formatting"
+    elif result.ExitCode = 99 then
+        failwith "Some files need formatting, check output for more info"
+    else
+        Trace.logf $"Errors while formatting: %A{result.Errors}")
 
 Target.create "PackNugets" (fun _ ->
     DotNet.pack
@@ -66,6 +99,7 @@ Target.create "Zip" (fun _ ->
 Target.create "Default" (fun _ -> Target.runSimple "Zip" [] |> ignore)
 
 "Clean"
+==> "CheckFormat"
 ==> "BuildBinaries"
 ==> "PackNugets"
 ==> "Default"
