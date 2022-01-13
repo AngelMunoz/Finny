@@ -16,12 +16,19 @@ module Fable =
     with
     | ex -> printfn $"Failed to kill process with PID: [{pid}]\n{ex.Message}"
 
+  let private addProject
+    (project: string option)
+    (args: Builders.ArgumentsBuilder)
+    =
+    let project = defaultArg project "./src/App.fsproj"
+    args.Add project
+
   let private addOutDir
     (outdir: string option)
     (args: Builders.ArgumentsBuilder)
     =
     match outdir with
-    | Some outdir -> args.Add $"-o {outdir}"
+    | Some outdir -> args.Add([ "-o"; $"{outdir}" ])
     | None -> args
 
   let private addExtension
@@ -29,12 +36,12 @@ module Fable =
     (args: Builders.ArgumentsBuilder)
     =
     match extension with
-    | Some extension -> args.Add $"-e {extension}"
+    | Some extension -> args.Add([ "-e"; $"{extension}" ])
     | None -> args
 
   let private addWatch (watch: bool option) (args: Builders.ArgumentsBuilder) =
     match watch with
-    | Some true -> args.Add $"--watch"
+    | Some true -> args.Add $"watch"
     | Some false
     | None -> args
 
@@ -50,10 +57,9 @@ module Fable =
       Cli
         .Wrap(execBinName)
         .WithArguments(fun args ->
-          args
-            .Add("fable")
-            .Add(defaultArg config.project "./src/App.fsproj")
+          args.Add("fable")
           |> addWatch isWatch
+          |> addProject config.project
           |> addOutDir config.outDir
           |> addExtension config.extension
           |> ignore)
