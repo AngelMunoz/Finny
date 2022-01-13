@@ -33,6 +33,8 @@ open Giraffe
 open Saturn
 open Saturn.Endpoint.Router
 
+open Hellang.Middleware.SpaFallback
+
 open CliWrap
 
 open Types
@@ -449,7 +451,7 @@ module Server =
         if liveReload then
           router {
             get "/" Index
-            get "index.html" (redirectTo false "/")
+            get "index.html" Index
             get "/~perla~/sse" (Sse watchConfig)
             get "/~perla~/livereload.js" (sendScript LiveReload)
             get "/~perla~/worker.js" (sendScript Worker)
@@ -457,7 +459,7 @@ module Server =
         else
           router {
             get "/" Index
-            get "index.html" (redirectTo false "/")
+            get "index.html" Index
           }
 
       let withWebhostConfig (config: IWebHostBuilder) =
@@ -481,6 +483,8 @@ module Server =
         if useSSL then
           appConfig.UseHsts().UseHttpsRedirection()
           |> ignore
+
+        appConfig.UseSpaFallback() |> ignore
 
         let ignoreStatic =
           [ ".js"
@@ -533,6 +537,8 @@ module Server =
         (proxyConfig: Map<string, string> option)
         (services: IServiceCollection)
         =
+        services.AddSpaFallback() |> ignore
+
         match proxyConfig with
         | Some _ -> services.AddHttpForwarder()
         | None -> services
