@@ -4,7 +4,7 @@
 		<TargetFrameworks>net6.0</TargetFrameworks>
 		<GenerateDocumentationFile>true</GenerateDocumentationFile>
 		<WarnOn>3390;$(WarnOn)</WarnOn>
-		<Version>0.18.0</Version>
+		<Version>0.19.0</Version>
 		<IsPackable>true</IsPackable>
 		<PackageProjectUrl>https://github.com/AngelMunoz/Perla</PackageProjectUrl>
 	</PropertyGroup>
