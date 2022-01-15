@@ -1,0 +1,11 @@
+image:
+  file: .gitpod.Dockerfile
+
+tasks:
+  - name: Restore Tools
+    init: dotnet tool restore
+
+vscode:
+  extensions:
+    - muhammad-sammy.csharp
+    - ionide.ionide-fsharp
