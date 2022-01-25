@@ -293,6 +293,7 @@ module Server =
                     {| oldName = event.oldName
                        name = event.name |}
                   )
+
                 logger.LogInformation $"LiveReload File Changed: {event.name}"
 
                 do! res.WriteAsync $"event:reload\ndata:{data}\n\n"
@@ -314,6 +315,7 @@ module Server =
 
                 logger.LogInformation $"CSS File Changed: {event.name}"
                 do! res.WriteAsync $"event:replace-css\ndata:{data}\n\n"
+
               return! res.Body.FlushAsync()
             | Typescript
             | Javascript
@@ -609,7 +611,7 @@ module Server =
       | StartServer ->
         async {
           printfn "Starting Dev Server"
-          do! startServer (getConfig()) |> Async.AwaitTask
+          do! startServer (getConfig ()) |> Async.AwaitTask
         }
         |> Async.Start
 
@@ -621,7 +623,7 @@ module Server =
         async {
           do! stopServer () |> Async.AwaitTask
           printfn "Starting Dev Server"
-          do! startServer (getConfig()) |> Async.AwaitTask
+          do! startServer (getConfig ()) |> Async.AwaitTask
         }
         |> Async.Start
 
@@ -630,7 +632,7 @@ module Server =
         async {
           printfn "Starting Fable"
 
-          let! result = startFable (getConfig()).fable |> Async.AwaitTask
+          let! result = startFable (getConfig ()).fable |> Async.AwaitTask
           printfn $"Finished in {result.RunTime}"
         }
         |> Async.Start
@@ -645,7 +647,7 @@ module Server =
 
           stopFable ()
 
-          let! result = startFable (getConfig()).fable |> Async.AwaitTask
+          let! result = startFable (getConfig ()).fable |> Async.AwaitTask
           printfn $"Finished in {result.RunTime}"
           return ()
         }

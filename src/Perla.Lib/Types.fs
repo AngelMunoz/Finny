@@ -58,7 +58,12 @@ module Types =
             "*.json" ]
           |> List.toSeq
           |> Some
-        directories = seq { "index.html"; "./src" }  |> Some }
+        directories =
+          seq {
+            "index.html"
+            "./src"
+          }
+          |> Some }
 
   type DevServerConfig =
     { autoStart: bool option

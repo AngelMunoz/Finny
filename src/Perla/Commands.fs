@@ -848,8 +848,8 @@ Updated: {package.updatedAt.ToShortDateString()}"""
 
   let startInteractive (configuration: unit -> PerlaConfig) =
     let onStdinAsync = serverActions tryExecPerlaCommand configuration
-    let perlaWatcher = Fs.getPerlaConfigWatcher()
-    let configuration = configuration()
+    let perlaWatcher = Fs.getPerlaConfigWatcher ()
+    let configuration = configuration ()
 
     let devServer =
       defaultArg configuration.devServer (DevServerConfig.DefaultConfig())
@@ -875,10 +875,12 @@ Updated: {package.updatedAt.ToShortDateString()}"""
       onStdinAsync "exit" |> Async.RunSynchronously
       exit 0)
 
-    [ perlaWatcher.Changed |> Observable.throttle (TimeSpan.FromMilliseconds(400.))
-      perlaWatcher.Created |> Observable.throttle (TimeSpan.FromMilliseconds(400.)) ]
+    [ perlaWatcher.Changed
+      |> Observable.throttle (TimeSpan.FromMilliseconds(400.))
+      perlaWatcher.Created
+      |> Observable.throttle (TimeSpan.FromMilliseconds(400.)) ]
     |> Observable.mergeSeq
-    |> Observable.map(fun _ -> onStdinAsync "restart")
+    |> Observable.map (fun _ -> onStdinAsync "restart")
     |> Observable.switchAsync
     |> Observable.add (fun _ -> printfn "perla.jsonc Changed, Restarting")
 

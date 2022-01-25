@@ -57,7 +57,10 @@ let main argv =
           return! Ok 0
         | Some (Serve items) ->
           System.IO.Path.SetCurrentDirectoryToPerlaConfigDirectory()
-          do! Commands.startInteractive (fun () -> Commands.getServerOptions (items.GetAllResults()))
+
+          do!
+            Commands.startInteractive (fun () ->
+              Commands.getServerOptions (items.GetAllResults()))
 
           return! Ok 0
         | Some (Init subcmd) ->
