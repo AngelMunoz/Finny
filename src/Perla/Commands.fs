@@ -759,16 +759,18 @@ Updated: {package.updatedAt.ToShortDateString()}"""
 
         let scopes =
           let scopes = scopes |> Map.ofList
+
           lockFile.scopes
           |> Map.fold
                (fun acc key value ->
-                match acc |> Map.tryFind key with
-                | Some found ->
-                  let newValue =
-                    (found |> Map.toList) @ (value |> Map.toList)
-                    |> Map.ofList
-                  acc |> Map.add key newValue
-                | None -> acc |> Map.add key value)
+                 match acc |> Map.tryFind key with
+                 | Some found ->
+                   let newValue =
+                     (found |> Map.toList) @ (value |> Map.toList)
+                     |> Map.ofList
+
+                   acc |> Map.add key newValue
+                 | None -> acc |> Map.add key value)
                scopes
 
 
