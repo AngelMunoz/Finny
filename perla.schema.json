@@ -69,9 +69,9 @@
           "default": true
         },
         "host": {
-          "description": "A host to bind the dev server to, defaults to 127.0.0.1",
+          "description": "A host to bind the dev server to, defaults to localhost",
           "type": "string",
-          "default": "127.0.0.1"
+          "default": "localhost"
         },
         "port": {
           "description": "A port to listen connections at for the dev server",

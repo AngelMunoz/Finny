@@ -75,16 +75,22 @@ module Middleware =
 
         let! content = File.ReadAllTextAsync(filePath)
 
-        let newContent =
-          $"""
+        if ctx.Request.Query.ContainsKey "module" then
+          logger.LogInformation("Sending CSS module")
+          ctx.SetContentType "text/css"
+          return! ctx.WriteStringAsync content :> Task
+        else
+          logger.LogInformation("Sending CSS HMR Script")
+          let newContent =
+            $"""
 const css = `{content}`
 const style = document.createElement('style')
 style.innerHTML = css
 style.setAttribute("filename", "{filePath}");
 document.head.appendChild(style)"""
 
-        ctx.SetContentType "text/javascript"
-        do! ctx.WriteStringAsync newContent :> Task
+          ctx.SetContentType "text/javascript"
+          return! ctx.WriteStringAsync newContent :> Task
     }
     :> Task
 
@@ -191,7 +197,8 @@ document.head.appendChild(style)"""
     let serverConfig =
       defaultArg config.devServer (DevServerConfig.DefaultConfig())
 
-    let mountedDirs = defaultArg serverConfig.mountDirectories Map.empty
+    let mountedDirs =
+      defaultArg serverConfig.mountDirectories Map.empty
 
     appConfig
       .Use(Func<HttpContext, Func<Task>, Task>(jsonImport mountedDirs))
@@ -275,49 +282,53 @@ module Server =
 
       let onChangeSub =
         watcher.FileChanged
-        |> Observable.map (fun event ->
-          task {
-            match Path.GetExtension event.name with
-            | Css ->
-              let! content = File.ReadAllTextAsync event.path
+        |> Observable.map
+             (fun event ->
+               task {
+                 match Path.GetExtension event.name with
+                 | Css ->
+                   let! content = File.ReadAllTextAsync event.path
 
-              let data =
-                Json.ToTextMinified(
-                  {| oldName =
-                      event.oldName
-                      |> Option.map (fun value ->
-                        match value with
-                        | Css -> value
-                        | _ -> "")
-                     name = event.path
-                     content = content |}
-                )
+                   let data =
+                     Json.ToTextMinified(
+                       {| oldName =
+                            event.oldName
+                            |> Option.map
+                                 (fun value ->
+                                   match value with
+                                   | Css -> value
+                                   | _ -> "")
+                          name = event.path
+                          content = content |}
+                     )
 
-              do! res.WriteAsync $"event:replace-css\ndata:{data}\n\n"
-              return! res.Body.FlushAsync()
-            | Typescript
-            | Javascript
-            | Jsx
-            | Json
-            | Other _ ->
-              let data =
-                Json.ToTextMinified(
-                  {| oldName = event.oldName
-                     name = event.name |}
-                )
+                   do! res.WriteAsync $"event:replace-css\ndata:{data}\n\n"
+                   return! res.Body.FlushAsync()
+                 | Typescript
+                 | Javascript
+                 | Jsx
+                 | Json
+                 | Other _ ->
+                   let data =
+                     Json.ToTextMinified(
+                       {| oldName = event.oldName
+                          name = event.name |}
+                     )
 
-              logger.LogInformation $"LiveReload File Changed: {event.name}"
+                   logger.LogInformation
+                     $"LiveReload File Changed: {event.name}"
 
-              do! res.WriteAsync $"event:reload\ndata:{data}\n\n"
-              return! res.Body.FlushAsync()
-          })
+                   do! res.WriteAsync $"event:reload\ndata:{data}\n\n"
+                   return! res.Body.FlushAsync()
+               })
         |> Observable.switchTask
         |> Observable.subscribe ignore
 
-      ctx.RequestAborted.Register (fun _ ->
-        watcher.Dispose()
-        onChangeSub.Dispose()
-        onCompileErrSub.Dispose())
+      ctx.RequestAborted.Register
+        (fun _ ->
+          watcher.Dispose()
+          onChangeSub.Dispose()
+          onCompileErrSub.Dispose())
       |> ignore
 
       while true do
@@ -330,7 +341,8 @@ module Server =
     let (didParse, address) = IPEndPoint.TryParse($"{address}:{port}")
 
     if didParse then
-      let props = IPGlobalProperties.GetIPGlobalProperties()
+      let props =
+        IPGlobalProperties.GetIPGlobalProperties()
 
       let listeners = props.GetActiveTcpListeners()
 
@@ -357,9 +369,11 @@ module Server =
 
         let indexFile = defaultArg config.index "index.html"
 
-        let content = File.ReadAllText(Path.GetFullPath(indexFile))
+        let content =
+          File.ReadAllText(Path.GetFullPath(indexFile))
 
-        let context = BrowsingContext.New(Configuration.Default)
+        let context =
+          BrowsingContext.New(Configuration.Default)
 
         let parser = context.GetService<IHtmlParser>()
         let doc = parser.ParseDocument content
@@ -436,12 +450,13 @@ module Server =
       let path = System.IO.Path.GetProxyConfigPath()
       Fs.getProxyConfig (path)
 
-    let customHost = defaultArg serverConfig.host "127.0.0.1"
+    let customHost = defaultArg serverConfig.host "localhost"
     let customPort = defaultArg serverConfig.port 7331
     let useSSL = defaultArg serverConfig.useSSL false
     let liveReload = defaultArg serverConfig.liveReload true
 
-    let mountedDirs = defaultArg serverConfig.mountDirectories Map.empty
+    let mountedDirs =
+      defaultArg serverConfig.mountDirectories Map.empty
 
     let watchConfig =
       defaultArg serverConfig.watchConfig (WatchConfig.Default())
@@ -466,18 +481,19 @@ module Server =
         let (http, https) =
           match isAddressPortOccupied customHost customPort with
           | false ->
-            $"http://{customHost}:{customPort}",
-            $"https://{customHost}:{customPort + 1}"
+            if useSSL then
+              $"http://{customHost}:{customPort - 1}",
+              $"https://{customHost}:{customPort}"
+            else
+              $"http://{customHost}:{customPort}",
+              $"https://{customHost}:{customPort + 1}"
           | true ->
             printfn
               $"Address {customHost}:{customPort} is busy, selecting a dynamic port."
 
             $"http://{customHost}:{0}", $"https://{customHost}:{0}"
 
-        if useSSL then
-          config.UseUrls(http, https)
-        else
-          config.UseUrls(http)
+        config.UseUrls(http, https)
 
       let withAppConfig (appConfig: IApplicationBuilder) =
         if useSSL then

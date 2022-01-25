@@ -736,7 +736,7 @@ Updated: {package.updatedAt.ToShortDateString()}"""
         | Some version -> $"@{version}"
         | None -> ""
 
-      let! (deps, scopes) =
+      let! deps, scopes =
         Http.getPackageUrlInfo $"{package}{version}" alias source
 
       let! fdsConfig = Fs.getPerlaConfig (Path.GetPerlaConfigPath())
@@ -758,9 +758,19 @@ Updated: {package.updatedAt.ToShortDateString()}"""
           |> fun existing -> existing @ deps |> Map.ofList
 
         let scopes =
+          let scopes = scopes |> Map.ofList
           lockFile.scopes
-          |> Map.toList
-          |> fun existing -> existing @ scopes |> Map.ofList
+          |> Map.fold
+               (fun acc key value ->
+                match acc |> Map.tryFind key with
+                | Some found ->
+                  let newValue =
+                    (found |> Map.toList) @ (value |> Map.toList)
+                    |> Map.ofList
+                  acc |> Map.add key newValue
+                | None -> acc |> Map.add key value)
+               scopes
+
 
         { lockFile with
             imports = imports

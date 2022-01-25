@@ -6,22 +6,24 @@
     "extension": ".fs.js"
   },
   "devServer": {
-    "liveReload": true,
     "mountDirectories": {
       "./assets": "/assets",
       "./src": "/src"
-    }
+    },
+    "liveReload": true
   },
   "build": {
-    "minify": false,
     "copyPaths": {
       "includes": [
         "./src/translations.json"
       ]
-    }
+    },
+    "minify": false
   },
   "packages": {
     "fsharp-components": "https://cdn.skypack.dev/pin/fsharp-components@v0.0.4-vrcdq1fAiAHCYER7N99I/mode=imports/optimized/fsharp-components.js",
-    "lit-html": "https://ga.jspm.io/npm:lit-html@1.4.1/lit-html.js"
+    "lit": "https://ga.jspm.io/npm:lit@2.1.1/index.js",
+    "lit-html": "https://ga.jspm.io/npm:lit-html@1.4.1/lit-html.js",
+    "rxjs": "https://ga.jspm.io/npm:rxjs@7.5.2/dist/esm5/index.js"
   }
 }
