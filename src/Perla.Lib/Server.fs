@@ -20,7 +20,6 @@ open Microsoft.Extensions.Hosting
 open Microsoft.Extensions.Logging
 open Microsoft.Extensions.FileProviders
 open Microsoft.AspNetCore.StaticFiles
-open Perla
 open Yarp.ReverseProxy
 open Yarp.ReverseProxy.Forwarder
 
@@ -174,7 +173,7 @@ document.head.appendChild(style)"""
           let! content = File.ReadAllBytesAsync(filePath)
           do! ctx.WriteBytesAsync content :> Task
         with
-        | ex ->
+        | _ ->
           let! fileData = Esbuild.tryCompileFile filePath buildConfig
 
           match fileData with
@@ -286,21 +285,35 @@ module Server =
           task {
             match Path.GetExtension event.name with
             | Css ->
-              let! content = File.ReadAllTextAsync event.path
+              match event.ChangeType with
+              | Fs.ChangeKind.Created
+              | Fs.ChangeKind.Deleted ->
+                let data =
+                  Json.ToTextMinified(
+                    {| oldName = event.oldName
+                       name = event.name |}
+                  )
+                logger.LogInformation $"LiveReload File Changed: {event.name}"
 
-              let data =
-                Json.ToTextMinified(
-                  {| oldName =
-                      event.oldName
-                      |> Option.map (fun value ->
-                        match value with
-                        | Css -> value
-                        | _ -> "")
-                     name = event.path
-                     content = content |}
-                )
+                do! res.WriteAsync $"event:reload\ndata:{data}\n\n"
+              | Fs.ChangeKind.Renamed
+              | Fs.ChangeKind.Changed ->
+                let! content = File.ReadAllTextAsync event.path
 
-              do! res.WriteAsync $"event:replace-css\ndata:{data}\n\n"
+                let data =
+                  Json.ToTextMinified(
+                    {| oldName =
+                        event.oldName
+                        |> Option.map (fun value ->
+                          match value with
+                          | Css -> value
+                          | _ -> "")
+                       name = event.path
+                       content = content |}
+                  )
+
+                logger.LogInformation $"CSS File Changed: {event.name}"
+                do! res.WriteAsync $"event:replace-css\ndata:{data}\n\n"
               return! res.Body.FlushAsync()
             | Typescript
             | Javascript
@@ -334,7 +347,7 @@ module Server =
     }
 
   let private isAddressPortOccupied (address: string) (port: int) =
-    let (didParse, address) = IPEndPoint.TryParse($"{address}:{port}")
+    let didParse, address = IPEndPoint.TryParse($"{address}:{port}")
 
     if didParse then
       let props = IPGlobalProperties.GetIPGlobalProperties()
@@ -351,7 +364,7 @@ module Server =
     task {
       let logger = ctx.GetLogger("Perla:Index")
 
-      match Fs.getPerlaConfig (System.IO.Path.GetPerlaConfigPath()) with
+      match Fs.getPerlaConfig (Path.GetPerlaConfigPath()) with
       | Error err ->
         logger.Log(
           LogLevel.Error,
@@ -376,7 +389,7 @@ module Server =
         liveReload.SetAttribute("type", "text/javascript")
         liveReload.SetAttribute("src", "/~perla~/livereload.js")
 
-        match! Fs.getOrCreateLockFile (System.IO.Path.GetPerlaConfigPath()) with
+        match! Fs.getOrCreateLockFile (Path.GetPerlaConfigPath()) with
         | Ok lock ->
           let map: ImportMap =
             { imports = lock.imports
@@ -440,8 +453,8 @@ module Server =
       defaultArg config.devServer (DevServerConfig.DefaultConfig())
 
     let getProxyConfig =
-      let path = System.IO.Path.GetProxyConfigPath()
-      Fs.getProxyConfig (path)
+      let path = Path.GetProxyConfigPath()
+      Fs.getProxyConfig path
 
     let customHost = defaultArg serverConfig.host "localhost"
     let customPort = defaultArg serverConfig.port 7331
@@ -470,7 +483,7 @@ module Server =
           }
 
       let withWebhostConfig (config: IWebHostBuilder) =
-        let (http, https) =
+        let http, https =
           match isAddressPortOccupied customHost customPort with
           | false ->
             if useSSL then
@@ -534,9 +547,9 @@ module Server =
           appConfig
             .UseRouting()
             .UseEndpoints(fun endpoints ->
-              let (client, reqConfig) = getHttpClientAndForwarder ()
+              let client, reqConfig = getHttpClientAndForwarder ()
 
-              for (from, target) in proxyConfig |> Map.toSeq do
+              for from, target in proxyConfig |> Map.toSeq do
                 let handler = getProxyHandler target client reqConfig
                 endpoints.Map(from, handler) |> ignore)
         | None -> appConfig
@@ -588,7 +601,7 @@ module Server =
 
   let serverActions
     (tryExecCommand: string -> Async<Result<unit, exn>>)
-    (config: PerlaConfig)
+    (getConfig: unit -> PerlaConfig)
     (value: string)
     =
     async {
@@ -596,7 +609,7 @@ module Server =
       | StartServer ->
         async {
           printfn "Starting Dev Server"
-          do! startServer config |> Async.AwaitTask
+          do! startServer (getConfig()) |> Async.AwaitTask
         }
         |> Async.Start
 
@@ -608,7 +621,7 @@ module Server =
         async {
           do! stopServer () |> Async.AwaitTask
           printfn "Starting Dev Server"
-          do! startServer config |> Async.AwaitTask
+          do! startServer (getConfig()) |> Async.AwaitTask
         }
         |> Async.Start
 
@@ -617,7 +630,7 @@ module Server =
         async {
           printfn "Starting Fable"
 
-          let! result = startFable config.fable |> Async.AwaitTask
+          let! result = startFable (getConfig()).fable |> Async.AwaitTask
           printfn $"Finished in {result.RunTime}"
         }
         |> Async.Start
@@ -632,7 +645,7 @@ module Server =
 
           stopFable ()
 
-          let! result = startFable config.fable |> Async.AwaitTask
+          let! result = startFable (getConfig()).fable |> Async.AwaitTask
           printfn $"Finished in {result.RunTime}"
           return ()
         }
