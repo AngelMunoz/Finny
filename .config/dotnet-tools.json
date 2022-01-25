@@ -3,13 +3,13 @@
   "isRoot": true,
   "tools": {
     "fable": {
-      "version": "3.7.0-beta-009",
+      "version": "3.7.0-beta-012",
       "commands": [
         "fable"
       ]
     },
     "fantomas-tool": {
-      "version": "4.6.0-alpha-007",
+      "version": "4.6.0",
       "commands": [
         "fantomas"
       ]
