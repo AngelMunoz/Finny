@@ -14,10 +14,24 @@ const tryParse = string => {
 
 function connectToSource() {
     if (source) return;
+    let needsReload = false;
     source = new EventSource("/~perla~/sse");
     source.addEventListener("open", function(event) {
         console.log("Connected");
+        if(needsReload) {
+            console.log("Reconnected to server")
+            self.postMessage({
+                event: 'reload'
+            });
+            needsReload = false;
+        }
     });
+
+    source.addEventListener('error', function (event) {
+        if(event.target.readyState === EventSource.CONNECTING) {
+            needsReload = true;
+        }
+    })
 
     source.addEventListener("reload", function(event) {
         console.log("Reloading, file changed: ", event.data);

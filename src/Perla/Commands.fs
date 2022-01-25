@@ -2,8 +2,10 @@
 
 open System
 open System.IO
+open System.Threading.Tasks
 open FSharp.Control
 open FsToolkit.ErrorHandling
+open FSharp.Control.Reactive
 open Perla.Lib
 open Types
 open Server
@@ -844,8 +846,10 @@ Updated: {package.updatedAt.ToShortDateString()}"""
         return! async { return () }
     }
 
-  let startInteractive (configuration: PerlaConfig) =
+  let startInteractive (configuration: unit -> PerlaConfig) =
     let onStdinAsync = serverActions tryExecPerlaCommand configuration
+    let perlaWatcher = Fs.getPerlaConfigWatcher()
+    let configuration = configuration()
 
     let devServer =
       defaultArg configuration.devServer (DevServerConfig.DefaultConfig())
@@ -870,6 +874,13 @@ Updated: {package.updatedAt.ToShortDateString()}"""
       printfn "Got it, see you around!..."
       onStdinAsync "exit" |> Async.RunSynchronously
       exit 0)
+
+    [ perlaWatcher.Changed |> Observable.throttle (TimeSpan.FromMilliseconds(400.))
+      perlaWatcher.Created |> Observable.throttle (TimeSpan.FromMilliseconds(400.)) ]
+    |> Observable.mergeSeq
+    |> Observable.map(fun _ -> onStdinAsync "restart")
+    |> Observable.switchAsync
+    |> Observable.add (fun _ -> printfn "perla.jsonc Changed, Restarting")
 
     asyncSeq {
       if autoStartServer then "start"

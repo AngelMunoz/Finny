@@ -2,6 +2,7 @@
 
 open System
 open FsToolkit.ErrorHandling
+open Perla.Lib
 open Types
 
 [<RequireQualifiedAccess>]
@@ -211,6 +212,10 @@ module Fs =
   open System.IO
   open FSharp.Control.Reactive
 
+  type WatchResource =
+    | File of string
+    | Directory of string
+
   type ChangeKind =
     | Created
     | Deleted
@@ -370,29 +375,52 @@ module Fs =
 
   let compileErrWatcher () = CompileErrWatcherEvent.Value.Publish
 
+
+  let getPerlaConfigWatcher() =
+    let fsw = new FileSystemWatcher(Path.GetPerlaConfigPath() |> Path.GetDirectoryName)
+    fsw.NotifyFilter <- NotifyFilters.FileName ||| NotifyFilters.Size ||| NotifyFilters.LastWrite
+    fsw.Filters.Add Constants.PerlaConfigName
+    fsw.IncludeSubdirectories <- false
+    fsw.EnableRaisingEvents <- true
+    fsw
+
   let getFileWatcher (config: WatchConfig) =
-    let watchers =
-      (defaultArg config.directories ([ "./src" ] |> Seq.ofList))
-      |> Seq.map (fun dir ->
-        let fsw = new FileSystemWatcher(dir)
-        fsw.IncludeSubdirectories <- true
+
+    let getWatcher resource =
+        let fsw =
+          match resource with
+          | Directory path ->
+            let fsw = new FileSystemWatcher(path)
+            fsw.IncludeSubdirectories <- true
+            let filters =
+              defaultArg
+                config.extensions
+                [ "*.js"
+                  "*.css"
+                  "*.ts"
+                  "*.tsx"
+                  "*.jsx"
+                  "*.json" ]
+
+            for filter in filters do
+              fsw.Filters.Add(filter)
+            fsw
+          | File path ->
+            let fsw = new FileSystemWatcher(path |> Path.GetFullPath |> Path.GetDirectoryName)
+            fsw.IncludeSubdirectories <- false
+            fsw.Filters.Add(Path.GetFileName path)
+            fsw.EnableRaisingEvents <- true
+            fsw
         fsw.NotifyFilter <- NotifyFilters.FileName ||| NotifyFilters.Size
-
-        let filters =
-          defaultArg
-            config.extensions
-            (Seq.ofList [ "*.js"
-                          "*.css"
-                          "*.ts"
-                          "*.tsx"
-                          "*.jsx"
-                          "*.json" ])
-
-        for filter in filters do
-          fsw.Filters.Add(filter)
-
         fsw.EnableRaisingEvents <- true
-        fsw)
+        fsw
+
+    let watchers =
+
+      (defaultArg config.directories [ "./index.html"; "./src" ])
+      |> Seq.map (fun dir ->
+        if Path.GetExtension(dir) |> String.IsNullOrEmpty then Directory dir else File dir
+        |> getWatcher)
 
 
     let subs =

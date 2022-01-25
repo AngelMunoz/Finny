@@ -56,10 +56,8 @@ let main argv =
           do! Commands.startBuild buildConfig :> Task
           return! Ok 0
         | Some (Serve items) ->
-          let serverConfig = Commands.getServerOptions (items.GetAllResults())
-
           System.IO.Path.SetCurrentDirectoryToPerlaConfigDirectory()
-          do! Commands.startInteractive serverConfig
+          do! Commands.startInteractive (fun () -> Commands.getServerOptions (items.GetAllResults()))
 
           return! Ok 0
         | Some (Init subcmd) ->
