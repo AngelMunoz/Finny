@@ -17,14 +17,15 @@ function connectToSource() {
     let needsReload = false;
     source = new EventSource("/~perla~/sse");
     source.addEventListener("open", function(event) {
-        console.log("Connected");
         if(needsReload) {
             console.log("Reconnected to server")
             self.postMessage({
                 event: 'reload'
             });
             needsReload = false;
+            return;
         }
+        console.log("Connected");
     });
 
     source.addEventListener('error', function (event) {
