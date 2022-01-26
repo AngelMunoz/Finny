@@ -450,33 +450,54 @@ module Server =
       let logger =
         voption {
           let! app = app
-          let! logger = app.Services.GetService<ILogger>() |> ValueOption.ofObj
+
+          let! logger =
+            app.Services.GetService<ILogger>()
+            |> ValueOption.ofObj
+
           return fun value -> logger.LogInformation $"Perla: %s{value}"
         }
-        |> ValueOption.defaultValue (fun value -> if String.IsNullOrWhiteSpace value then () else printfn $"Perla: %s{value}")
-      let inline logAddresses() =
+        |> ValueOption.defaultValue (fun value ->
+          if String.IsNullOrWhiteSpace value then
+            ()
+          else
+            printfn $"Perla: %s{value}")
+
+      let inline logAddresses () =
         let addresses =
-              voption {
-                let! app = app
-                let! server = app.Services.GetService<IServer>() |> ValueOption.ofObj
-                let! serverAddresses = server.Features.Get<IServerAddressesFeature>() |> ValueOption.ofObj
-                return serverAddresses.Addresses
-              }
+          voption {
+            let! app = app
+
+            let! server =
+              app.Services.GetService<IServer>()
+              |> ValueOption.ofObj
+
+            let! serverAddresses =
+              server.Features.Get<IServerAddressesFeature>()
+              |> ValueOption.ofObj
+
+            return serverAddresses.Addresses
+          }
+
         match addresses with
         | ValueSome addresses ->
           let value =
-            addresses |> Seq.reduce (fun current next -> $"\n\t{current}\n\t{next}")
+            addresses
+            |> Seq.reduce (fun current next -> $"\n\t{current}\n\t{next}")
+
           logger $"Listening at {value}"
         | ValueNone -> ()
+
       (fableCmd (Some true) (defaultArg config (FableConfig.DefaultConfig())))
         .WithValidation(CommandResultValidation.None)
-        .WithStandardOutputPipe(PipeTarget.ToDelegate(fun value ->
-          if value.ToLowerInvariant().Contains("watching...") then
-            logger value
-            logAddresses()
-          else
-            logger value
-        ))
+        .WithStandardOutputPipe(
+          PipeTarget.ToDelegate (fun value ->
+            if value.ToLowerInvariant().Contains("watching...") then
+              logger value
+              logAddresses ()
+            else
+              logger value)
+        )
 
     startFable getFableCmd
 
