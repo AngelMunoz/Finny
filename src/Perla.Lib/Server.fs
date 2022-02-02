@@ -88,7 +88,7 @@ module Middleware =
 const css = `{content}`
 const style = document.createElement('style')
 style.innerHTML = css
-style.setAttribute("filename", "{filePath}");
+style.setAttribute("filename", "{filePath.Replace(Path.DirectorySeparatorChar, '/')}");
 document.head.appendChild(style)"""
 
           ctx.SetContentType "text/javascript"
@@ -311,7 +311,11 @@ module Server =
                           match value with
                           | Css -> value
                           | _ -> "")
-                       name = event.path
+                       name =
+                        if Env.isWindows then
+                          event.path.Replace(Path.DirectorySeparatorChar, '/')
+                        else
+                          event.path
                        content = content |}
                   )
 
