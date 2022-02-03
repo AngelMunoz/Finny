@@ -175,7 +175,7 @@ type DevServerArgs =
     ParseResults<SearchArgs>
   | [<CliPrefix(CliPrefix.None)>] Show of ParseResults<ShowArgs>
   | [<CliPrefix(CliPrefix.None)>] Add of ParseResults<AddArgs>
-  | [<CliPrefix(CliPrefix.None)>] Regenerate_Lockfile
+  | [<CliPrefix(CliPrefix.None)>] Restore
   | [<CliPrefix(CliPrefix.None)>] Remove of ParseResults<RemoveArgs>
   | [<CliPrefix(CliPrefix.None)>] List of ParseResults<ListArgs>
   | [<CliPrefix(CliPrefix.None)>] New of ParseResults<NewProjectArgs>
@@ -197,7 +197,7 @@ type DevServerArgs =
       | Search _ -> "Searches a package in the skypack API."
       | Show _ -> "Gets the skypack information about a package."
       | Add _ -> "Generates an entry in the import map."
-      | Regenerate_Lockfile _ -> "Restores lock file"
+      | Restore _ -> "Restores import map"
       | Remove _ -> "Removes an entry in the import map."
       | List _ -> "Lists entries in the import map."
       | New _ -> "Creates a new Perla based project."
@@ -793,7 +793,7 @@ Updated: {package.updatedAt.ToShortDateString()}"""
       return 0
     }
 
-  let runRegenerate () =
+  let runRestore () =
     taskResult {
       let! fdsConfig = Fs.getPerlaConfig (Path.GetPerlaConfigPath())
       let! lockFile = Fs.getOrCreateLockFile (Path.GetPerlaConfigPath())
@@ -801,7 +801,7 @@ Updated: {package.updatedAt.ToShortDateString()}"""
       if lockFile.imports |> Map.isEmpty |> not
       then
         return!
-          exn "Lockfile already exists"
+          exn "Import map already exists"
           |> Error
 
       let packages =
@@ -825,7 +825,7 @@ Updated: {package.updatedAt.ToShortDateString()}"""
         )
         |> Seq.toList
 
-      printfn "Regenerating lock file..."
+      printfn "Regenerating import map..."
       let! _ = List.sequenceTaskResultM addRuns
 
       return 0

@@ -46,7 +46,7 @@ let main argv =
         printfn $"{version.Major}.{version.Minor}.{version.Build}"
         return! Ok 0
       | [ List_Templates ] -> return Commands.runListTemplates ()
-      | [ Regenerate_Lockfile ] -> return! Commands.runRegenerate ()
+      | [ Restore ] -> return! Commands.runRestore ()
       | [ Remove_Template name ] -> return! Commands.runRemoveTemplate name
       | _ ->
         match parsed.TryGetSubCommand() with
