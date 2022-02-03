@@ -814,10 +814,10 @@ Updated: {package.updatedAt.ToShortDateString()}"""
         |> Seq.map (fun (k, v) ->
           match parseUrl v with
           | None -> raise (FormatException "Packages has incorrect format")
-          | Some (source, name, _) ->
+          | Some (source, name, version) ->
             let alias = if k = name then None else Some k
             let options: AddPackageOptions =
-              { AddPackageOptions.package = Some name
+              { AddPackageOptions.package = Some $"{name}@{version}"
                 alias = alias
                 source = Some source}
 
