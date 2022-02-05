@@ -175,6 +175,7 @@ type DevServerArgs =
     ParseResults<SearchArgs>
   | [<CliPrefix(CliPrefix.None)>] Show of ParseResults<ShowArgs>
   | [<CliPrefix(CliPrefix.None)>] Add of ParseResults<AddArgs>
+  | [<CliPrefix(CliPrefix.None)>] Restore
   | [<CliPrefix(CliPrefix.None)>] Remove of ParseResults<RemoveArgs>
   | [<CliPrefix(CliPrefix.None)>] List of ParseResults<ListArgs>
   | [<CliPrefix(CliPrefix.None)>] New of ParseResults<NewProjectArgs>
@@ -196,6 +197,7 @@ type DevServerArgs =
       | Search _ -> "Searches a package in the skypack API."
       | Show _ -> "Gets the skypack information about a package."
       | Add _ -> "Generates an entry in the import map."
+      | Restore _ -> "Restores import map"
       | Remove _ -> "Removes an entry in the import map."
       | List _ -> "Lists entries in the import map."
       | New _ -> "Creates a new Perla based project."
@@ -208,6 +210,25 @@ type DevServerArgs =
       | Version _ -> "Prints out the cli version to the console."
 
 module Commands =
+  let private (|ParseRegex|_|) regex str =
+    let m = Text.RegularExpressions.Regex(regex).Match(str)
+
+    if m.Success then
+      Some(List.tail [ for x in m.Groups -> x.Value ])
+    else
+      None
+
+  let parseUrl url =
+    match url with
+    | ParseRegex @"https://cdn.skypack.dev/pin/(@?[^@]+)@v([\d.]+)"
+                 [ name; version ] -> Some(Source.Skypack, name, version)
+    | ParseRegex @"https://cdn.jsdelivr.net/npm/(@?[^@]+)@([\d.]+)"
+                 [ name; version ] -> Some(Source.Jsdelivr, name, version)
+    | ParseRegex @"https://ga.jspm.io/npm:(@?[^@]+)@([\d.]+)" [ name; version ] ->
+      Some(Source.Jspm, name, version)
+    | ParseRegex @"https://unpkg.com/(@?[^@]+)@([\d.]+)" [ name; version ] ->
+      Some(Source.Unpkg, name, version)
+    | _ -> None
 
   let getServerOptions (serverargs: ServerArgs list) =
     let config =
@@ -571,27 +592,7 @@ Updated: {package.updatedAt.ToShortDateString()}"""
     }
 
   let runList (options: ListPackagesOptions) =
-    let (|ParseRegex|_|) regex str =
-      let m = Text.RegularExpressions.Regex(regex).Match(str)
-
-      if m.Success then
-        Some(List.tail [ for x in m.Groups -> x.Value ])
-      else
-        None
-
     taskResult {
-      let parseUrl url =
-        match url with
-        | ParseRegex @"https://cdn.skypack.dev/pin/(@?[^@]+)@v([\d.]+)"
-                     [ name; version ]
-        | ParseRegex @"https://cdn.jsdelivr.net/npm/(@?[^@]+)@([\d.]+)"
-                     [ name; version ]
-        | ParseRegex @"https://ga.jspm.io/npm:(@?[^@]+)@([\d.]+)"
-                     [ name; version ]
-        | ParseRegex @"https://unpkg.com/(@?[^@]+)@([\d.]+)" [ name; version ] ->
-          Some(name, version)
-        | _ -> None
-
       let! config = Fs.getPerlaConfig (Path.GetPerlaConfigPath())
 
       let installedPackages = config.packages |> Option.defaultValue Map.empty
@@ -603,12 +604,15 @@ Updated: {package.updatedAt.ToShortDateString()}"""
 
         for importMap in installedPackages do
           match parseUrl importMap.Value with
-          | Some (name, version) -> printfn $"{importMap.Key}: {name}@{version}"
+          | Some (_, name, version) ->
+            printfn $"{importMap.Key}: {name}@{version}"
           | None -> printfn $"{importMap.Key}: Couldn't parse {importMap.Value}"
       | PackageJson ->
         installedPackages
         |> Map.toList
-        |> List.choose (fun (_alias, importMap) -> parseUrl importMap)
+        |> List.choose (fun (_alias, importMap) ->
+          parseUrl importMap
+          |> Option.map (fun (_, name, version) -> (name, version)))
         |> Map.ofList
         |> Json.ToPackageJson
         |> printfn "%s"
@@ -782,6 +786,43 @@ Updated: {package.updatedAt.ToShortDateString()}"""
 
       do! Fs.createPerlaConfig (Path.GetPerlaConfigPath()) fdsConfig
       do! Fs.writeLockFile (Path.GetPerlaConfigPath()) lockFile
+
+      return 0
+    }
+
+  let runRestore () =
+    taskResult {
+      let! fdsConfig = Fs.getPerlaConfig (Path.GetPerlaConfigPath())
+      let! lockFile = Fs.getOrCreateLockFile (Path.GetPerlaConfigPath())
+
+      if lockFile.imports |> Map.isEmpty |> not then
+        return! exn "Import map already exists" |> Error
+
+      let packages =
+        fdsConfig.packages
+        |> Option.defaultValue Map.empty
+
+      let addRuns =
+        packages
+        |> Map.toList
+        |> List.map (fun (k, v) ->
+          match parseUrl v with
+          | None -> raise (FormatException "Packages has incorrect format")
+          | Some (source, name, version) ->
+            let alias = if k = name then None else Some k
+
+            let options: AddPackageOptions =
+              { AddPackageOptions.package = Some $"{name}@{version}"
+                alias = alias
+                source = Some source }
+
+            runAdd options)
+
+      printfn "Regenerating import map..."
+
+      do!
+        List.sequenceTaskResultM addRuns
+        |> TaskResult.ignore
 
       return 0
     }
