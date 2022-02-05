@@ -221,13 +221,10 @@ module Commands =
   let parseUrl url =
     match url with
     | ParseRegex @"https://cdn.skypack.dev/pin/(@?[^@]+)@v([\d.]+)"
-                  [ name; version ] ->
-      Some(Source.Skypack, name, version)
+                 [ name; version ] -> Some(Source.Skypack, name, version)
     | ParseRegex @"https://cdn.jsdelivr.net/npm/(@?[^@]+)@([\d.]+)"
-                  [ name; version ] ->
-      Some(Source.Jsdelivr, name, version)
-    | ParseRegex @"https://ga.jspm.io/npm:(@?[^@]+)@([\d.]+)"
-                  [ name; version ] ->
+                 [ name; version ] -> Some(Source.Jsdelivr, name, version)
+    | ParseRegex @"https://ga.jspm.io/npm:(@?[^@]+)@([\d.]+)" [ name; version ] ->
       Some(Source.Jspm, name, version)
     | ParseRegex @"https://unpkg.com/(@?[^@]+)@([\d.]+)" [ name; version ] ->
       Some(Source.Unpkg, name, version)
@@ -607,15 +604,15 @@ Updated: {package.updatedAt.ToShortDateString()}"""
 
         for importMap in installedPackages do
           match parseUrl importMap.Value with
-          | Some (_, name, version) -> printfn $"{importMap.Key}: {name}@{version}"
+          | Some (_, name, version) ->
+            printfn $"{importMap.Key}: {name}@{version}"
           | None -> printfn $"{importMap.Key}: Couldn't parse {importMap.Value}"
       | PackageJson ->
         installedPackages
         |> Map.toList
         |> List.choose (fun (_alias, importMap) ->
           parseUrl importMap
-          |> Option.map (fun (_, name, version) -> (name, version))
-        )
+          |> Option.map (fun (_, name, version) -> (name, version)))
         |> Map.ofList
         |> Json.ToPackageJson
         |> printfn "%s"
@@ -798,11 +795,8 @@ Updated: {package.updatedAt.ToShortDateString()}"""
       let! fdsConfig = Fs.getPerlaConfig (Path.GetPerlaConfigPath())
       let! lockFile = Fs.getOrCreateLockFile (Path.GetPerlaConfigPath())
 
-      if lockFile.imports |> Map.isEmpty |> not
-      then
-        return!
-          exn "Import map already exists"
-          |> Error
+      if lockFile.imports |> Map.isEmpty |> not then
+        return! exn "Import map already exists" |> Error
 
       let packages =
         fdsConfig.packages
@@ -810,23 +804,25 @@ Updated: {package.updatedAt.ToShortDateString()}"""
 
       let addRuns =
         packages
-        |> Map.toSeq
-        |> Seq.map (fun (k, v) ->
+        |> Map.toList
+        |> List.map (fun (k, v) ->
           match parseUrl v with
           | None -> raise (FormatException "Packages has incorrect format")
           | Some (source, name, version) ->
             let alias = if k = name then None else Some k
+
             let options: AddPackageOptions =
               { AddPackageOptions.package = Some $"{name}@{version}"
                 alias = alias
-                source = Some source}
+                source = Some source }
 
-            runAdd options
-        )
-        |> Seq.toList
+            runAdd options)
 
       printfn "Regenerating import map..."
-      let! _ = List.sequenceTaskResultM addRuns
+
+      do!
+        List.sequenceTaskResultM addRuns
+        |> TaskResult.ignore
 
       return 0
     }
