@@ -2,6 +2,7 @@
 
 open System
 open FsToolkit.ErrorHandling
+open Microsoft.Extensions.Logging
 open Perla.Lib
 open Types
 
@@ -513,3 +514,18 @@ module Fs =
       File.ReadAllText("./tsconfig.json") |> Some
     with
     | _ -> None
+
+[<RequireQualifiedAccess>]
+module Logging =
+
+  let getPerlaLogger () =
+    { new ILogger with
+        member _.Log(logLevel, eventId, state, ex, formatter) =
+          let format = formatter.Invoke(state, ex)
+          printfn $"Perla: {format}"
+
+        member _.IsEnabled(level) = true
+
+        member _.BeginScope(state) =
+          { new IDisposable with
+              member _.Dispose() = () } }
