@@ -46,7 +46,7 @@ module private LiveReload =
            name = event.name |}
       )
 
-    LiveReloadKind.FullReload, data
+    ReloadKind.FullReload, data
 
   let getHMREvent (event: Fs.FileChangedEvent) =
     let content = File.ReadAllText event.path
@@ -67,7 +67,7 @@ module private LiveReload =
            content = content |}
       )
 
-    HMR, data
+    ReloadKind.HMR, data
 
   let getLiveReloadHandler
     isFableEnabled
@@ -98,10 +98,10 @@ module private LiveReload =
     |> Observable.map (fun (kind, data, event) ->
       task {
         match kind with
-        | LiveReloadKind.FullReload ->
+        | ReloadKind.FullReload ->
           logger.LogInformation $"LiveReload: File Changed: {event.name}"
           do! res.WriteAsync $"event:reload\ndata:{data}\n\n"
-        | HMR ->
+        | ReloadKind.HMR ->
           match Path.GetExtension event.name with
           | Css ->
             logger.LogInformation $"HMR: CSS File Changed: {event.name}"
@@ -126,7 +126,7 @@ module private LiveReload =
       task {
         let err = Json.ToTextMinified {| error = err |}
         logger.LogWarning $"Compilation Error: {err.Substring(0, 80)}..."
-        do! res.WriteAsync(CompileError(err).AsString)
+        do! res.WriteAsync(ReloadEvents.CompileError(err).AsString)
         return! res.Body.FlushAsync()
       })
     |> Observable.switchTask
@@ -301,17 +301,17 @@ document.head.appendChild(style)"""
       )
     |> ignore
 
-  let sendScript (script: PerlaScriptKind) (ctx: HttpContext) =
+  let sendScript (script: PerlaScript) (ctx: HttpContext) =
     task {
       let logger = ctx.GetLogger("Perla:")
 
       let stream =
         match script with
-        | LiveReload ->
+        | PerlaScript.LiveReload ->
           File.OpenRead(
             Path.Combine(Path.PerlaRootDirectory, "./livereload.js")
           )
-        | Worker ->
+        | PerlaScript.Worker ->
           File.OpenRead(Path.Combine(Path.PerlaRootDirectory, "./worker.js"))
 
       logger.LogInformation($"Perla: Sending Script %A{script}")
@@ -508,6 +508,7 @@ module Server =
   let private devServer (config: PerlaConfig) =
     let serverConfig =
       defaultArg config.devServer (DevServerConfig.DefaultConfig())
+
     let builder = WebApplication.CreateBuilder()
 
     let getProxyConfig =
@@ -570,13 +571,17 @@ module Server =
 
       app.MapGet(
         "/~perla~/livereload.js",
-        Func<HttpContext, Task<IResult>>(Middleware.sendScript LiveReload)
+        Func<HttpContext, Task<IResult>>(
+          Middleware.sendScript PerlaScript.LiveReload
+        )
       )
       |> ignore
 
       app.MapGet(
         "/~perla~/worker.js",
-        Func<HttpContext, Task<IResult>>(Middleware.sendScript Worker)
+        Func<HttpContext, Task<IResult>>(
+          Middleware.sendScript PerlaScript.Worker
+        )
       )
       |> ignore
 

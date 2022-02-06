@@ -100,6 +100,14 @@ Target.create "Zip" (fun _ ->
 
 Target.create "Default" (fun _ -> Target.runSimple "Zip" [] |> ignore)
 
+Target.create "SimpleBuild" (fun _ ->
+    DotNet.build
+        (fun opts ->
+            { opts with
+                Configuration = DotNet.BuildConfiguration.Release
+                Framework = Some "net6.0" })
+        "src/Perla/Perla.fsproj")
+
 "Clean"
 ==> "CheckFormat"
 ==> "BuildBinaries"

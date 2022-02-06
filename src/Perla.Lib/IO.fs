@@ -485,15 +485,15 @@ module Fs =
     taskResult {
       try
         match ext with
-        | Typescript ->
+        | LoaderType.Typescript ->
           let! content = File.ReadAllTextAsync($"{file}.ts")
-          return (content, Typescript)
-        | Jsx ->
+          return (content, LoaderType.Typescript)
+        | LoaderType.Jsx ->
           let! content = File.ReadAllTextAsync($"{file}.jsx")
-          return (content, Jsx)
-        | Tsx ->
+          return (content, LoaderType.Jsx)
+        | LoaderType.Tsx ->
           let! content = File.ReadAllTextAsync($"{file}.tsx")
-          return (content, Tsx)
+          return (content, LoaderType.Tsx)
       with
       | ex -> return! ex |> Error
     }
@@ -505,9 +505,11 @@ module Fs =
         Path.GetFileNameWithoutExtension(filepath)
       )
 
-    tryReadFileWithExtension fileNoExt Typescript
-    |> TaskResult.orElseWith (fun _ -> tryReadFileWithExtension fileNoExt Jsx)
-    |> TaskResult.orElseWith (fun _ -> tryReadFileWithExtension fileNoExt Tsx)
+    tryReadFileWithExtension fileNoExt LoaderType.Typescript
+    |> TaskResult.orElseWith (fun _ ->
+      tryReadFileWithExtension fileNoExt LoaderType.Jsx)
+    |> TaskResult.orElseWith (fun _ ->
+      tryReadFileWithExtension fileNoExt LoaderType.Tsx)
 
   let tryGetTsconfigFile () =
     try
