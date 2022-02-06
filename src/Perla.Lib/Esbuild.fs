@@ -64,9 +64,9 @@ module Esbuild =
   let addLoader (loader: LoaderType) (args: Builders.ArgumentsBuilder) =
     let loader =
       match loader with
-      | Typescript -> "ts"
-      | Tsx -> "tsx"
-      | Jsx -> "jsx"
+      | LoaderType.Typescript -> "ts"
+      | LoaderType.Tsx -> "tsx"
+      | LoaderType.Jsx -> "jsx"
 
     args.Add $"--loader={loader}"
 
@@ -311,8 +311,8 @@ module Esbuild =
 
       let strout =
         match loader with
-        | Jsx
-        | Tsx ->
+        | LoaderType.Jsx
+        | LoaderType.Tsx ->
           try
             let injects =
               defaultArg config.injects (Seq.empty)
