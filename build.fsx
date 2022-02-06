@@ -28,8 +28,10 @@ let output = "./dist"
 let runtimes =
     [| "linux-x64"
        "linux-arm64"
+       "osx-x64"
+       "osx-arm64"
        "win10-x64"
-       "osx-x64" |]
+       "win10-arm64" |]
 
 let fsharpSourceFiles =
     !! "src/**/*.fs"
