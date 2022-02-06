@@ -37,20 +37,24 @@ module Types =
     | ".css" -> Css
     | _ -> Other value
 
+  [<RequireQualifiedAccess>]
   type LoaderType =
     | Typescript
     | Tsx
     | Jsx
 
-  type LiveReloadKind =
+  [<RequireQualifiedAccess>]
+  type ReloadKind =
     | FullReload
     | HMR
 
-  type PerlaScriptKind =
+  [<RequireQualifiedAccess>]
+  type PerlaScript =
     | LiveReload
     | Worker
 
-  type LiveReloadEvents =
+  [<RequireQualifiedAccess>]
+  type ReloadEvents =
     | FullReload of string
     | ReplaceCSS of string
     | CompileError of string
