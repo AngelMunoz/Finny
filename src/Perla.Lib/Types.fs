@@ -27,10 +27,40 @@ module Types =
     | "stop" -> Exit
     | value -> Unknown value
 
+  let (|Typescript|Javascript|Jsx|Css|Json|Other|) value =
+    match value with
+    | ".ts"
+    | ".tsx" -> Typescript
+    | ".js" -> Javascript
+    | ".jsx" -> Jsx
+    | ".json" -> Json
+    | ".css" -> Css
+    | _ -> Other value
+
   type LoaderType =
     | Typescript
     | Tsx
     | Jsx
+
+  type LiveReloadKind =
+    | FullReload
+    | HMR
+
+  type PerlaScriptKind =
+    | LiveReload
+    | Worker
+
+  type LiveReloadEvents =
+    | FullReload of string
+    | ReplaceCSS of string
+    | CompileError of string
+
+    member this.AsString =
+      match this with
+      | FullReload data -> $"event:reload\ndata:{data}\n\n"
+      | ReplaceCSS data -> $"event:replace-css\ndata:{data}\n\n"
+      | CompileError err -> $"event:compile-err\ndata:{err}\n\n"
+
 
   type FableConfig =
     { autoStart: bool option
