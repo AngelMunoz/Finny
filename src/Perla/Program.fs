@@ -1,11 +1,12 @@
 ﻿// Learn more about F# at http://docs.microsoft.com/dotnet/fsharp
 open System.Threading.Tasks
 
+open System
 open Argu
 open FsToolkit.ErrorHandling
+open Perla
 open Perla.Lib
 open Types
-open Perla
 
 
 let processExit (result: Task<Result<int, exn>>) =
@@ -24,7 +25,7 @@ let processExit (result: Task<Result<int, exn>>) =
 let main argv =
   taskResult {
     let parser = ArgumentParser.Create<DevServerArgs>()
-
+    Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Development")
     try
       let parsed =
         parser.ParseCommandLine(

@@ -28,8 +28,10 @@ let output = "./dist"
 let runtimes =
     [| "linux-x64"
        "linux-arm64"
+       "osx-x64"
+       "osx-arm64"
        "win10-x64"
-       "osx-x64" |]
+       "win10-arm64" |]
 
 let fsharpSourceFiles =
     !! "src/**/*.fs"
@@ -97,6 +99,14 @@ Target.create "Zip" (fun _ ->
     |> Array.Parallel.iter (fun runtime -> ZipFile.CreateFromDirectory($"{output}/{runtime}", $"{output}/{runtime}.zip")))
 
 Target.create "Default" (fun _ -> Target.runSimple "Zip" [] |> ignore)
+
+Target.create "SimpleBuild" (fun _ ->
+    DotNet.build
+        (fun opts ->
+            { opts with
+                Configuration = DotNet.BuildConfiguration.Release
+                Framework = Some "net6.0" })
+        "src/Perla/Perla.fsproj")
 
 "Clean"
 ==> "CheckFormat"
