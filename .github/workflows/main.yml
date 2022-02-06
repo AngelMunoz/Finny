@@ -1,6 +1,10 @@
 name: Build main
 
-on: [push, pull_request]
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main]
 
 env:
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
@@ -18,4 +22,4 @@ jobs:
       - name: Install local tools
         run: dotnet tool restore
       - name: Build
-        run: dotnet fsi ./build.fsx -t BuildBinaries
+        run: dotnet fsi ./build.fsx -t SimpleBuild
