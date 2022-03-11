@@ -8,6 +8,10 @@ If that sounds like something nice, [Check The docs!](https://perla-docs.web.app
 
 ## Status
 
+> ### Taking a break in the first half of 2022
+> 
+> To prevent heavy burnouts, I'm taking a break in 2022. for very very basic projects this should take you a long way, but if you want to work with more complicated frontend files like vue files, svelte files or similar things, its not there yet, basically if its just HTML/CSS/JS (Or Fable based projects) you can give it a shot
+
 This project is in development, current goals at this point are:
 
 - [x] Remove npm/node out of the equation.
