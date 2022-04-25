@@ -36,7 +36,7 @@ open CliWrap
 open Perla.Lib
 open Types
 open Fable
-
+open Logger
 
 module private LiveReload =
   let getReloadEvent (event: Fs.FileChangedEvent) =
@@ -465,7 +465,7 @@ module Server =
           app.Services.GetService<ILogger>()
           |> ValueOption.ofObj)
         |> ValueOption.flatten
-        |> ValueOption.defaultValue (Logging.getPerlaLogger ())
+        |> ValueOption.defaultValue (Logger.getPerlaLogger ())
 
       let inline logAddresses () =
         let addresses =
@@ -535,8 +535,8 @@ module Server =
           $"http://{customHost}:{customPort}",
           $"https://{customHost}:{customPort + 1}"
       | true ->
-        printfn
-          $"Perla: Address {customHost}:{customPort} is busy, selecting a dynamic port."
+        Logger.serve
+          $"Address {customHost}:{customPort} is busy, selecting a dynamic port."
 
         $"http://{customHost}:{0}", $"https://{customHost}:{0}"
 
@@ -670,7 +670,7 @@ module Server =
       match value with
       | StartServer ->
         async {
-          printfn "Starting Dev Server"
+          Logger.serve "Starting Dev Server"
           do! startServer (getConfig ()) |> Async.AwaitTask
         }
         |> Async.Start
@@ -682,7 +682,7 @@ module Server =
       | RestartServer ->
         async {
           do! stopServer () |> Async.AwaitTask
-          printfn "Starting Dev Server"
+          Logger.serve "Starting Dev Server"
           do! startServer (getConfig ()) |> Async.AwaitTask
         }
         |> Async.Start
@@ -690,37 +690,37 @@ module Server =
         return ()
       | StartFable ->
         async {
-          printfn "Starting Fable"
+          Logger.serve "Starting Fable"
 
           let! result = startFable (getConfig ()).fable |> Async.AwaitTask
-          printfn $"Finished in {result.RunTime}"
+          Logger.serve $"Finished in {result.RunTime}"
         }
         |> Async.Start
 
         return ()
       | StopFable ->
-        printfn "Stoping Fable"
+        Logger.serve "Stoping Fable"
         stopFable ()
       | RestartFable ->
         async {
-          printfn "Restarting Fable"
+          Logger.serve "Restarting Fable"
 
           stopFable ()
 
           let! result = startFable (getConfig ()).fable |> Async.AwaitTask
-          printfn $"Finished in {result.RunTime}"
+          Logger.serve $"Finished in {result.RunTime}"
           return ()
         }
         |> Async.Start
       | Clear -> Console.Clear()
       | Exit ->
-        printfn "Finishing the session"
+        Logger.serve "Finishing the session"
 
         task {
           try
             stopFable ()
           with
-          | ex -> eprintfn "%s" ex.Message
+          | ex -> Logger.serve ("Failed to stop fable", ex)
 
           do! stopServer ()
           exit 0
@@ -732,11 +732,10 @@ module Server =
         match! tryExecCommand value with
         | Ok () -> return ()
         | Error ex ->
-          printfn "Couldn't execute command: %s" ex.Message
+          Logger.serve ("Failed to execute command", ex)
 
-          printfn
-            "Unknown option [%s]\ntype \"exit\" or \"quit\" to finish the application."
-            value
+          Logger.serve
+            $"Unknown option [{value}]\ntype \"exit\" or \"quit\" to finish the application."
 
           return ()
 

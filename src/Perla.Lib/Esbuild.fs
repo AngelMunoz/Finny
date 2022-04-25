@@ -15,6 +15,7 @@ open FsToolkit.ErrorHandling
 
 open Perla.Lib
 open Types
+open Logger
 
 module Esbuild =
   let addEsExternals
@@ -142,17 +143,17 @@ module Esbuild =
     task {
       try
         use client = new HttpClient()
-        printfn "Downloading esbuild from: %s" url
+        Logger.log $"Downloading esbuild from: {url}"
 
         use! stream = client.GetStreamAsync(url)
         use file = File.OpenWrite(tgzDownloadPath)
 
         do! stream.CopyToAsync file
-        printfn "Downloaded esbuild to: %s" file.Name
+        Logger.log $"Downloaded esbuild to: {file.Name}"
         return Some(file.Name)
       with
       | ex ->
-        eprintfn "%O" ex
+        Logger.log ($"Failed to download esbuild from: {url}", ex)
         return None
     }
 
@@ -176,7 +177,7 @@ module Esbuild =
         archive.ExtractContents(Path.Combine(Path.GetDirectoryName path))
 
         if Env.isWindows |> not then
-          printfn $"Executing: chmod +x on \"{esbuildExec}\""
+          Logger.log $"Executing: chmod +x on \"{esbuildExec}\""
           let res = chmodBinCmd().ExecuteAsync()
           do! res.Task :> Task
 
@@ -186,27 +187,38 @@ module Esbuild =
 
   let private cleanup (path: Task<string option>) =
     task {
-      printfn "Cleaning up!"
+      Logger.log "Cleaning up!"
 
       match! path with
       | Some path -> File.Delete(path)
       | None -> ()
 
-      printfn "This setup should happen once per machine"
-      printfn "If you see it often please report a bug."
+      Logger.log "This setup should happen once per machine"
+      Logger.log "If you see it often please report a bug."
     }
 
   let setupEsbuild (esbuildVersion: string) =
-    printfn "Checking whether esbuild is present..."
+    Logger.log "Checking whether esbuild is present..."
 
     if not <| File.Exists(esbuildExec) then
-      printfn "esbuild is not present, setting esbuild..."
+      Logger.log "esbuild is not present, setting esbuild..."
 
-      tryDownloadEsBuild esbuildVersion
-      |> decompressFile
-      |> cleanup
+      Logger.spinner (
+        "esbuild is not present, setting esbuild...",
+        fun context ->
+          context.Status <- "Downloading esbuild..."
+          tryDownloadEsBuild esbuildVersion
+          |> (fun path ->
+            context.Status <- "Extracting esbuild..."
+            path)
+          |> decompressFile
+          |> (fun path ->
+            context.Status <- "Cleaning up extra files..."
+            path)
+          |> cleanup
+      )
     else
-      printfn "esbuild is present."
+      Logger.log "esbuild is present."
       Task.FromResult(())
 
   let private getDefaultLoders config =
@@ -308,21 +320,24 @@ module Esbuild =
 
       let strout = strout.ToString()
       let strerr = strerr.ToString()
+      let injects = defaultArg config.injects (Seq.empty)
 
       let strout =
         match loader with
         | LoaderType.Jsx
         | LoaderType.Tsx ->
           try
-            let injects =
-              defaultArg config.injects (Seq.empty)
-              |> Seq.map File.ReadAllText
+            let injects = injects |> Seq.map File.ReadAllText
 
             let injects = String.Join('\n', injects)
             $"{injects}\n{strout}"
           with
           | ex ->
-            printfn $"Perla Serve: failed to inject, {ex.Message}"
+            let injects =
+              injects
+              |> Seq.fold (fun current next -> $"{current};{next}") ""
+
+            Logger.serve ($"failed to add injects from file {injects}", ex)
             strout
         | _ -> strout
 

@@ -9,6 +9,7 @@ open Flurl.Http
 open FsToolkit.ErrorHandling
 
 open Types
+open Logger
 
 module Scaffolding =
 
@@ -44,7 +45,8 @@ module Scaffolding =
         try
           Directory.Delete(repo.path, true) |> ignore
         with
-        | :? DirectoryNotFoundException -> printfn "Didn't delete Directory"
+        | :? DirectoryNotFoundException ->
+          Logger.scaffold "Did not delete directory"
 
         let relativePath =
           Path.Join(repo.path, "../", "../")

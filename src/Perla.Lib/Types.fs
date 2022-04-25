@@ -231,6 +231,19 @@ module Types =
       popularityScore: float
       updatedAt: DateTime }
 
+  type ShowSearchResults =
+    { name: string
+      versions: Map<string, DateTime>
+      distTags: Map<string, string>
+      maintainers: {| name: string; email: string |} seq
+      license: string
+      updatedAt: DateTime
+      registry: string
+      description: string
+      isDeprecated: bool
+      dependenciesCount: int
+      links: Map<string, string> seq }
+
   type PackageCheck =
     { title: string
       pass: bool option
