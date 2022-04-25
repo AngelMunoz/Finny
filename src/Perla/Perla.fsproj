@@ -23,4 +23,8 @@
     <ProjectReference Include="..\Perla.Lib\Perla.Lib.fsproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Update="FSharp.Core" Version="6.0.3" />
+  </ItemGroup>
+
 </Project>
