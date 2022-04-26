@@ -63,10 +63,157 @@ module Json =
   let ToPackageJson dependencies =
     JsonSerializer.Serialize({| dependencies = dependencies |}, jsonOptions ())
 
+
+module Logger =
+  open System.Threading.Tasks
+  open Spectre.Console
+
+  [<Literal>]
+  let private LogPrefix = "Perla:"
+
+  [<Literal>]
+  let private ScaffoldPrefix = "Scaffolding:"
+
+  [<Literal>]
+  let private BuildPrefix = "Build:"
+
+  [<Literal>]
+  let private ServePrefix = "Serve:"
+
+  [<Struct>]
+  type PrefixKind =
+    | Log
+    | Scaffold
+    | Build
+    | Serve
+
+  [<Struct>]
+  type LogEnding =
+    | NewLine
+    | SameLine
+
+  let format (prefix: PrefixKind list) (message: string) : FormattableString =
+    let prefix =
+      prefix
+      |> List.fold
+           (fun cur next ->
+             let pr =
+               match next with
+               | PrefixKind.Log -> LogPrefix
+               | PrefixKind.Scaffold -> ScaffoldPrefix
+               | PrefixKind.Build -> BuildPrefix
+               | PrefixKind.Serve -> ServePrefix
+
+             $"{cur}{pr}")
+           ""
+
+    $"[yellow]{prefix}[/] {message}"
+
+  type Logger =
+    static member log(message, ?ex: exn, ?prefixes, ?ending, ?escape) =
+      let prefixes =
+        let prefixes = defaultArg prefixes [ Log ]
+
+        if prefixes.Length = 0 then
+          [ Log ]
+        else
+          prefixes
+
+      let escape = defaultArg escape true
+      let formatted = format prefixes message
+
+      match (defaultArg ending NewLine) with
+      | NewLine ->
+        if escape then
+          AnsiConsole.MarkupLineInterpolated formatted
+        else
+          AnsiConsole.MarkupLine(formatted.ToString())
+      | SameLine ->
+        if escape then
+          AnsiConsole.MarkupInterpolated formatted
+        else
+          AnsiConsole.Markup(formatted.ToString())
+
+      match ex with
+      | Some ex ->
+#if DEBUG
+        AnsiConsole.WriteException(
+          ex,
+          ExceptionFormats.ShortenEverything
+          ||| ExceptionFormats.ShowLinks
+        )
+#else
+        AnsiConsole.WriteException(
+          ex,
+          ExceptionFormats.ShortenPaths
+          ||| ExceptionFormats.ShowLinks
+        )
+#endif
+      | None -> ()
+
+    static member scaffold(message, ?ex: exn, ?ending, ?escape) =
+      Logger.log (
+        message,
+        ?ex = ex,
+        prefixes = [ Log; Scaffold ],
+        ?ending = ending,
+        ?escape = escape
+      )
+
+    static member build(message, ?ex: exn, ?ending, ?escape) =
+      Logger.log (
+        message,
+        ?ex = ex,
+        prefixes = [ Log; Build ],
+        ?ending = ending,
+        ?escape = escape
+      )
+
+    static member serve(message, ?ex: exn, ?ending, ?escape) =
+      Logger.log (
+        message,
+        ?ex = ex,
+        prefixes = [ Log; Serve ],
+        ?ending = ending,
+        ?escape = escape
+      )
+
+    static member spinner<'Operation>
+      (
+        title: string,
+        task: Task<'Operation>
+      ) : Task<'Operation> =
+      let status = AnsiConsole.Status()
+      status.Spinner <- Spinner.Known.Dots
+      status.StartAsync(title, (fun _ -> task))
+
+    static member spinner<'Operation>
+      (
+        title: string,
+        operation: StatusContext -> Task<'Operation>
+      ) : Task<'Operation> =
+      let status = AnsiConsole.Status()
+      status.Spinner <- Spinner.Known.Dots
+      status.StartAsync(title, operation)
+
+  let getPerlaLogger () =
+    { new ILogger with
+        member _.Log(logLevel, eventId, state, ex, formatter) =
+          let format = formatter.Invoke(state, ex)
+          Logger.log (format)
+
+        member _.IsEnabled(level) = true
+
+        member _.BeginScope(state) =
+          { new IDisposable with
+              member _.Dispose() = () } }
+
+
 [<RequireQualifiedAccessAttribute>]
 module Http =
   open Flurl
   open Flurl.Http
+  open Logger
 
   [<Literal>]
   let SKYPACK_CDN = "https://cdn.skypack.dev"
@@ -134,7 +281,7 @@ module Http =
             | Source.Jsdelivr -> "jsdelivr"
             | Source.Unpkg -> "unpkg"
             | _ ->
-              printfn
+              Logger.log
                 $"Warn: an unknown provider has been specified: [{source}] defaulting to jspm"
 
               "jspm" |}
@@ -195,17 +342,17 @@ module Http =
           .GetJsonAsync<SkypackPackageResponse>()
 
       return
-        {| name = res.name
-           versions = res.versions
-           distTags = res.distTags
-           maintainers = res.maintainers
-           license = res.license
-           updatedAt = res.updatedAt
-           registry = res.registry
-           description = res.description
-           isDeprecated = res.isDeprecated
-           dependenciesCount = res.dependenciesCount
-           links = res.links |}
+        { name = res.name
+          versions = res.versions
+          distTags = res.distTags
+          maintainers = res.maintainers
+          license = res.license
+          updatedAt = res.updatedAt
+          registry = res.registry
+          description = res.description
+          isDeprecated = res.isDeprecated
+          dependenciesCount = res.dependenciesCount
+          links = res.links }
     }
 
 [<RequireQualifiedAccess>]
@@ -516,18 +663,3 @@ module Fs =
       File.ReadAllText("./tsconfig.json") |> Some
     with
     | _ -> None
-
-[<RequireQualifiedAccess>]
-module Logging =
-
-  let getPerlaLogger () =
-    { new ILogger with
-        member _.Log(logLevel, eventId, state, ex, formatter) =
-          let format = formatter.Invoke(state, ex)
-          printfn $"Perla: {format}"
-
-        member _.IsEnabled(level) = true
-
-        member _.BeginScope(state) =
-          { new IDisposable with
-              member _.Dispose() = () } }

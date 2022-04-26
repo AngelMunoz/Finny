@@ -15,7 +15,7 @@
             ],
             "cwd": "${workspaceFolder}/src/App",
             "stopAtEntry": false,
-            "console": "internalConsole"
+            "console": "integratedTerminal"
         },
         {
             "name": "Perla init simple",
@@ -30,7 +30,7 @@
             ],
             "cwd": "${workspaceFolder}",
             "stopAtEntry": false,
-            "console": "internalConsole"
+            "console": "integratedTerminal"
         },
         {
             "name": "Perla init full",
@@ -41,9 +41,7 @@
             "args": [
                 "init",
                 "-k",
-                "full",
-                "-y",
-                "true"
+                "full"
             ],
             "cwd": "${workspaceFolder}",
             "stopAtEntry": false,
@@ -60,7 +58,7 @@
             ],
             "cwd": "${workspaceFolder}/src/docs",
             "stopAtEntry": false,
-            "console": "internalConsole"
+            "console": "integratedTerminal"
         },
         {
             "name": "Perla add @shoelace-style/shoelace",
@@ -77,7 +75,7 @@
             ],
             "cwd": "${workspaceFolder}/src/App",
             "stopAtEntry": false,
-            "console": "internalConsole"
+            "console": "integratedTerminal"
         },
         {
             "name": "NET6 build",

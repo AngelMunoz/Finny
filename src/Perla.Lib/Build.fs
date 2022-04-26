@@ -11,6 +11,7 @@ open AngleSharp.Html.Parser
 open Types
 open Fable
 open Esbuild
+open Logger
 
 module Build =
 
@@ -118,9 +119,7 @@ module Build =
         let content = doc.ToHtml()
 
         File.WriteAllText($"{outDir}/{indexFile}", content)
-      | Error err ->
-        printfn $"Warn: [{err.Message}]"
-        ()
+      | Error err -> Logger.build ("Failed to get or create lock file", err)
     }
 
   let private buildFiles
@@ -141,11 +140,12 @@ module Build =
             let tsk = config |> esbuildCssCmd entrypoints
             tsk.ExecuteAsync()
 
-        printfn $"Starting esbuild with pid: [{cmd.ProcessId}]"
+        Logger.build $"Starting esbuild with pid: [{cmd.ProcessId}]"
 
         return! cmd.Task :> Task
       else
-        printfn $"No Entrypoints for {type'.AsString()} found in index.html"
+        Logger.build
+          $"No Entrypoints for {type'.AsString()} found in index.html"
     }
 
   let getExcludes config =
@@ -167,7 +167,7 @@ module Build =
           |> Option.defaultValue excludes
 
       | Error ex ->
-        printfn $"Warn: [{ex.Message}]"
+        Logger.build ("Failed to get or create lock file", ex)
         return Seq.empty
     }
 
@@ -203,10 +203,10 @@ module Build =
       | Some fable ->
         let cmdResult = (fableCmd (Some false) fable).ExecuteAsync()
 
-        printfn $"Starting Fable with pid: [{cmdResult.ProcessId}]"
+        Logger.build $"Starting Fable with pid: [{cmdResult.ProcessId}]"
 
         do! cmdResult.Task :> Task
-      | None -> printfn "No Fable configuration provided, skipping fable"
+      | None -> Logger.build "No Fable configuration provided, skipping fable"
 
       if not <| File.Exists(esbuildExec) then
         do! setupEsbuild esbuildVersion

@@ -7,7 +7,7 @@ open FsToolkit.ErrorHandling
 open Perla
 open Perla.Lib
 open Types
-
+open Logger
 
 let processExit (result: Task<Result<int, exn>>) =
   task {
@@ -15,8 +15,10 @@ let processExit (result: Task<Result<int, exn>>) =
     | Ok exitCode -> return exitCode
     | Error ex ->
       match ex with
-      | CommandNotParsedException message -> eprintfn "%s" message
-      | others -> eprintfn $"%s{others.Message}, at %s{others.Source}"
+      | :? ArguParseException as ex -> eprintfn $"{ex.Message}"
+      | CommandNotParsedException message -> eprintfn $"{message}"
+      | others ->
+        Logger.log ($"There was an error running this command", others)
 
       return 1
   }
@@ -26,6 +28,7 @@ let main argv =
   taskResult {
     let parser = ArgumentParser.Create<DevServerArgs>()
     Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Development")
+
     try
       let parsed =
         parser.ParseCommandLine(
@@ -51,13 +54,13 @@ let main argv =
       | [ Remove_Template name ] -> return! Commands.runRemoveTemplate name
       | _ ->
         match parsed.TryGetSubCommand() with
-        | Some (Build items) ->
+        | Some (DevServerArgs.Build items) ->
           let buildConfig = Commands.getBuildOptions (items.GetAllResults())
 
           System.IO.Path.SetCurrentDirectoryToPerlaConfigDirectory()
           do! Commands.startBuild buildConfig :> Task
           return! Ok 0
-        | Some (Serve items) ->
+        | Some (DevServerArgs.Serve items) ->
           System.IO.Path.SetCurrentDirectoryToPerlaConfigDirectory()
 
           do!

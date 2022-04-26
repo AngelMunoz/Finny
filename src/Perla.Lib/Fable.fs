@@ -2,8 +2,9 @@
 
 open CliWrap
 
-open Types
 open System
+open Types
+open Logger
 
 module Fable =
   let mutable private activeFable: int option = None
@@ -14,7 +15,7 @@ module Fable =
 
       activeProcess.Kill()
     with
-    | ex -> printfn $"Failed to kill process with PID: [{pid}]\n{ex.Message}"
+    | ex -> Logger.log ($"Failed to kill process with PID: [{pid}]", ex)
 
   let private addProject
     (project: string option)
@@ -72,7 +73,7 @@ module Fable =
   let stopFable () =
     match activeFable with
     | Some pid -> killActiveProcess pid
-    | None -> printfn "No active Fable found"
+    | None -> Logger.log "No active Fable found"
 
   let startFable
     (getCommand: FableConfig option -> Command)
