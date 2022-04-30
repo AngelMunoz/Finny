@@ -117,10 +117,10 @@ type HttpContextExtensions() =
 
 module Constants =
   [<Literal>]
-  let Esbuild_Version = "0.14.1"
+  let Esbuild_Version = "0.14.38"
 
   [<Literal>]
-  let Default_Templates_Repository = "AngelMunoz/perla-samples"
+  let Default_Templates_Repository = "AngelMunoz/perla-templates"
 
   [<Literal>]
   let Default_Templates_Repository_Branch = "main"
