@@ -1,0 +1,24 @@
+{
+  "$schema": "https://raw.githubusercontent.com/AngelMunoz/Perla/main/perla.schema.json",
+  "index": "./index.html",
+  "devServer": {
+    "mountDirectories": {
+      "./assets": "/assets",
+      "./src": "/src"
+    },
+    "liveReload": true
+  },
+  "build": {
+    "injects": [
+      "./react-shim.js"
+    ]
+  },
+  "packages": {
+    "highlight.js": "https://ga.jspm.io/npm:highlight.js@11.3.1/es/index.js",
+    "marked": "https://cdn.skypack.dev/pin/marked@v4.0.3-3So9I4Fk51AWrlrVVwIe/mode=imports/optimized/marked.js",
+    "navigo": "https://cdn.skypack.dev/pin/navigo@v8.11.1-P7FrCxiJCiPJPMdihh6j/mode=imports/optimized/navigo.js",
+    "react": "https://cdn.skypack.dev/pin/react@v17.0.1-yH0aYV1FOvoIPeKBbHxg/mode=imports/optimized/react.js",
+    "react-dom": "https://cdn.skypack.dev/pin/react-dom@v17.0.1-oZ1BXZ5opQ1DbTh7nu9r/mode=imports/optimized/react-dom.js",
+    "rxjs": "https://cdn.skypack.dev/pin/rxjs@v7.4.0-Kfsr0poLPzx4M3FtCZC1/mode=imports/optimized/rxjs.js"
+  }
+}

@@ -1,0 +1,19 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
+	<PropertyGroup>
+		<OutputType>Exe</OutputType>
+		<TargetFramework>net6.0</TargetFramework>
+	</PropertyGroup>
+	<ItemGroup>
+		<Compile Include="Extensibility.fs" />
+		<Compile Include="Program.fs" />
+	</ItemGroup>
+	<ItemGroup>
+	  <PackageReference Include="FSharp.Compiler.Service" Version="41.0.3" />
+	  <PackageReference Include="FsToolkit.ErrorHandling" Version="2.13.0" />
+	  <PackageReference Include="FsToolkit.ErrorHandling.TaskResult" Version="2.13.0" />
+	</ItemGroup>
+	<ItemGroup>
+	  <ProjectReference Include="..\CalceTypes\CalceTypes.fsproj" />
+	</ItemGroup>
+</Project>

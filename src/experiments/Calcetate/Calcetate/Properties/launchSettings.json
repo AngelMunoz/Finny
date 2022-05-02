@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "Calcetate": {
+      "commandName": "Project",
+      "workingDirectory": "$(ProjectDir)/"
+    }
+  }
+}
