@@ -1,15 +1,21 @@
 ﻿open System
 open System.Collections.Generic
+open System.IO.Compression
+open System.Text
 open System.Text.Json
+open FSharp.Control
 open System.Text.Json.Nodes
 open System.Text.Json.Serialization
 open System.Threading.Tasks
 open System.IO
 open Flurl
 open Flurl.Http
+open ICSharpCode.SharpZipLib.GZip
 open Perla.Lib.Types
 open Perla.Lib
 open FsToolkit.ErrorHandling
+open Spectre.Console
+open ICSharpCode.SharpZipLib.Tar
 
 [<CLIMutable>]
 type NpmDist =
@@ -23,13 +29,63 @@ type NpmDist =
 
 [<CLIMutable>]
 type NpmPackageListing =
-  { types: string option
+  { name: string
+    version: string
+    types: string option
     dist: NpmDist option
-  // like package name, version, author
-  // and other package.json fields
+    // like package name, version, author
+    // and other package.json fields
     [<JsonExtensionData>]
-    extras: JsonObject
-   }
+    extras: JsonObject }
+
+let obtainsPackageMetadata (packages: seq<Source * string * string>) =
+  asyncSeq {
+    for (_, name, version) in packages do
+      try
+        use! stream =
+          $"https://registry.npmjs.org/{name}/{version}"
+            .GetAsync()
+            .ReceiveStream()
+          |> Async.AwaitTask
+
+        let! result =
+          (JsonSerializer.DeserializeAsync<NpmPackageListing> stream)
+            .AsTask()
+          |> Async.AwaitTask
+
+        match result.types with
+        | Some _ -> yield result
+        | None -> ()
+      with
+      | ex ->
+        Logger.Logger.log (
+          $"Failet to fetch information about {name}@{version}",
+          ex
+        )
+  }
+  |> AsyncSeq.toListAsync
+
+let downloadTarFile (packageName: string) (version: string) (dist: NpmDist) =
+  async {
+    let dir = Directory.CreateDirectory($"./packages").CreateSubdirectory(packageName).CreateSubdirectory(version)
+    let! file = dist.tarball.GetStreamAsync() |> Async.AwaitTask
+    let tar = TarArchive.CreateInputTarArchive(new GZipInputStream(file), Encoding.UTF8)
+    tar.ExtractContents(dir.FullName, true)
+    return dir.FullName
+  }
+let downloadTarFiles (packages: NpmPackageListing list) =
+  asyncSeq {
+     for package in packages do
+        match package.dist with
+        | Some file ->
+            try
+              let! path = downloadTarFile package.name package.version file
+              yield path
+            with ex ->
+              Logger.Logger.log("Failed to decompress a file", ex)
+        | None -> ()
+  }
+  |> AsyncSeq.toListAsync
 
 let packages =
   result {
@@ -55,22 +111,18 @@ let packages =
       |> Result.requireSome "No packages were found in config"
   }
 
+
 taskResult {
   let! packages = packages
 
   let! operations =
-    [ for (_, name, version) in packages do
-        task {
-          use! stream =
-            $"https://registry.npmjs.org/{name}/{version}"
-              .GetAsync()
-              .ReceiveStream()
+    Logger.Logger.spinner (
+      "fetching dependencies metadata",
+      obtainsPackageMetadata packages
+    )
 
-          return! JsonSerializer.DeserializeAsync<NpmPackageListing> stream
-        } ]
-    |> Task.WhenAll
-
-  printfn "%A" operations
+  let! downloads = Logger.Logger.spinner("Downloading Packages", downloadTarFiles operations)
+  Logger.Logger.log($"Downloaded: %A{downloads}".EscapeMarkup())
 }
 |> Async.AwaitTask
 |> Async.Ignore

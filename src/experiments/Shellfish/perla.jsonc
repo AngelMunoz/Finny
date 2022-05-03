@@ -14,6 +14,7 @@
     ]
   },
   "packages": {
+    "@shoelace-style/shoelace": "https://cdn.skypack.dev/pin/@shoelace-style/shoelace@v2.0.0-beta.73-Az5VM8lbmDm3HnPEnlbC/mode=imports,min/optimized/@shoelace-style/shoelace.js",
     "highlight.js": "https://ga.jspm.io/npm:highlight.js@11.3.1/es/index.js",
     "marked": "https://cdn.skypack.dev/pin/marked@v4.0.3-3So9I4Fk51AWrlrVVwIe/mode=imports/optimized/marked.js",
     "navigo": "https://cdn.skypack.dev/pin/navigo@v8.11.1-P7FrCxiJCiPJPMdihh6j/mode=imports/optimized/navigo.js",
