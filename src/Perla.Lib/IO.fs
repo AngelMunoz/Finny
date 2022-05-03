@@ -190,11 +190,30 @@ module Logger =
     static member spinner<'Operation>
       (
         title: string,
-        operation: StatusContext -> Task<'Operation>
+        task: Async<'Operation>
+      ) : Task<'Operation> =
+      let status = AnsiConsole.Status()
+      status.Spinner <- Spinner.Known.Dots
+      status.StartAsync(title, (fun _ -> task |> Async.StartAsTask))
+
+
+    static member inline spinner<'Operation>
+      (
+        title: string,
+        [<InlineIfLambda>] operation: StatusContext -> Task<'Operation>
       ) : Task<'Operation> =
       let status = AnsiConsole.Status()
       status.Spinner <- Spinner.Known.Dots
       status.StartAsync(title, operation)
+
+    static member inline spinner<'Operation>
+      (
+        title: string,
+        [<InlineIfLambda>] operation: StatusContext -> Async<'Operation>
+      ) : Task<'Operation> =
+      let status = AnsiConsole.Status()
+      status.Spinner <- Spinner.Known.Dots
+      status.StartAsync(title, fun ctx -> operation ctx |> Async.StartAsTask)
 
   let getPerlaLogger () =
     { new ILogger with
