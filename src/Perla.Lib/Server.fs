@@ -140,9 +140,10 @@ module private Middleware =
     |> Map.tryPick (fun k v ->
       option {
         let dirname = Path.GetDirectoryName path
+        let emptyValue = v = String.Empty
+        let rootDir = dirname = @"\" ||  dirname = "/"
 
-        if v = String.Empty && dirname = @"\"
-           || dirname = "/" then
+        if emptyValue && rootDir then
           return (k, v)
         elif v <> String.Empty && path.StartsWith v then
           return (k, v)
