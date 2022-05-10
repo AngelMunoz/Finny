@@ -4,11 +4,17 @@
   "devServer": {
     "mountDirectories": {
       "./assets": "/assets",
-      "./src": "/src"
+      "./src": "/src",
+      "./sw": ""
     },
     "liveReload": true
   },
   "build": {
+    "copyPaths": {
+      "includes": [
+        "./sw/sw.js -> ./sw.js"
+      ]
+    },
     "injects": [
       "./react-shim.js"
     ]
