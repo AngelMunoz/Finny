@@ -41,6 +41,17 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      if ("serviceWorker" in navigator) {
+        // Use the window load event to keep the page load performant
+        window.addEventListener("load", () => {
+          navigator.serviceWorker
+                  .register("/sw.js")
+                  .catch(console.warn)
+                  .then(console.log);
+        });
+      }
+    </script>
     <script data-entry-point type="module" src="./src/main.jsx"></script>
   </body>
 </html>

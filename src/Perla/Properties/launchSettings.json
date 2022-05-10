@@ -10,6 +10,11 @@
       "commandLineArgs": "serve",
       "workingDirectory": "$(ProjectDir)/../docs"
     },
+    "Build Docs": {
+      "commandName": "Project",
+      "commandLineArgs": "build",
+      "workingDirectory": "$(ProjectDir)/../docs"
+    },
     "Add Template": {
       "commandName": "Project",
       "commandLineArgs": "add-template -n AngelMunoz/perla-samples -b clam-poc",
