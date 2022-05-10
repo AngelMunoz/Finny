@@ -192,11 +192,8 @@ module Build =
 
     let copyIncludes =
       match buildConfig.copyPaths with
-      | None -> List.empty
-      | Some paths ->
-        paths.includes
-        |> Option.map List.ofSeq
-        |> Option.defaultValue List.empty
+      | None -> Seq.empty
+      | Some paths -> paths.includes |> Option.defaultValue Seq.empty
 
     task {
       match config.fable with
@@ -242,35 +239,51 @@ module Build =
         let totalPaths =
           [| for key in map.Keys do
                yield!
-                 Directory.EnumerateFiles(Path.GetFullPath(key), "*.*", opts) |]
-
+                 Directory.EnumerateFiles(Path.GetFullPath(key), "*.*", opts)
+                 |> Seq.map (fun s -> s, s) |]
+        // FIXME: This thing is not funny to use, but at least in the meantime will work
+        // Once the new build pipeline is in, this should disappear
         let includedFiles =
-          totalPaths
-          |> Array.filter (fun path ->
-            copyIncludes
-            |> List.exists (fun ext ->
-              let ext =
-                let ext = ext.Replace('/', Path.DirectorySeparatorChar)
+          [| for (path, target) in totalPaths do
+               for copy in copyIncludes do
+                 let copy, target =
+                   match copy.Split("->") with
+                   | [| origin; target |] -> origin.Trim(), target.Trim()
+                   | [| origin |] -> origin.Trim(), target.Trim()
+                   | _ -> copy.Trim(), copy.Trim()
 
-                if ext.StartsWith "." then
-                  ext.Substring(2)
-                else
-                  ext
+                 let ext =
+                   let copy = copy.Replace('/', Path.DirectorySeparatorChar)
 
-              path.Contains(ext)))
+                   if copy.StartsWith "." then
+                     copy.Substring(2)
+                   else
+                     copy
+
+                 if path.Contains(ext) then
+                   yield path, target |]
 
 
         let excludedFiles =
           totalPaths
-          |> Array.filter (fun path ->
+          |> Array.filter (fun ((path, _)) ->
             copyExcludes
             |> List.exists (fun ext -> path.Contains(ext))
             |> not)
 
         [| yield! excludedFiles
            yield! includedFiles |]
-        |> Array.Parallel.iter (fun path ->
-          let posPath = path.Replace(root, $"{outDir}")
+        |> Array.Parallel.iter (fun (origin, target) ->
+          let target = Path.GetFullPath target
+          let posPath = target.Replace(root, $"{outDir}")
+
+          let print =
+            if origin <> target then
+              $"[blue]{origin}[/] -> [yellow]{target}[/]"
+            else
+              $"[blue]{origin}[/]"
+
+          Logger.log ($"{print} -> [green]{posPath}[/]", escape = false)
 
           try
             Path.GetDirectoryName posPath
@@ -279,7 +292,9 @@ module Build =
           with
           | _ -> ()
 
-          File.Copy(path, posPath))
+          File.Copy(origin, posPath))
+
+      Logger.log $"Copying Files to out directory"
 
       devServer.mountDirectories
       |> Option.map getDirectories
@@ -296,5 +311,7 @@ module Build =
 
             $"./{dirName}/{name}".Replace("\\", "/") ]
 
+      Logger.log "Adding CSS Files to index.html"
       do! insertMapAndCopy cssFiles config
+      Logger.log "Build finished."
     }
