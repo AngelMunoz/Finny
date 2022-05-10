@@ -135,6 +135,22 @@ module private LiveReload =
 
 [<RequireQualifiedAccess>]
 module private Middleware =
+  let tryFindMounted (path: string) mountedDirs =
+    mountedDirs
+    |> Map.tryPick (fun k v ->
+      option {
+        let dirname = Path.GetDirectoryName path
+        let emptyValue = v = String.Empty
+        let rootDir = dirname = @"\" ||  dirname = "/"
+
+        if emptyValue && rootDir then
+          return (k, v)
+        elif v <> String.Empty && path.StartsWith v then
+          return (k, v)
+        else
+          return! None
+      })
+
   let transformPredicate (extensions: string list) (ctx: HttpContext) =
     extensions
     |> List.exists ctx.Request.Path.Value.Contains
@@ -152,39 +168,40 @@ module private Middleware =
         let logger = ctx.GetLogger("Perla Middleware")
         let path = ctx.Request.Path.Value
 
-        let baseDir, baseName =
-          mountedDirs
-          |> Map.filter (fun _ v -> String.IsNullOrWhiteSpace v |> not)
-          |> Map.toSeq
-          |> Seq.find (fun (_, v) -> path.StartsWith(v))
+        match tryFindMounted path mountedDirs with
+        | Some (baseDir, baseName) ->
+          let filePath =
+            let fileName =
+              path.Replace(
+                $"{baseName}/",
+                "",
+                StringComparison.InvariantCulture
+              )
 
-        let filePath =
-          let fileName =
-            path.Replace($"{baseName}/", "", StringComparison.InvariantCulture)
+            Path.Combine(baseDir, fileName)
 
-          Path.Combine(baseDir, fileName)
+          logger.LogInformation("Transforming CSS")
 
-        logger.LogInformation("Transforming CSS")
+          let! content = File.ReadAllTextAsync(filePath)
 
-        let! content = File.ReadAllTextAsync(filePath)
+          if ctx.Request.Query.ContainsKey "module" then
+            logger.LogInformation("Sending CSS module")
+            ctx.SetContentType MimeTypeNames.Css
+            return! ctx.WriteStringAsync content :> Task
+          else
+            logger.LogInformation("Sending CSS HMR Script")
 
-        if ctx.Request.Query.ContainsKey "module" then
-          logger.LogInformation("Sending CSS module")
-          ctx.SetContentType MimeTypeNames.Css
-          return! ctx.WriteStringAsync content :> Task
-        else
-          logger.LogInformation("Sending CSS HMR Script")
-
-          let newContent =
-            $"""
-const css = `{content}`
-const style = document.createElement('style')
-style.innerHTML = css
-style.setAttribute("filename", "{filePath.Replace(Path.DirectorySeparatorChar, '/')}");
+            let newContent =
+              $"""const css = `{content}`,style = document.createElement('style')
+style.innerHTML = css;style.setAttribute("filename", "{filePath.Replace(Path.DirectorySeparatorChar, '/')}");
 document.head.appendChild(style)"""
 
-          ctx.SetContentType MimeTypeNames.DefaultJavaScript
-          return! ctx.WriteStringAsync newContent :> Task
+            ctx.SetContentType MimeTypeNames.DefaultJavaScript
+            return! ctx.WriteStringAsync newContent :> Task
+        | None ->
+          logger.LogInformation $"Failed to find: {path}"
+          ctx.Response.StatusCode <- 404
+          return! ctx.Response.CompleteAsync()
     }
     :> Task
 
@@ -201,30 +218,35 @@ document.head.appendChild(style)"""
         let logger = ctx.GetLogger("Perla Middleware")
         let path = ctx.Request.Path.Value
 
-        let baseDir, baseName =
-          mountedDirs
-          |> Map.filter (fun _ v -> String.IsNullOrWhiteSpace v |> not)
-          |> Map.toSeq
-          |> Seq.find (fun (_, v) -> path.StartsWith(v))
+        match tryFindMounted path mountedDirs with
+        | Some (baseDir, baseName) ->
 
-        let filePath =
-          let fileName =
-            path.Replace($"{baseName}/", "", StringComparison.InvariantCulture)
+          let filePath =
+            let fileName =
+              path.Replace(
+                $"{baseName}/",
+                "",
+                StringComparison.InvariantCulture
+              )
 
-          Path.Combine(baseDir, fileName)
+            Path.Combine(baseDir, fileName)
 
-        let! content = File.ReadAllTextAsync(filePath)
+          let! content = File.ReadAllTextAsync(filePath)
 
-        let newContent =
-          if ctx.Request.Query.ContainsKey "module" then
-            logger.LogInformation("Sending JSON Module")
-            ctx.SetContentType MimeTypeNames.DefaultJavaScript
-            $"export default {content}"
-          else
-            logger.LogInformation("Sending JSON File")
-            content
+          let newContent =
+            if ctx.Request.Query.ContainsKey "module" then
+              logger.LogInformation("Sending JSON Module")
+              ctx.SetContentType MimeTypeNames.DefaultJavaScript
+              $"export default {content}"
+            else
+              logger.LogInformation("Sending JSON File")
+              content
 
-        do! ctx.WriteStringAsync newContent :> Task
+          do! ctx.WriteStringAsync newContent :> Task
+        | None ->
+          logger.LogInformation $"Failed to find: {path}"
+          ctx.Response.StatusCode <- 404
+          return! ctx.Response.CompleteAsync()
     }
     :> Task
 
@@ -246,41 +268,46 @@ document.head.appendChild(style)"""
         let path = ctx.Request.Path.Value
         logger.LogInformation($"Serving {path}")
 
-        let baseDir, baseName =
-          mountedDirs
-          |> Map.filter (fun _ v -> String.IsNullOrWhiteSpace v |> not)
-          |> Map.toSeq
-          |> Seq.find (fun (_, v) -> path.StartsWith(v))
+        match tryFindMounted path mountedDirs with
+        | Some (baseDir, baseName) ->
+          let filePath =
+            let fileName =
+              path.Replace(
+                $"{baseName}/",
+                "",
+                StringComparison.InvariantCulture
+              )
 
-        let filePath =
-          let fileName =
-            path.Replace($"{baseName}/", "", StringComparison.InvariantCulture)
+            Path.Combine(baseDir, fileName)
 
-          Path.Combine(baseDir, fileName)
+          ctx.SetContentType MimeTypeNames.DefaultJavaScript
 
-        ctx.SetContentType MimeTypeNames.DefaultJavaScript
+          try
+            if Path.GetExtension(filePath) <> ".js" then
+              return
+                failwith "Not a JS file, Try looking with another extension."
 
-        try
-          if Path.GetExtension(filePath) <> ".js" then
-            return failwith "Not a JS file, Try looking with another extension."
+            use content = File.OpenRead(filePath)
+            do! content.CopyToAsync ctx.Response.Body
+          with
+          | _ ->
+            let! fileData = Esbuild.tryCompileFile filePath buildConfig
 
-          use content = File.OpenRead(filePath)
-          do! content.CopyToAsync ctx.Response.Body
-        with
-        | _ ->
-          let! fileData = Esbuild.tryCompileFile filePath buildConfig
-
-          match fileData with
-          | Ok (stdout, stderr) ->
-            if String.IsNullOrWhiteSpace stderr |> not then
-              Fs.PublishCompileErr stderr
-              do! ctx.WriteBytesAsync [||] :> Task
-            else
-              let content = Encoding.UTF8.GetBytes stdout
-              do! ctx.WriteBytesAsync content :> Task
-          | Error err ->
-            ctx.SetStatusCode 500
-            do! ctx.WriteTextAsync err.Message :> Task
+            match fileData with
+            | Ok (stdout, stderr) ->
+              if String.IsNullOrWhiteSpace stderr |> not then
+                Fs.PublishCompileErr stderr
+                do! ctx.WriteBytesAsync [||] :> Task
+              else
+                let content = Encoding.UTF8.GetBytes stdout
+                do! ctx.WriteBytesAsync content :> Task
+            | Error err ->
+              ctx.SetStatusCode 500
+              do! ctx.WriteTextAsync err.Message :> Task
+        | None ->
+          logger.LogInformation $"Failed to find: {path}"
+          ctx.Response.StatusCode <- 404
+          return! ctx.Response.CompleteAsync()
     }
     :> Task
 

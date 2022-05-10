@@ -38,7 +38,9 @@ A full `perla.jsonc` file looks like this:
       // e.g. ./src/index.js -> /src/index.js
       "./src": "/src",
       // e.g. ./assets/docs/index.md -> /assers/docs/indexmd
-      "./assets": "/assets"
+      "./assets": "/assets",
+      // e.g. anything under ./root-files will be available at "/" in the dev server
+      "./root-files": ""
     },
     // modify watch behavior
     "watchConfig": {
@@ -92,7 +94,14 @@ A full `perla.jsonc` file looks like this:
       ],
       // ensure a particular resource is copied even if it's
       // under a non-copy'able location
-      "includes": ["./src/sample.png"]
+      "includes": [
+        "./src/sample.png",
+        // when building you can re-target where your sources
+        // can be copied at, this together with mount directories
+        // can give you a flexible way to mount/copy non-standard files
+        // or files that need to have a specific address/location
+        "./root-files/manifest.webmanifest -> ./manifest.webmanifest"
+      ]
     },
     // ensure esbuild ignores a particular dependency
     "externals": ["my-undeclared-dependency", "@undeclared/dep"],
