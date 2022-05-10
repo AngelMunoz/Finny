@@ -207,6 +207,7 @@ module Esbuild =
         "esbuild is not present, setting esbuild...",
         fun context ->
           context.Status <- "Downloading esbuild..."
+
           tryDownloadEsBuild esbuildVersion
           |> (fun path ->
             context.Status <- "Extracting esbuild..."
