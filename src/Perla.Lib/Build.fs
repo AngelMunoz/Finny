@@ -215,7 +215,30 @@ module Build =
 
       Directory.CreateDirectory(outDir) |> ignore
 
-      let jsFiles = getEntryPoints ResourceType.JS config
+      let jsFiles =
+        getEntryPoints ResourceType.JS config
+        |> Seq.map (fun file ->
+          if File.Exists file then
+            file
+          else
+            let mountsOnRoot =
+              config.devServer
+              |> Option.bind (fun devServer -> devServer.mountDirectories)
+              |> Option.bind (
+                Map.tryPick (fun key value ->
+                  if String.IsNullOrWhiteSpace value then
+                    Some key
+                  else
+                    None)
+              )
+
+            match mountsOnRoot with
+            | None -> file // This isn't correct, should be handle a bit better later
+            | Some mountsOnRoot ->
+              let pwd = Directory.GetCurrentDirectory()
+              let relativeFile = Path.GetRelativePath(pwd, file)
+              let physicalPath = Path.Combine(pwd, mountsOnRoot, relativeFile)
+              physicalPath)
 
       let cssFiles = getEntryPoints ResourceType.CSS config
 
