@@ -25,7 +25,91 @@ module Build =
       | JS -> "JS"
       | CSS -> "CSS"
 
-  let private getEntryPoints (type': ResourceType) (config: PerlaConfig) =
+  [<RequireQualifiedAccess>]
+  type private EntryPoint =
+    | Physical of physicalRelativePath: string
+    | VirtualPath of virtualRelativePath: string * physicalRelativePath: string
+
+    member this.RelativePath =
+      match this with
+      | Physical p
+      | VirtualPath (_, p) -> p
+
+  let private resolveVirtualFile (config: PerlaConfig) entryPath : EntryPoint =
+    let resolveFor entryPath physicalFolder virtualFolder =
+      let split (v: string) =
+        v.Split(
+          [| "./"; ".\\"; "/"; "\\" |],
+          StringSplitOptions.RemoveEmptyEntries
+        )
+        |> List.ofArray
+
+      let physicalParts = split physicalFolder
+      let virtualParts = split virtualFolder
+
+      let entryFileName, entryParts =
+        match List.rev (split entryPath) with
+        | [] -> failwith "input does not contain a file"
+        | fileName :: rest -> fileName, List.rev rest
+
+      if virtualParts.IsEmpty then
+        // The physical folder is mount on the root.
+        Path.Combine(
+          [| yield! physicalParts
+             yield! entryParts
+             yield entryFileName |]
+        )
+      else
+        // Detect how many parts of the entry parts are matching with the virtual path
+        // Example: entry: ./src/js/App.js
+        // Mapping: "./out": "/src"
+        // This means that one part of the entry matches with the mapping.
+        // And that "js/App/js" should exists in the "out"
+        let rec visit state entryParts virtualParts : int =
+          match entryParts, virtualParts with
+          | [], _ -> state
+          | iHead :: iRest, vHead :: vRest ->
+            if iHead = vHead then
+              visit (state + 1) iRest vRest
+            else
+              state
+          | _ -> state
+
+        let virtualMatches = visit 0 entryParts virtualParts
+        let inputParts = List.skip virtualMatches entryParts
+
+        Path.Combine(
+          [| yield! physicalParts
+             yield! inputParts
+             yield entryFileName |]
+        )
+
+    let mountDir =
+      config.devServer
+      |> Option.bind (fun devServer -> devServer.mountDirectories)
+      |> Option.map Map.toList
+
+    match mountDir with
+    | None ->
+      failwith
+        $"The entry path {entryPath} could not be resolved on disk and the configuration doesn't contain mountDirectories."
+    | Some mounts ->
+      let result =
+        mounts
+        |> List.map (fun (p, v) -> resolveFor entryPath p v)
+        |> List.tryFind File.Exists
+
+      match result with
+      | None ->
+        failwith
+          $"The entry path {entryPath} could not be resolved on disk, nor could it be found in one of the mountDirectories."
+      | Some p -> EntryPoint.VirtualPath(entryPath, p)
+
+  let private getEntryPoints
+    (workingDirectory: string)
+    (type': ResourceType)
+    (config: PerlaConfig)
+    : EntryPoint list =
     let context = BrowsingContext.New(Configuration.Default)
 
     let indexFile = defaultArg config.index "index.html"
@@ -53,12 +137,22 @@ module Build =
         | Some attr -> attr.Value
         | None -> ""
 
-      Path.GetFullPath(src)
+      src
 
-    els |> Seq.map getPathFromAttribute
+    els
+    |> Seq.map (fun element ->
+      let value = getPathFromAttribute element
+      let fullPath = Path.Combine(workingDirectory, value)
 
-  let insertMapAndCopy cssFiles config =
+      if File.Exists fullPath then
+        // The found entryPoint is pointing to a file on disk
+        EntryPoint.Physical value
+      else
+        // The found entryPoint does not exist, the devServer might resolve it by a mounted folder.
+        resolveVirtualFile config value)
+    |> Seq.toList
 
+  let private insertMapAndCopy jsFiles cssFiles config =
     let indexFile = defaultArg config.index "index.html"
 
     let outDir =
@@ -115,6 +209,21 @@ module Build =
         for style in styles do
           doc.Head.AppendChild(style) |> ignore
 
+        let virtualEntries =
+          jsFiles
+          |> List.choose (function
+            | EntryPoint.VirtualPath (v, p) -> Some(v, p)
+            | EntryPoint.Physical _ -> None)
+
+        for v, p in virtualEntries do
+          let element =
+            doc.Body.QuerySelector(
+              $"[data-entry-point][type=module][src='{v}']"
+            )
+
+          if not (isNull element) then
+            element.Attributes["src"].Value <- p.Replace("\\", "/")
+
         doc.Head.AppendChild script |> ignore
         let content = doc.ToHtml()
 
@@ -123,13 +232,17 @@ module Build =
     }
 
   let private buildFiles
+    (workingDirectory: string)
     (type': ResourceType)
-    (files: string seq)
+    (files: EntryPoint seq)
     (config: BuildConfig)
     =
     task {
       if files |> Seq.length > 0 then
-        let entrypoints = String.Join(' ', files)
+        let entrypoints =
+          files
+          |> Seq.map (fun e -> Path.Combine(workingDirectory, e.RelativePath))
+          |> String.concat " "
 
         let cmd =
           match type' with
@@ -215,41 +328,17 @@ module Build =
 
       Directory.CreateDirectory(outDir) |> ignore
 
-      let jsFiles =
-        getEntryPoints ResourceType.JS config
-        |> Seq.map (fun file ->
-          if File.Exists file then
-            file
-          else
-            let mountsOnRoot =
-              config.devServer
-              |> Option.bind (fun devServer -> devServer.mountDirectories)
-              |> Option.bind (
-                Map.tryPick (fun key value ->
-                  if String.IsNullOrWhiteSpace value then
-                    Some key
-                  else
-                    None)
-              )
-
-            match mountsOnRoot with
-            | None -> file // This isn't correct, should be handle a bit better later
-            | Some mountsOnRoot ->
-              let pwd = Directory.GetCurrentDirectory()
-              let relativeFile = Path.GetRelativePath(pwd, file)
-              let physicalPath = Path.Combine(pwd, mountsOnRoot, relativeFile)
-              physicalPath)
-
-      let cssFiles = getEntryPoints ResourceType.CSS config
-
+      let pwd = Directory.GetCurrentDirectory()
+      let jsFiles = getEntryPoints pwd ResourceType.JS config
+      let cssFiles = getEntryPoints pwd ResourceType.CSS config
       let! excludes = getExcludes buildConfig
 
       let buildConfig = { buildConfig with externals = excludes |> Some }
 
       do!
         Task.WhenAll(
-          buildFiles ResourceType.JS jsFiles buildConfig,
-          buildFiles ResourceType.CSS cssFiles buildConfig
+          buildFiles pwd ResourceType.JS jsFiles buildConfig,
+          buildFiles pwd ResourceType.CSS cssFiles buildConfig
         )
         :> Task
 
@@ -325,16 +414,18 @@ module Build =
 
       let cssFiles =
         [ for jsFile in jsFiles do
-            let name = (Path.GetFileName jsFile).Replace(".js", ".css")
+            let name =
+              (Path.GetFileName jsFile.RelativePath)
+                .Replace(".js", ".css")
 
             let dirName =
-              (Path.GetDirectoryName jsFile)
+              (Path.GetDirectoryName jsFile.RelativePath)
                 .Split(Path.DirectorySeparatorChar)
               |> Seq.last
 
             $"./{dirName}/{name}".Replace("\\", "/") ]
 
       Logger.log "Adding CSS Files to index.html"
-      do! insertMapAndCopy cssFiles config
+      do! insertMapAndCopy jsFiles cssFiles config
       Logger.log "Build finished."
     }
