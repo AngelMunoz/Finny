@@ -3,41 +3,33 @@
 open System
 open System.Threading.Tasks
 
-type CurrentStage =
-    | Load
-    | Build
-
-type OnBuildArgs = { source: string; target: string }
-type OnBuildResult = { content: byte []; extension: string }
-type OnBuildCallback = OnBuildArgs -> Task<OnBuildResult>
-
-type OnCopyArgs = { source: string; target: string }
-type OnCopyResult = { content: byte []; extension: string }
-type OnCopyCallback = OnCopyArgs -> Task<OnCopyResult>
-
-type OnVirtualizeArgs = { stage: CurrentStage }
-
-type OnVirtualizeResult =
-    { content: byte []
-      extension: string
-      mimeType: string
-      url: string
-      path: string }
-
-type OnVirtualizeCallback = OnVirtualizeArgs -> Task<OnVirtualizeResult>
-
 type OnLoadArgs =
     { url: Uri
       source: string
       loader: string }
 
-type OnLoadResult = { content: byte []; mimeType: string }
-type OnLoadCallback = OnLoadArgs -> Task<OnLoadResult>
+type ResolveArgs =
+  { filepath: string; }
 
+type LoadArgs =
+  { filepath: string; }
+
+type LoadResult =
+  { content: string; extension: string }
+
+type TransformArgs =
+  { content: string; path: string }
+
+type TransformResult =
+  { content: string; }
+
+type OnResolveCallback = ResolveArgs -> bool
+type OnLoadCallback = LoadArgs -> LoadResult
+type OnTransformCallback = TransformArgs -> TransformResult
 
 type PluginInfo =
     { name: string
-      build: OnBuildCallback option
-      copy: OnCopyCallback option
-      virtualize: OnVirtualizeCallback option
-      load: OnLoadCallback option }
+      extension: string
+      resolve: OnResolveCallback option
+      load: OnLoadCallback option
+      transform: OnTransformCallback option }

@@ -15,5 +15,4 @@
     <PackageReference Include="Fable.Browser.Dom" Version="2.*" />
     <PackageReference Include="Fable.Browser.Event" Version="1.*" />
   </ItemGroup>
-
 </Project>
