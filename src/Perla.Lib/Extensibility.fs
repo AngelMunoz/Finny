@@ -9,11 +9,7 @@ module Extensibility =
   let private getSession stdin stdout stderr =
     let defConfig = FsiEvaluationSession.GetDefaultConfiguration()
 
-    let argv =
-      [| "fsi.exe"
-         "--noninteractive"
-         "--nologo"
-         "--gui-" |]
+    let argv = [| "fsi.exe"; "--noninteractive"; "--nologo"; "--gui-" |]
 
     FsiEvaluationSession.Create(defConfig, argv, stdin, stdout, stderr, true)
 
@@ -23,8 +19,7 @@ module Extensibility =
     use stderr = new StringWriter()
     use session = getSession stdin stdout stderr
 
-    session.EvalInteractionNonThrowing(content)
-    |> ignore
+    session.EvalInteractionNonThrowing(content) |> ignore
 
     match session.TryFindBoundValue Constants.ScaffoldConfiguration with
     | Some bound -> Some bound.Value.ReflectionValue

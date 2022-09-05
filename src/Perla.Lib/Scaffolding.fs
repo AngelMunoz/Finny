@@ -18,8 +18,7 @@ module Scaffolding =
       let url =
         $"https://github.com/{repo.fullName}/archive/refs/heads/{repo.branch}.zip"
 
-      Directory.CreateDirectory Path.TemplatesDirectory
-      |> ignore
+      Directory.CreateDirectory Path.TemplatesDirectory |> ignore
 
       try
         do!
@@ -27,8 +26,8 @@ module Scaffolding =
           :> Task
 
         return Some repo
-      with
-      | _ -> return None
+      with _ ->
+        return None
     }
 
   let unzipAndClean (repo: Task<PerlaTemplateRepository option>) =
@@ -37,24 +36,20 @@ module Scaffolding =
 
       match repo with
       | Some repo ->
-        Directory.CreateDirectory Path.TemplatesDirectory
-        |> ignore
+        Directory.CreateDirectory Path.TemplatesDirectory |> ignore
 
         let username = (Directory.GetParent repo.path).Name
 
         try
           Directory.Delete(repo.path, true) |> ignore
-        with
-        | :? DirectoryNotFoundException ->
+        with :? DirectoryNotFoundException ->
           Logger.scaffold "Did not delete directory"
 
         let relativePath =
-          Path.Join(repo.path, "../", "../")
-          |> Path.GetFullPath
+          Path.Join(repo.path, "../", "../") |> Path.GetFullPath
 
         let zipPath =
-          Path.Combine(relativePath, $"{repo.name}.zip")
-          |> Path.GetFullPath
+          Path.Combine(relativePath, $"{repo.name}.zip") |> Path.GetFullPath
 
         ZipFile.ExtractToDirectory(
           zipPath,

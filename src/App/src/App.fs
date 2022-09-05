@@ -54,76 +54,60 @@ let view () =
       |> Option.flatten
       |> Option.defaultValue "Idioma Actual")
 
-  Html.app [
-    Html.main [
+  Html.app
+    [ Html.main
+        [
 
-      Html.label [
-        Html.input [
-          type' "checkbox"
-          Bind.attr ("checked", store)
-        ]
-        text "Show Text"
-      ]
-      Html.section [
-        Html.div [
-          Html.text "English"
-          Html.input [
-            type' "radio"
-            Attr.name "language"
-            Attr.isChecked true
-            on "change" (fun _ -> currentLang <~ EnUs) []
-          ]
-        ]
-        Html.div [
-          Html.text "Deutsch"
-          Html.input [
-            type' "radio"
-            Attr.name "language"
-            on "change" (fun _ -> currentLang <~ DeDe) []
-          ]
-        ]
-        Html.div [
-          Html.text "Español"
-          Html.input [
-            type' "radio"
-            Attr.name "language"
-            on "change" (fun _ -> currentLang <~ Spanish) []
-          ]
-        ]
-        Html.div [
-          Bind.el (currentLangLabel, Html.text)
-          Bind.el (currentLang, (fun lang -> Html.text $": {lang.AsString()}"))
-        ]
-        Bind.el (nameLabel, Html.text)
-      ]
-      Bind.el (
-        store,
-        (fun isOpen ->
-          if isOpen then
-            Html.p [
-              text "Hey there! this is some Sutil + Fable stuff!"
-            ]
-          else
-            Html.none)
-      )
-      Bind.el (
-        store,
-        (fun isOpen ->
-          if isOpen |> not then
-            Html.custom (
-              "fs-message",
-              [ Attr.custom ("header", "I Can't Believe it's working!")
-                Attr.custom ("kind", "info")
-                Html.p "This is WORKING" ]
-            )
-          else
-            Html.none)
-      )
-    ]
-  ]
-  |> withStyle [
-       rule
-         "label"
-         [ Css.fontSize (em 1.5)
-           Css.color "rebeccapurple" ]
-     ]
+          Html.label
+            [ Html.input [ type' "checkbox"; Bind.attr ("checked", store) ]
+              text "Show Text" ]
+          Html.section
+            [ Html.div
+                [ Html.text "English"
+                  Html.input
+                    [ type' "radio"
+                      Attr.name "language"
+                      Attr.isChecked true
+                      on "change" (fun _ -> currentLang <~ EnUs) [] ] ]
+              Html.div
+                [ Html.text "Deutsch"
+                  Html.input
+                    [ type' "radio"
+                      Attr.name "language"
+                      on "change" (fun _ -> currentLang <~ DeDe) [] ] ]
+              Html.div
+                [ Html.text "Español"
+                  Html.input
+                    [ type' "radio"
+                      Attr.name "language"
+                      on "change" (fun _ -> currentLang <~ Spanish) [] ] ]
+              Html.div
+                [ Bind.el (currentLangLabel, Html.text)
+                  Bind.el (
+                    currentLang,
+                    (fun lang -> Html.text $": {lang.AsString()}")
+                  ) ]
+              Bind.el (nameLabel, Html.text) ]
+          Bind.el (
+            store,
+            (fun isOpen ->
+              if isOpen then
+                Html.p [ text "Hey there! this is some Sutil + Fable stuff!" ]
+              else
+                Html.none)
+          )
+          Bind.el (
+            store,
+            (fun isOpen ->
+              if isOpen |> not then
+                Html.custom (
+                  "fs-message",
+                  [ Attr.custom ("header", "I Can't Believe it's working!")
+                    Attr.custom ("kind", "info")
+                    Html.p "This is WORKING" ]
+                )
+              else
+                Html.none)
+          ) ] ]
+  |> withStyle
+       [ rule "label" [ Css.fontSize (em 1.5); Css.color "rebeccapurple" ] ]
