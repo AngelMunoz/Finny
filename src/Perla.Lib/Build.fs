@@ -165,12 +165,8 @@ module Build =
     let doc = parser.ParseDocument content
 
     let styles =
-      [ for (file: string) in cssFiles do
-          let file =
-            if file.EndsWith("x") then
-              file.Substring(0, file.Length - 1)
-            else
-              file
+      [ for file: string in cssFiles do
+          let file = Path.ChangeExtension(file, ".css")
 
           let style = doc.CreateElement("link")
           style.SetAttribute("rel", "stylesheet")
@@ -186,10 +182,7 @@ module Build =
       | Some src ->
         el.SetAttribute(
           "src",
-          if src.EndsWith("x") then
-            src.Substring(0, src.Length - 1)
-          else
-            src
+          Path.ChangeExtension(src, ".js")
         )
       | None -> ())
 
