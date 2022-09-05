@@ -14,24 +14,24 @@ Getting started with Perla projects is very simple
 - If you already have templates but you want to add a new set of templates run:
 
   - `perla add-template -n GitHubUsername/repository -b branch`
-    - Example: `perla add-template -n AngelMunoz/perla-samples -b main`
+    - Example: `perla add-template -n AngelMunoz/perla-templates -b main`
 
   That will ensure you have a set of templates available for you to start developing.
 
-Once you have templates in place you can start creating new perla projects using `perla new`, using `perla-samples` as our example repository we can create a new project doing any of the following actions:
+Once you have templates in place you can start creating new perla projects using `perla new`, using `perla-templates` as our example repository we can create a new project doing any of the following actions:
 
-- `perla new -t perla-samples/react-jsx -n my-react-project`
-- `perla new -t perla-samples/vue-jsx -n my-react-project`
-- `perla new -t perla-samples/lit-js -n my-lit-project`
-- `perla new -t perla-samples/fable-feliz -n my-feliz-project`
-- `perla new -t perla-samples/fable-sutil -n my-sutil-project`
+- `perla new -t perla-templates/react-jsx -n my-react-project`
+- `perla new -t perla-templates/vue-jsx -n my-react-project`
+- `perla new -t perla-templates/lit-js -n my-lit-project`
+- `perla new -t perla-templates/fable-feliz -n my-feliz-project`
+- `perla new -t perla-templates/fable-sutil -n my-sutil-project`
 
 A full initial workflow would look like this
 
 ```sh
 # download/install perla
 perla init -k full -y true
-perla new -t perla-samples/react-jsx -n my-react-project
+perla new -t perla-templates/react-jsx -n my-react-project
 cd my-react-project
 perla serve
 # after you're done with your website

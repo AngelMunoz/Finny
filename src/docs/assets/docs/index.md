@@ -8,7 +8,7 @@
 [jsx]: /#/docs/build/jsx-tsx
 [tsx]: /#/docs/build/jsx-tsx
 [import maps]: /#/content/import-maps
-[perla samples]: https://github.com/AngelMunoz/perla-samples
+[perla samples]: https://github.com/AngelMunoz/perla-templates
 [real world fable]: https://github.com/AngelMunoz/real-world-fable
 [scaffolding]: /#/docs/features/scaffolding
 
@@ -33,7 +33,7 @@ Once you [install] it simply run:
 # run once after you install it
 perla init -k full # download templates
 # generate a new project
-perla new -t perla-samples/vue-jsx -n my-vue-project
+perla new -t perla-templates/vue-jsx -n my-vue-project
 cd my-vue-project
 perla serve # start developing
 ```

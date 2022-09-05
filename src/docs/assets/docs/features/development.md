@@ -41,5 +41,44 @@ by default Perla uses these options if you don't specify them in the `perla.json
 
 - liveReload - true
 - useSSL - false
+- enableEnv - true
+- envPath - /env.js
 
 > It's worth mentioning that once you override one of these configurations we don't do any kind of "merge" strategy, so if you override the extensions to add a new one, you need to copy the whole array you also need to provide the "directories" array or otherwise you won't watch anything
+
+## Environment Variable Support
+
+Perla supports environment variables at dev time prefixed with `PERLA_`.
+
+As an example let's think about the following environment variables
+
+```bash
+PERLA_clientToken=abcdefg1234557
+PERLA_API_KEY=12334566abcdefg
+```
+
+Perla will use `enableEnv` and `envPath` nodes from the `devServer` options and provide a javascript file with those environment variables, something like
+
+```js
+export const clientToken = "abcdefg1234557";
+export const API_KEY = "12334566abcdefg";
+```
+
+so you can do the following in your code
+
+```js
+import { clientToken, API_KEY } from "/env.js";
+```
+
+or in Fable Projects
+
+```fsharp
+open Fable.Core
+open Fable.Core.JsInterop
+
+let API_KEY = import "API_KEY" "/env.js"
+// or the named import option
+let clientToken = importMember "/env.js"
+```
+
+at build time we don't emit anything for security reasons

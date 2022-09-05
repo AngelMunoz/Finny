@@ -1,4 +1,5 @@
 [target]: https://esbuild.github.io/api/#target
+[development]: /#/docs/features/development?id=environment-variable-support
 
 ## Production Builds
 
@@ -8,7 +9,7 @@ Perla sets a few defaults when it comes to final builds/bundles which can be ove
 
 Depending on what **Modern** browsers you want to support, you have a few options
 
-- **Default: es2017**
+- **Default: es2020**
 
 Other options are:
 
@@ -53,3 +54,9 @@ To get most out of it we recommend you to not change this setting.
 Minify the sources to reduce bundle size.
 
 - **Default: true**
+
+### Emit Env File (emitEnvFile)
+
+- **Default: false**
+
+If you have added environment variables for development (see [development]]) you could also generate the same file at build in case you want to deploy right after you generated your production build. This setting is opt in rather than opt out because it could leave sensitive information behind if you don't clean CI, or even your deployment environment.
