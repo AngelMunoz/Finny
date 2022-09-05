@@ -24,32 +24,24 @@ module Esbuild =
     =
     let externals = defaultArg externals Seq.empty
 
-    externals
-    |> Seq.map (fun ex -> $"--external:{ex}")
-    |> args.Add
+    externals |> Seq.map (fun ex -> $"--external:{ex}") |> args.Add
 
   let addIsBundle (isBundle: bool option) (args: Builders.ArgumentsBuilder) =
     let isBundle = defaultArg isBundle true
 
-    if isBundle then
-      args.Add("--bundle")
-    else
-      args
+    if isBundle then args.Add("--bundle") else args
 
   let addMinify (minify: bool option) (args: Builders.ArgumentsBuilder) =
     let minify = defaultArg minify true
 
-    if minify then
-      args.Add("--minify")
-    else
-      args
+    if minify then args.Add("--minify") else args
 
   let addFormat (format: string option) (args: Builders.ArgumentsBuilder) =
     let format = defaultArg format "esm"
     args.Add $"--format={format}"
 
   let addTarget (target: string option) (args: Builders.ArgumentsBuilder) =
-    let target = defaultArg target "es2015"
+    let target = defaultArg target Constants.Esbuild_Target
 
     args.Add $"--target={target}"
 
@@ -79,8 +71,7 @@ module Esbuild =
     let loaders = loaders |> Map.toSeq
 
     for (extension, loader) in loaders do
-      args.Add $"--loader:{extension}={loader}"
-      |> ignore
+      args.Add $"--loader:{extension}={loader}" |> ignore
 
     args
 
@@ -106,9 +97,7 @@ module Esbuild =
     =
     let injects = defaultArg injects Seq.empty
 
-    injects
-    |> Seq.map (fun inject -> $"--inject:{inject}")
-    |> args.Add
+    injects |> Seq.map (fun inject -> $"--inject:{inject}") |> args.Add
 
   let addTsconfigRaw
     (tsconfig: string option)
@@ -137,8 +126,7 @@ module Esbuild =
     let url =
       $"https://registry.npmjs.org/{binString}/-/{binString}-{esbuildVersion}.tgz"
 
-    Directory.CreateDirectory(Path.GetDirectoryName(tgzDownloadPath))
-    |> ignore
+    Directory.CreateDirectory(Path.GetDirectoryName(tgzDownloadPath)) |> ignore
 
     task {
       try
@@ -151,8 +139,7 @@ module Esbuild =
         do! stream.CopyToAsync file
         Logger.log $"Downloaded esbuild to: {file.Name}"
         return Some(file.Name)
-      with
-      | ex ->
+      with ex ->
         Logger.log ($"Failed to download esbuild from: {url}", ex)
         return None
     }
@@ -223,14 +210,12 @@ module Esbuild =
       Task.FromResult(())
 
   let private getDefaultLoders config =
-    config.fileLoaders
-    |> Option.defaultValue (BuildConfig.DefaultFileLoaders())
+    config.fileLoaders |> Option.defaultValue (BuildConfig.DefaultFileLoaders())
 
   let esbuildJsCmd (entryPoint: string) (config: BuildConfig) =
 
     let dirName =
-      (Path.GetDirectoryName entryPoint)
-        .Split(Path.DirectorySeparatorChar)
+      (Path.GetDirectoryName entryPoint).Split(Path.DirectorySeparatorChar)
       |> Seq.last
 
     let outDir =
@@ -332,11 +317,9 @@ module Esbuild =
 
             let injects = String.Join('\n', injects)
             $"{injects}\n{strout}"
-          with
-          | ex ->
+          with ex ->
             let injects =
-              injects
-              |> Seq.fold (fun current next -> $"{current};{next}") ""
+              injects |> Seq.fold (fun current next -> $"{current};{next}") ""
 
             Logger.serve ($"failed to add injects from file {injects}", ex)
             strout

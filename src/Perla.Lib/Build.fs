@@ -55,9 +55,7 @@ module Build =
       if virtualParts.IsEmpty then
         // The physical folder is mount on the root.
         Path.Combine(
-          [| yield! physicalParts
-             yield! entryParts
-             yield entryFileName |]
+          [| yield! physicalParts; yield! entryParts; yield entryFileName |]
         )
       else
         // Detect how many parts of the entry parts are matching with the virtual path
@@ -79,9 +77,7 @@ module Build =
         let inputParts = List.skip virtualMatches entryParts
 
         Path.Combine(
-          [| yield! physicalParts
-             yield! inputParts
-             yield entryFileName |]
+          [| yield! physicalParts; yield! inputParts; yield entryFileName |]
         )
 
     let mountDir =
@@ -266,9 +262,7 @@ module Build =
       match! Fs.getOrCreateLockFile (System.IO.Path.GetPerlaConfigPath()) with
       | Ok lock ->
         let excludes =
-          lock.imports
-          |> Map.toSeq
-          |> Seq.map (fun (key, _) -> key)
+          lock.imports |> Map.toSeq |> Seq.map (fun (key, _) -> key)
 
         return
           config.externals
@@ -308,6 +302,8 @@ module Build =
       | None -> Seq.empty
       | Some paths -> paths.includes |> Option.defaultValue Seq.empty
 
+    let emitEnvFile = defaultArg buildConfig.emitEnvFile false
+
     task {
       match config.fable with
       | Some fable ->
@@ -323,8 +319,8 @@ module Build =
 
       try
         Directory.Delete(outDir, true)
-      with
-      | ex -> ()
+      with ex ->
+        ()
 
       Directory.CreateDirectory(outDir) |> ignore
 
@@ -332,6 +328,18 @@ module Build =
       let jsFiles = getEntryPoints pwd ResourceType.JS config
       let cssFiles = getEntryPoints pwd ResourceType.CSS config
       let! excludes = getExcludes buildConfig
+
+      let excludes =
+        if emitEnvFile then
+          let envPath =
+            config.devServer
+            |> Option.map (fun c -> c.envPath)
+            |> Option.flatten
+            |> Option.defaultValue "/env.js"
+
+          excludes |> Seq.append (seq { envPath })
+        else
+          excludes
 
       let buildConfig = { buildConfig with externals = excludes |> Some }
 
@@ -367,10 +375,7 @@ module Build =
                  let ext =
                    let copy = copy.Replace('/', Path.DirectorySeparatorChar)
 
-                   if copy.StartsWith "." then
-                     copy.Substring(2)
-                   else
-                     copy
+                   if copy.StartsWith "." then copy.Substring(2) else copy
 
                  if path.Contains(ext) then
                    yield path, target |]
@@ -379,12 +384,9 @@ module Build =
         let excludedFiles =
           totalPaths
           |> Array.filter (fun ((path, _)) ->
-            copyExcludes
-            |> List.exists (fun ext -> path.Contains(ext))
-            |> not)
+            copyExcludes |> List.exists (fun ext -> path.Contains(ext)) |> not)
 
-        [| yield! excludedFiles
-           yield! includedFiles |]
+        [| yield! excludedFiles; yield! includedFiles |]
         |> Array.Parallel.iter (fun (origin, target) ->
           let target = Path.GetFullPath target
           let posPath = target.Replace(root, $"{outDir}")
@@ -398,25 +400,20 @@ module Build =
           Logger.log ($"{print} -> [green]{posPath}[/]", escape = false)
 
           try
-            Path.GetDirectoryName posPath
-            |> Directory.CreateDirectory
-            |> ignore
-          with
-          | _ -> ()
+            Path.GetDirectoryName posPath |> Directory.CreateDirectory |> ignore
+          with _ ->
+            ()
 
           File.Copy(origin, posPath))
 
       Logger.log $"Copying Files to out directory"
 
-      devServer.mountDirectories
-      |> Option.map getDirectories
-      |> ignore
+      devServer.mountDirectories |> Option.map getDirectories |> ignore
 
       let cssFiles =
         [ for jsFile in jsFiles do
             let name =
-              (Path.GetFileName jsFile.RelativePath)
-                .Replace(".js", ".css")
+              (Path.GetFileName jsFile.RelativePath).Replace(".js", ".css")
 
             let dirName =
               (Path.GetDirectoryName jsFile.RelativePath)
@@ -427,5 +424,35 @@ module Build =
 
       Logger.log "Adding CSS Files to index.html"
       do! insertMapAndCopy jsFiles cssFiles config
+
+      let envPath =
+        config.devServer
+        |> Option.map (fun c -> c.envPath)
+        |> Option.flatten
+        |> Option.defaultValue "/env.js"
+
+      let envPath = envPath.Substring(1)
+
+      if emitEnvFile then
+        Logger.log $"Generating perla env file "
+        let content = Fs.getPerlaEnvContent ()
+        let envPath = Path.Combine(outDir, envPath)
+
+        try
+          Directory.CreateDirectory(Path.GetDirectoryName(envPath)) |> ignore
+        with ex ->
+#if DEBUG
+          Logger.log (ex.Message, ex)
+#else
+          Logger.log "Couldn't create the directory for perla env file"
+#endif
+        try
+          File.WriteAllText(envPath, content)
+        with ex ->
+#if DEBUG
+          Logger.log (ex.Message, ex)
+#else
+          Logger.log "Couldn't create the perla env file"
+#endif
       Logger.log "Build finished."
     }

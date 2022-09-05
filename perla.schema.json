@@ -1,5 +1,5 @@
 ﻿{
-  "$schema": "http://json-schema.org/schema",
+  "$schema": "https://json-schema.org/schema",
   "title": "Perla",
   "description": "A Node'less dev server for frontend developers",
   "type": "object",
@@ -102,6 +102,21 @@
           "type": "boolean",
           "default": false
         },
+        "enableEnv": {
+          "description": "Enable providing environmental variables at dev time",
+          "type": "boolean",
+          "default": true
+        },
+        "envPath": {
+          "description": "Select the rooted url where to serve the env vars for perla e.g /my-api/env.js",
+          "type": "string",
+          "default": "/env.js",
+          "examples": [
+            "/env.js",
+            "/my-api/env.js",
+            "/api/env.js"
+          ]
+        },
         "liveReload": {
           "description": "Enable/Disable the live reload feature",
           "type": "boolean",
@@ -139,7 +154,7 @@
           "type": "string"
         },
         "esbuildVersion": {
-          "description": "A Sememantic versioning  *version* of an esbuild release, this must match a package in the npmjs registry",
+          "description": "A Semantic versioning  *version* of an esbuild release, this must match a package in the npm js registry",
           "type": "string",
           "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\\+([0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*))?$",
           "default": "0.12.28"
