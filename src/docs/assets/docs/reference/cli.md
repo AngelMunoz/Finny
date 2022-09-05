@@ -76,15 +76,15 @@
 
   Generates an entry in the import map.
 
-  - Package - `perla add -p react`, `perla add --package react`
+  - Package - `perla add react`, `perla add react`
 
     The name of the package to show information about.
 
-  - Alias - `perla add -p react@16 -a react-sixteen`, `perla add -p react@16 --alias react-sixteen`
+  - Alias - `perla add react@16 -a react-sixteen`, `perla add react@16 --alias react-sixteen`
 
     Specifier for this particular module.
 
-  - Source - `perla add -p react -s jspm`, `perla add -p react --source jspm`
+  - Source - `perla add react -s jspm`, `perla add react --source jspm`
 
     The name of the source you want to install a package from. e.g. unpkg or skypack. Available options:
 
@@ -95,7 +95,7 @@
 
   Removes an entry in the import map.
 
-  - Package - `perla remove -p react-sixteen`, `perla remvoe --package react-sixteen`
+  - Package - `perla remove react-sixteen`, `perla remove react-sixteen`
 
     The name of the package to remove from the import map this can also be aliased name.
 

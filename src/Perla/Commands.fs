@@ -92,7 +92,7 @@ type ShowArgs =
       | Package _ -> "The name of the package to show information about."
 
 type RemoveArgs =
-  | [<AltCommandLine("-p")>] Package of string
+  | [<MainCommand>] Package of string
 
   static member ToOptions
     (args: ParseResults<RemoveArgs>)
@@ -105,7 +105,7 @@ type RemoveArgs =
       | Package _ -> "Package name (or alias) to remove from the import map."
 
 type AddArgs =
-  | [<AltCommandLine("-p")>] Package of string
+  | [<MainCommand>] Package of string
   | [<AltCommandLine("-a")>] Alias of string option
   | [<AltCommandLine("-s")>] Source of Source option
 

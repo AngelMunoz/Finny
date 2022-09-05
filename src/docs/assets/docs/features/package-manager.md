@@ -18,22 +18,22 @@ Sometimes a package might now work in a particular source, you can simply choose
 
 Next to your `perla.jsonc` type and enter
 
-- `perla add -p <Package Name>`
+- `perla add <Package Name>`
 
 this will fetch the package from the default source, if you need a particular source for a particular package, just pass the `-s` or `--source` flag
 
-- `perla add -p <Package Name> -s jspm`
+- `perla add <Package Name> -s jspm`
 
 Perla will request to the corresponding API to provide the correct [import map] url and if the API supports it, we will also grab the corresponding _scopes_ for those sources.
 
-If you need a specific version of a package you can specify it `perla add -p <Package Name>@<Version>` e.g. `perla add -p lodash@3` or `perla add lodash@4.16.0` by default Perla will pick the latest available release.
+If you need a specific version of a package you can specify it `perla add <Package Name>@<Version>` e.g. `perla add lodash@3` or `perla add lodash@4.16.0` by default Perla will pick the latest available release.
 
 ### Aliased Packages
 
 You can also include multiple versions of the same package side by side using an `alias`
 
-- `perla add -p lodash@3 --alias lodash3`
-- `perla add -p lodash`
+- `perla add lodash@3 --alias lodash3`
+- `perla add lodash`
 
 and you will be able to do the following imports
 
@@ -48,7 +48,7 @@ the packages will still use their internal packages as usual but you will be abl
 
 To remove a package it is very similar
 
-- `perla remove -p <Package Name>`
+- `perla remove <Package Name>`
 
 If you required a particular version you will need to also pass the `@<Version>`.
 
