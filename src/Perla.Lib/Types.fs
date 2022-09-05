@@ -52,6 +52,7 @@ module Types =
   type PerlaScript =
     | LiveReload
     | Worker
+    | Env
 
   [<RequireQualifiedAccess>]
   type ReloadEvents =
@@ -84,12 +85,7 @@ module Types =
 
     static member Default() =
       { extensions =
-          [ "*.js"
-            "*.css"
-            "*.ts"
-            "*.tsx"
-            "*.jsx"
-            "*.json" ]
+          [ "*.js"; "*.css"; "*.ts"; "*.tsx"; "*.jsx"; "*.json" ]
           |> List.toSeq
           |> Some
         directories =
@@ -106,7 +102,9 @@ module Types =
       mountDirectories: Map<string, string> option
       watchConfig: WatchConfig option
       liveReload: bool option
-      useSSL: bool option }
+      useSSL: bool option
+      enableEnv: bool option
+      envPath: string option }
 
     static member DefaultConfig() =
       { autoStart = Some true
@@ -115,7 +113,9 @@ module Types =
         mountDirectories = Map.ofList ([ "./src", "/src" ]) |> Some
         watchConfig = WatchConfig.Default() |> Some
         liveReload = Some true
-        useSSL = Some false }
+        useSSL = Some false
+        enableEnv = Some true
+        envPath = Some "/env.js" }
 
   type CopyPaths =
     { includes: (string seq) option
@@ -134,7 +134,8 @@ module Types =
       jsxFragment: string option
       injects: (string seq) option
       externals: (string seq) option
-      fileLoaders: Map<string, string> option }
+      fileLoaders: Map<string, string> option
+      emitEnvFile: bool option }
 
     static member DefaultExcludes() =
       [ "index.html"
@@ -153,10 +154,7 @@ module Types =
         ".woff2" ]
 
     static member DefaultFileLoaders() =
-      [ ".png", "file"
-        ".woff", "file"
-        ".woff2", "file"
-        ".svg", "file" ]
+      [ ".png", "file"; ".woff", "file"; ".woff2", "file"; ".svg", "file" ]
       |> Map.ofList
 
     static member DefaultConfig() =
@@ -164,12 +162,9 @@ module Types =
         esbuildVersion = Some Constants.Esbuild_Version
         copyPaths =
           { includes = None
-            excludes =
-              BuildConfig.DefaultExcludes()
-              |> Seq.ofList
-              |> Some }
+            excludes = BuildConfig.DefaultExcludes() |> Seq.ofList |> Some }
           |> Some
-        target = Some "es2017"
+        target = Some Constants.Esbuild_Target
         outDir = None
         bundle = Some true
         format = Some "esm"
@@ -178,7 +173,8 @@ module Types =
         jsxFragment = None
         injects = None
         externals = None
-        fileLoaders = BuildConfig.DefaultFileLoaders() |> Some }
+        fileLoaders = BuildConfig.DefaultFileLoaders() |> Some
+        emitEnvFile = Some false }
 
   type PerlaConfig =
     { ``$schema``: string option

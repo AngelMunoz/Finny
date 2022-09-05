@@ -40,12 +40,7 @@ let main argv =
       match parsed.GetAllResults() with
       | [ Version ] ->
         let version =
-          System
-            .Reflection
-            .Assembly
-            .GetEntryAssembly()
-            .GetName()
-            .Version
+          System.Reflection.Assembly.GetEntryAssembly().GetName().Version
 
         printfn $"{version.Major}.{version.Minor}.{version.Build}"
         return! Ok 0
@@ -73,39 +68,26 @@ let main argv =
         | Some (Add subcmd) ->
           return! subcmd |> AddArgs.ToOptions |> Commands.runAdd
         | Some (Remove subcmd) ->
-          return!
-            subcmd
-            |> RemoveArgs.ToOptions
-            |> Commands.runRemove
+          return! subcmd |> RemoveArgs.ToOptions |> Commands.runRemove
         | Some (Search subcmd) ->
-          return!
-            subcmd
-            |> SearchArgs.ToOptions
-            |> Commands.runSearch
+          return! subcmd |> SearchArgs.ToOptions |> Commands.runSearch
         | Some (Show subcmd) ->
           return! subcmd |> ShowArgs.ToOptions |> Commands.runShow
         | Some (List subcmd) ->
           return! subcmd |> ListArgs.ToOptions |> Commands.runList
         | Some (New subcmd) ->
-          return!
-            subcmd
-            |> NewProjectArgs.ToOptions
-            |> Commands.runNew
+          return! subcmd |> NewProjectArgs.ToOptions |> Commands.runNew
         | Some (Add_Template subcmd) ->
           return!
-            subcmd
-            |> RepositoryArgs.ToOptions
-            |> Commands.runAddTemplate None
+            subcmd |> RepositoryArgs.ToOptions |> Commands.runAddTemplate None
         | Some (Update_Template subcmd) ->
           return!
-            subcmd
-            |> RepositoryArgs.ToOptions
-            |> Commands.runUpdateTemplate
+            subcmd |> RepositoryArgs.ToOptions |> Commands.runUpdateTemplate
         | err ->
           parsed.Raise("No Commands Specified", showUsage = true)
           return! CommandNotParsedException $"%A{err}" |> Error
-    with
-    | ex -> return! ex |> Error
+    with ex ->
+      return! ex |> Error
   }
   |> processExit
   |> Async.AwaitTask

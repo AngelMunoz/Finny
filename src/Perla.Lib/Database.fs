@@ -14,11 +14,9 @@ module Database =
   let clamRepos (database: ILiteDatabase) =
     let repo = database.GetCollection<PerlaTemplateRepository>()
 
-    repo.EnsureIndex(fun clamRepo -> clamRepo.fullName)
-    |> ignore
+    repo.EnsureIndex(fun clamRepo -> clamRepo.fullName) |> ignore
 
-    repo.EnsureIndex(fun clamRepo -> clamRepo.name)
-    |> ignore
+    repo.EnsureIndex(fun clamRepo -> clamRepo.name) |> ignore
 
     repo
 

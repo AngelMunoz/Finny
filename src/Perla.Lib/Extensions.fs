@@ -84,7 +84,7 @@ type HttpContextExtensions() =
   /// <param name="bytes">The byte array to be send back to the client.</param>
   /// <returns>Task of Some HttpContext after writing to the body of the response.</returns>
   [<Extension>]
-  static member WriteBytesAsync(ctx: HttpContext, bytes: byte []) =
+  static member WriteBytesAsync(ctx: HttpContext, bytes: byte[]) =
     task {
       ctx.SetHttpHeader(HeaderNames.ContentLength, bytes.Length)
 
@@ -117,7 +117,10 @@ type HttpContextExtensions() =
 
 module Constants =
   [<Literal>]
-  let Esbuild_Version = "0.14.38"
+  let Esbuild_Version = "0.15.17"
+
+  [<Literal>]
+  let Esbuild_Target = "es2020"
 
   [<Literal>]
   let Default_Templates_Repository = "AngelMunoz/perla-templates"
@@ -160,10 +163,7 @@ type Path with
       else
         match Path.GetDirectoryName currDir |> Option.ofObj with
         | Some parent ->
-          if parent <> currDir then
-            findConfigFile parent
-          else
-            None
+          if parent <> currDir then findConfigFile parent else None
         | None -> None
 
     let workDir = defaultArg directoryPath Environment.CurrentDirectory

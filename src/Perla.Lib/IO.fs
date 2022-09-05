@@ -1,6 +1,9 @@
 ﻿namespace Perla.Lib
 
+
 open System
+open System.Collections
+open System.Text
 open FsToolkit.ErrorHandling
 open Microsoft.Extensions.Logging
 open Perla.Lib
@@ -31,6 +34,18 @@ module Env =
     | Architecture.X64 -> "64"
     | Architecture.X86 -> "32"
     | _ -> failwith "Unsupported Architecture"
+
+  let getPerlaEnvVars () =
+    let env = Environment.GetEnvironmentVariables()
+    let prefix = "PERLA_"
+
+    [ for entry in env do
+        let entry = entry :?> DictionaryEntry
+        let key = entry.Key :?> string
+        let value = entry.Value :?> string
+
+        if key.StartsWith(prefix) then
+          (key.Replace(prefix, String.Empty), value) ]
 
 [<RequireQualifiedAccess>]
 module Json =
@@ -114,10 +129,7 @@ module Logger =
       let prefixes =
         let prefixes = defaultArg prefixes [ Log ]
 
-        if prefixes.Length = 0 then
-          [ Log ]
-        else
-          prefixes
+        if prefixes.Length = 0 then [ Log ] else prefixes
 
       let escape = defaultArg escape true
       let formatted = format prefixes message
@@ -139,14 +151,12 @@ module Logger =
 #if DEBUG
         AnsiConsole.WriteException(
           ex,
-          ExceptionFormats.ShortenEverything
-          ||| ExceptionFormats.ShowLinks
+          ExceptionFormats.ShortenEverything ||| ExceptionFormats.ShowLinks
         )
 #else
         AnsiConsole.WriteException(
           ex,
-          ExceptionFormats.ShortenPaths
-          ||| ExceptionFormats.ShowLinks
+          ExceptionFormats.ShortenPaths ||| ExceptionFormats.ShowLinks
         )
 #endif
       | None -> ()
@@ -213,7 +223,7 @@ module Logger =
       ) : Task<'Operation> =
       let status = AnsiConsole.Status()
       status.Spinner <- Spinner.Known.Dots
-      status.StartAsync(title, fun ctx -> operation ctx |> Async.StartAsTask)
+      status.StartAsync(title, (fun ctx -> operation ctx |> Async.StartAsTask))
 
   let getPerlaLogger () =
     { new ILogger with
@@ -256,19 +266,13 @@ module Http =
         let mutable importUrl = ""
 
         let info =
-          if
-            res.Headers.TryGetFirst("x-pinned-url", &pinnedUrl)
-            |> not
-          then
+          if res.Headers.TryGetFirst("x-pinned-url", &pinnedUrl) |> not then
             {| info with pin = None |}
           else
             {| info with pin = Some pinnedUrl |}
 
         let info =
-          if
-            res.Headers.TryGetFirst("x-import-url", &importUrl)
-            |> not
-          then
+          if res.Headers.TryGetFirst("x-import-url", &importUrl) |> not then
             {| info with import = None |}
           else
             {| info with import = Some importUrl |}
@@ -307,9 +311,7 @@ module Http =
 
       try
         let! res =
-          JSPM_API
-            .SetQueryParams(queryParams)
-            .GetJsonAsync<JspmResponse>()
+          JSPM_API.SetQueryParams(queryParams).GetJsonAsync<JspmResponse>()
 
         let scopes =
           // F# type serialization hits again!
@@ -320,12 +322,9 @@ module Http =
           | Some value -> value :?> Map<string, Scope>
 
         return
-          res.map.imports
-          |> Map.toList
-          |> List.map (fun (k, v) -> alias, v),
+          res.map.imports |> Map.toList |> List.map (fun (k, v) -> alias, v),
           scopes |> Map.toList
-      with
-      | :? Flurl.Http.FlurlHttpException as ex ->
+      with :? Flurl.Http.FlurlHttpException as ex ->
         match ex.StatusCode |> Option.ofNullable with
         | Some code when code >= 400 ->
           return! PackageNotFoundException |> Error
@@ -357,8 +356,7 @@ module Http =
   let showPackage name =
     taskResult {
       let! res =
-        $"{SKYPACK_API}/package/{name}"
-          .GetJsonAsync<SkypackPackageResponse>()
+        $"{SKYPACK_API}/package/{name}".GetJsonAsync<SkypackPackageResponse>()
 
       return
         { name = res.name
@@ -418,8 +416,7 @@ module Fs =
     |> Path.GetFullPath
 
   let getPerlaTemplateTarget projectName =
-    Path.Combine("./", projectName)
-    |> Path.GetFullPath
+    Path.Combine("./", projectName) |> Path.GetFullPath
 
   let removePerlaRepository (repository: PerlaTemplateRepository) =
     Directory.Delete(repository.path, true)
@@ -427,20 +424,17 @@ module Fs =
   let getPerlaTemplateScriptContent templatePath clamRepoPath =
     let readTemplateScript =
       try
-        File.ReadAllText(Path.Combine(templatePath, "templating.fsx"))
-        |> Some
-      with
-      | _ -> None
+        File.ReadAllText(Path.Combine(templatePath, "templating.fsx")) |> Some
+      with _ ->
+        None
 
     let readRepoScript () =
       try
-        File.ReadAllText(Path.Combine(clamRepoPath, "templating.fsx"))
-        |> Some
-      with
-      | _ -> None
+        File.ReadAllText(Path.Combine(clamRepoPath, "templating.fsx")) |> Some
+      with _ ->
+        None
 
-    readTemplateScript
-    |> Option.orElseWith (fun () -> readRepoScript ())
+    readTemplateScript |> Option.orElseWith (fun () -> readRepoScript ())
 
   let getPerlaRepositoryChildren (repo: PerlaTemplateRepository) =
     DirectoryInfo(repo.path).GetDirectories()
@@ -449,29 +443,29 @@ module Fs =
     try
       let bytes = File.ReadAllBytes filepath
       Json.FromBytes<PerlaConfig> bytes |> Ok
-    with
-    | ex -> ex |> Error
+    with ex ->
+      ex |> Error
 
   let getProxyConfig filepath =
     try
       let bytes = File.ReadAllBytes filepath
       Json.FromBytes<Map<string, string>> bytes |> Some
-    with
-    | ex -> None
+    with ex ->
+      None
 
   let ensureParentDirectory path =
     try
       Directory.CreateDirectory(path) |> ignore |> Ok
-    with
-    | ex -> ex |> Error
+    with ex ->
+      ex |> Error
 
   let createPerlaConfig path config =
     let serialized = Json.ToBytes config
 
     try
       File.WriteAllBytes(path, serialized) |> Ok
-    with
-    | ex -> Error ex
+    with ex ->
+      Error ex
 
   let getOrCreateLockFile configPath =
     taskResult {
@@ -497,9 +491,17 @@ module Fs =
 
     try
       File.WriteAllBytes(path, serialized) |> Ok
-    with
-    | ex -> Error ex
+    with ex ->
+      Error ex
 
+  let getPerlaEnvContent () =
+    let env = Env.getPerlaEnvVars ()
+    let sb = StringBuilder()
+
+    for key, value in env do
+      sb.Append($"""export const {key} = "{value}";""") |> ignore
+
+    sb.ToString()
 
 
   let getOrCreateImportMap path =
@@ -527,12 +529,11 @@ module Fs =
       try
         let path = Path.GetFullPath(path)
 
-        Directory.CreateDirectory(Path.GetDirectoryName(path))
-        |> ignore
+        Directory.CreateDirectory(Path.GetDirectoryName(path)) |> ignore
 
         File.WriteAllBytes(path, bytes)
-      with
-      | ex -> return! ex |> Error
+      with ex ->
+        return! ex |> Error
     }
 
   let CompileErrWatcherEvent = lazy (Event<string>())
@@ -548,9 +549,7 @@ module Fs =
       new FileSystemWatcher(Path.GetPerlaConfigPath() |> Path.GetDirectoryName)
 
     fsw.NotifyFilter <-
-      NotifyFilters.FileName
-      ||| NotifyFilters.Size
-      ||| NotifyFilters.LastWrite
+      NotifyFilters.FileName ||| NotifyFilters.Size ||| NotifyFilters.LastWrite
 
     fsw.Filters.Add Constants.PerlaConfigName
     fsw.IncludeSubdirectories <- false
@@ -569,12 +568,7 @@ module Fs =
           let filters =
             defaultArg
               config.extensions
-              [ "*.js"
-                "*.css"
-                "*.ts"
-                "*.tsx"
-                "*.jsx"
-                "*.json" ]
+              [ "*.js"; "*.css"; "*.ts"; "*.tsx"; "*.jsx"; "*.json" ]
 
           for filter in filters do
             fsw.Filters.Add(filter)
@@ -641,8 +635,7 @@ module Fs =
 
     { new IFileWatcher with
         override _.Dispose() : unit =
-          watchers
-          |> Seq.iter (fun watcher -> watcher.Dispose())
+          watchers |> Seq.iter (fun watcher -> watcher.Dispose())
 
         override _.FileChanged: IObservable<FileChangedEvent> =
           Observable.mergeSeq subs }
@@ -660,8 +653,8 @@ module Fs =
         | LoaderType.Tsx ->
           let! content = File.ReadAllTextAsync($"{file}.tsx")
           return (content, LoaderType.Tsx)
-      with
-      | ex -> return! ex |> Error
+      with ex ->
+        return! ex |> Error
     }
 
   let tryReadFile (filepath: string) =
@@ -680,5 +673,5 @@ module Fs =
   let tryGetTsconfigFile () =
     try
       File.ReadAllText("./tsconfig.json") |> Some
-    with
-    | _ -> None
+    with _ ->
+      None

@@ -21,6 +21,7 @@ open Microsoft.Extensions.Logging
 open Microsoft.Extensions.FileProviders
 open Microsoft.AspNetCore.StaticFiles
 
+open Perla.Lib.Types
 open Yarp.ReverseProxy
 open Yarp.ReverseProxy.Forwarder
 
@@ -141,7 +142,7 @@ module private Middleware =
       option {
         let dirname = Path.GetDirectoryName path
         let emptyValue = v = String.Empty
-        let rootDir = dirname = @"\" ||  dirname = "/"
+        let rootDir = dirname = @"\" || dirname = "/"
 
         if emptyValue && rootDir then
           return (k, v)
@@ -152,8 +153,9 @@ module private Middleware =
       })
 
   let transformPredicate (extensions: string list) (ctx: HttpContext) =
-    extensions
-    |> List.exists ctx.Request.Path.Value.Contains
+    extensions |> List.exists ctx.Request.Path.Value.Contains
+    && not (ctx.Request.Path.Value.Contains("~perla~"))
+    && ctx.Request.Path.Value <> "/env.js"
 
   let private cssImport
     (mountedDirs: Map<string, string>)
@@ -259,10 +261,7 @@ document.head.appendChild(style)"""
     task {
       let logger = ctx.GetLogger("Perla Middleware")
 
-      if
-        ctx.Request.Path.Value.Contains("~perla~")
-        || ctx.Request.Path.Value.Contains(".js") |> not
-      then
+      if not (ctx.Request.Path.Value.Contains(".js")) then
         return! next.Invoke()
       else
         let path = ctx.Request.Path.Value
@@ -289,8 +288,7 @@ document.head.appendChild(style)"""
 
             use content = File.OpenRead(filePath)
             do! content.CopyToAsync ctx.Response.Body
-          with
-          | _ ->
+          with _ ->
             let! fileData = Esbuild.tryCompileFile filePath buildConfig
 
             match fileData with
@@ -332,7 +330,7 @@ document.head.appendChild(style)"""
     task {
       let logger = ctx.GetLogger("Perla:")
 
-      let stream =
+      let stream: Stream =
         match script with
         | PerlaScript.LiveReload ->
           File.OpenRead(
@@ -340,6 +338,9 @@ document.head.appendChild(style)"""
           )
         | PerlaScript.Worker ->
           File.OpenRead(Path.Combine(Path.PerlaRootDirectory, "./worker.js"))
+        | PerlaScript.Env ->
+          let content = Fs.getPerlaEnvContent () |> Encoding.UTF8.GetBytes
+          new MemoryStream(content)
 
       logger.LogInformation($"Perla: Sending Script %A{script}")
       return Results.Stream(stream, "text/javascript")
@@ -366,7 +367,7 @@ document.head.appendChild(style)"""
       let onChangeSub =
         LiveReload.getLiveReloadHandler isFableEnabled watcher logger res
 
-      ctx.RequestAborted.Register (fun _ ->
+      ctx.RequestAborted.Register(fun _ ->
         watcher.Dispose()
         onChangeSub.Dispose()
         onCompileErrSub.Dispose())
@@ -489,8 +490,7 @@ module Server =
       let logger =
         app
         |> ValueOption.map (fun app ->
-          app.Services.GetService<ILogger>()
-          |> ValueOption.ofObj)
+          app.Services.GetService<ILogger>() |> ValueOption.ofObj)
         |> ValueOption.flatten
         |> ValueOption.defaultValue (Logger.getPerlaLogger ())
 
@@ -500,8 +500,7 @@ module Server =
             let! app = app
 
             let! server =
-              app.Services.GetService<IServer>()
-              |> ValueOption.ofObj
+              app.Services.GetService<IServer>() |> ValueOption.ofObj
 
             let! serverAddresses =
               server.Features.Get<IServerAddressesFeature>()
@@ -522,7 +521,7 @@ module Server =
       (fableCmd (Some true) (defaultArg config (FableConfig.DefaultConfig())))
         .WithValidation(CommandResultValidation.None)
         .WithStandardOutputPipe(
-          PipeTarget.ToDelegate (fun value ->
+          PipeTarget.ToDelegate(fun value ->
             if value.ToLowerInvariant().Contains("watching") then
               logger.LogInformation value
               logAddresses ()
@@ -546,6 +545,8 @@ module Server =
     let customPort = defaultArg serverConfig.port 7331
     let useSSL = defaultArg serverConfig.useSSL false
     let liveReload = defaultArg serverConfig.liveReload true
+    let enableEnv = defaultArg serverConfig.enableEnv true
+    let envPath = defaultArg serverConfig.envPath "/env.js"
 
     let mountedDirs = defaultArg serverConfig.mountDirectories Map.empty
 
@@ -618,13 +619,7 @@ module Server =
     app.UseSpaFallback() |> ignore
 
     let ignoreStatic =
-      [ ".js"
-        ".css"
-        ".module.css"
-        ".ts"
-        ".tsx"
-        ".jsx"
-        ".json" ]
+      [ ".js"; ".css"; ".module.css"; ".ts"; ".tsx"; ".jsx"; ".json" ]
 
     for map in mountedDirs do
       let staticFileOptions =
@@ -650,6 +645,13 @@ module Server =
       Middleware.configureTransformMiddleware config
     )
     |> ignore
+
+    if enableEnv then
+      app.MapGet(
+        envPath,
+        Func<HttpContext, Task<IResult>>(Middleware.sendScript PerlaScript.Env)
+      )
+      |> ignore
 
     match getProxyConfig with
     | Some proxyConfig ->
@@ -746,8 +748,8 @@ module Server =
         task {
           try
             stopFable ()
-          with
-          | ex -> Logger.serve ("Failed to stop fable", ex)
+          with ex ->
+            Logger.serve ("Failed to stop fable", ex)
 
           do! stopServer ()
           exit 0

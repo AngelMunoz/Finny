@@ -1,17 +1,17 @@
-﻿{
+{
   "version": 1,
   "isRoot": true,
   "tools": {
-    "fable": {
-      "version": "3.7.9",
-      "commands": [
-        "fable"
-      ]
-    },
-    "fantomas-tool": {
-      "version": "4.7.6",
+    "fantomas": {
+      "version": "5.0.0-beta-009",
       "commands": [
         "fantomas"
+      ]
+    },
+    "fable": {
+      "version": "3.7.18",
+      "commands": [
+        "fable"
       ]
     }
   }

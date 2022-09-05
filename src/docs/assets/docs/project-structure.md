@@ -1,4 +1,4 @@
-[perla samples]: https://github.com/AngelMunoz/perla-samples
+[perla samples]: https://github.com/AngelMunoz/perla-templates
 
 # Project Structure
 

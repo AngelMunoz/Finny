@@ -26,7 +26,7 @@ src/
     Main.fs
 ```
 
-You can start of with the `Sutil` or `Feliz` Templates from `https://github.com/angelMunoz/perla-samples` or start from scratch, while _scaffolding_ is part of the project goals, it is not implemented yet in the mean time you need to type some commands if you want to go from scratch
+You can start of with the `Sutil` or `Feliz` Templates from `https://github.com/angelMunoz/perla-templates` or start from scratch, while _scaffolding_ is part of the project goals, it is not implemented yet in the mean time you need to type some commands if you want to go from scratch
 
 ```text
 mkdir project

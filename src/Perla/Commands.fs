@@ -35,6 +35,7 @@ type BuildArgs =
   | [<AltCommandLine("-i")>] Index_File of string option
   | [<AltCommandLine("-ev")>] Esbuild_Version of string option
   | [<AltCommandLine("-o")>] Out_Dir of string option
+
   interface IArgParserTemplate with
     member this.Usage =
       match this with
@@ -143,9 +144,7 @@ type RepositoryArgs =
     (args: ParseResults<RepositoryArgs>)
     : RepositoryOptions =
     { fullRepositoryName = args.GetResult(Repository_Name)
-      branch =
-        args.GetResult(Branch)
-        |> Option.defaultValue "main" }
+      branch = args.GetResult(Branch) |> Option.defaultValue "main" }
 
   interface IArgParserTemplate with
     member s.Usage =
@@ -256,9 +255,7 @@ module Commands =
 
     { config with
         devServer =
-          serverargs
-          |> List.fold foldServerOpts devServerConfig
-          |> Some }
+          serverargs |> List.fold foldServerOpts devServerConfig |> Some }
 
   let getBuildOptions (serverargs: BuildArgs list) =
     let config =
@@ -281,10 +278,7 @@ module Commands =
       | _ -> build
 
     { config with
-        build =
-          serverargs
-          |> List.fold foldBuildOptions buildConfig
-          |> Some }
+        build = serverargs |> List.fold foldBuildOptions buildConfig |> Some }
 
   let startBuild (configuration: PerlaConfig) = execBuild configuration
 
@@ -331,18 +325,16 @@ module Commands =
 
   let private getRepositoryName (fullRepoName: string) =
     match
-      fullRepoName.Split("/")
-      |> Array.filter (String.IsNullOrWhiteSpace >> not)
-      with
+      fullRepoName.Split("/") |> Array.filter (String.IsNullOrWhiteSpace >> not)
+    with
     | [| _; repoName |] -> Ok repoName
     | [| _ |] -> Error MissingRepoName
     | _ -> Error WrongGithubFormat
 
   let private getTemplateAndChild (templateName: string) =
     match
-      templateName.Split("/")
-      |> Array.filter (String.IsNullOrWhiteSpace >> not)
-      with
+      templateName.Split("/") |> Array.filter (String.IsNullOrWhiteSpace >> not)
+    with
     | [| user; template; child |] -> Some user, template, Some child
     | [| template; child |] -> None, template, Some child
     | [| template |] -> None, template, None
@@ -399,11 +391,7 @@ module Commands =
   let runAddTemplate (autoContinue: bool option) (opts: RepositoryOptions) =
     taskResult {
       match getRepositoryName opts.fullRepositoryName with
-      | Error err ->
-        return!
-          err.AsString
-          |> FailedToParseNameException
-          |> Error
+      | Error err -> return! err.AsString |> FailedToParseNameException |> Error
       | Ok simpleName ->
         if Database.existsByFullName opts.fullRepositoryName then
           match autoContinue with
@@ -414,9 +402,7 @@ module Commands =
                 let repo = { repo with branch = opts.branch }
 
                 let! repo =
-                  repo
-                  |> Scaffolding.downloadRepo
-                  |> Scaffolding.unzipAndClean
+                  repo |> Scaffolding.downloadRepo |> Scaffolding.unzipAndClean
 
                 return! Database.updateEntry (Some repo)
               }
@@ -429,9 +415,7 @@ module Commands =
               return 0
             | _ -> return 0
           | _ ->
-            let prompt =
-              SelectionPrompt<string>()
-                .AddChoices([ "Yes"; "No" ])
+            let prompt = SelectionPrompt<string>().AddChoices([ "Yes"; "No" ])
 
             prompt.Title <-
               $"\"{opts.fullRepositoryName}\" already exists, Do you want to update it?"
@@ -526,9 +510,7 @@ module Commands =
           match options.yes with
           | Some true -> true
           | _ ->
-            let prompt =
-              SelectionPrompt<string>()
-                .AddChoices([ "Yes"; "No" ])
+            let prompt = SelectionPrompt<string>().AddChoices([ "Yes"; "No" ])
 
             prompt.Title <- $"Can we Start?"
 
@@ -560,7 +542,7 @@ module Commands =
             Logger.log "Feel free to create a new perla project"
 
             Logger.log (
-              "[bold yellow]perla[/] [bold blue]new -t[/] [bold green]perla-samples/<TEMPLATE_NAME>[/] [bold blue]-n <PROJECT_NAME>[/]",
+              "[bold yellow]perla[/] [bold blue]new -t[/] [bold green]perla-templates/<TEMPLATE_NAME>[/] [bold blue]-n <PROJECT_NAME>[/]",
               escape = false
             )
 
@@ -627,9 +609,7 @@ module Commands =
           Http.searchPackage package options.page
         )
 
-      results.results
-      |> Seq.truncate 5
-      |> printSearchTable
+      results.results |> Seq.truncate 5 |> printSearchTable
 
       Logger.log (
         $"[bold green]Found[/]: {results.meta.totalCount}",
@@ -679,9 +659,7 @@ module Commands =
         "[green]No[/]"
 
     let sep =
-      Rule($"[bold green]{package.name}[/]")
-        .Centered()
-        .RuleStyle("bold green")
+      Rule($"[bold green]{package.name}[/]").Centered().RuleStyle("bold green")
 
     AnsiConsole.Write sep
 
@@ -765,16 +743,14 @@ module Commands =
       let! lockFile = Fs.getOrCreateLockFile (Path.GetPerlaConfigPath())
 
       let deps =
-        fdsConfig.packages
-        |> Option.map (fun map -> map |> Map.remove name)
+        fdsConfig.packages |> Option.map (fun map -> map |> Map.remove name)
 
       let opts = { fdsConfig with packages = deps }
 
       let imports = lockFile.imports |> Map.remove name
 
       let scopes =
-        lockFile.scopes
-        |> Map.map (fun _ value -> value |> Map.remove name)
+        lockFile.scopes |> Map.map (fun _ value -> value |> Map.remove name)
 
       Logger.log ("Updating importmap...")
       Logger.log ($"Writing scopes: %A{scopes}")
@@ -865,9 +841,7 @@ module Commands =
           let repo = { repo with branch = opts.branch }
 
           let! repo =
-            repo
-            |> Scaffolding.downloadRepo
-            |> Scaffolding.unzipAndClean
+            repo |> Scaffolding.downloadRepo |> Scaffolding.unzipAndClean
 
           return! Database.updateEntry (Some repo)
         }
@@ -933,8 +907,7 @@ module Commands =
                  match acc |> Map.tryFind key with
                  | Some found ->
                    let newValue =
-                     (found |> Map.toList) @ (value |> Map.toList)
-                     |> Map.ofList
+                     (found |> Map.toList) @ (value |> Map.toList) |> Map.ofList
 
                    acc |> Map.add key newValue
                  | None -> acc |> Map.add key value)
@@ -962,9 +935,7 @@ module Commands =
       if lockFile.imports |> Map.isEmpty |> not then
         return! exn "Import map already exists" |> Error
 
-      let packages =
-        fdsConfig.packages
-        |> Option.defaultValue Map.empty
+      let packages = fdsConfig.packages |> Option.defaultValue Map.empty
 
       let addRuns =
         packages
@@ -984,9 +955,7 @@ module Commands =
 
       Logger.log "Regenerating import map..."
 
-      do!
-        List.sequenceTaskResultM addRuns
-        |> TaskResult.ignore
+      do! List.sequenceTaskResultM addRuns |> TaskResult.ignore
 
       return 0
     }
@@ -1006,9 +975,7 @@ module Commands =
       | Some (Build _)
       | Some (Serve _)
       | Some (Init _) ->
-        return!
-          exn "This command is not supported in interactive mode"
-          |> Error
+        return! exn "This command is not supported in interactive mode" |> Error
       | Some (Add subcmd) ->
         return!
           subcmd
@@ -1075,7 +1042,7 @@ module Commands =
     |> Async.AwaitTask
     |> Async.StartImmediate
 
-    Console.CancelKeyPress.Add (fun _ ->
+    Console.CancelKeyPress.Add(fun _ ->
       Logger.log "Got it, see you around!..."
       onStdinAsync "exit" |> Async.RunSynchronously
       exit 0)
@@ -1090,8 +1057,11 @@ module Commands =
     |> Observable.add (fun _ -> Logger.log "perla.jsonc Changed, Restarting")
 
     asyncSeq {
-      if autoStartServer then "start"
-      if autoStartFable then "start:fable"
+      if autoStartServer then
+        "start"
+
+      if autoStartFable then
+        "start:fable"
 
       while true do
         let! value = Console.In.ReadLineAsync() |> Async.AwaitTask

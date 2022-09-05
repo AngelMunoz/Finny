@@ -14,8 +14,8 @@ module Fable =
       let activeProcess = System.Diagnostics.Process.GetProcessById pid
 
       activeProcess.Kill()
-    with
-    | ex -> Logger.log ($"Failed to kill process with PID: [{pid}]", ex)
+    with ex ->
+      Logger.log ($"Failed to kill process with PID: [{pid}]", ex)
 
   let private addProject
     (project: string option)
@@ -49,11 +49,7 @@ module Fable =
   let fableCmd (isWatch: bool option) =
 
     fun (config: FableConfig) ->
-      let execBinName =
-        if Env.isWindows then
-          "dotnet.exe"
-        else
-          "dotnet"
+      let execBinName = if Env.isWindows then "dotnet.exe" else "dotnet"
 
       Cli
         .Wrap(execBinName)

@@ -34,10 +34,7 @@ let runtimes =
        "win10-arm64" |]
 
 let fsharpSourceFiles =
-    !! "src/**/*.fs"
-    ++ "src/**/*.fsi"
-    ++ "src/**/*.fsx"
-    ++ "build.fsx"
+    !! "src/**/*.fs" ++ "src/**/*.fsi" ++ "src/**/*.fsx" ++ "build.fsx"
     -- "**/obj/**/*.fs"
     -- "**/fable_modules/**/*.fs"
 
@@ -108,10 +105,6 @@ Target.create "SimpleBuild" (fun _ ->
                 Framework = Some "net6.0" })
         "src/Perla/Perla.fsproj")
 
-"Clean"
-==> "CheckFormat"
-==> "BuildBinaries"
-==> "PackNugets"
-==> "Default"
+"Clean" ==> "CheckFormat" ==> "BuildBinaries" ==> "PackNugets" ==> "Default"
 
 Target.runOrDefault "Default"

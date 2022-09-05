@@ -18,7 +18,8 @@
         "./src/translations.json"
       ]
     },
-    "minify": false
+    "minify": false,
+    "emitEnvFile": true
   },
   "packages": {
     "fsharp-components": "https://cdn.skypack.dev/pin/fsharp-components@v0.0.4-vrcdq1fAiAHCYER7N99I/mode=imports/optimized/fsharp-components.js",
