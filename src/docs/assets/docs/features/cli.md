@@ -36,7 +36,7 @@ In your [perla.jsonc] look for the `build` object to configure it.
 
 > Please check [Package Manager] for a more complete reference.
 
-You have a project now, what about dependencies? what if you want to use something like `lodash` or `monent`? Then simply type `perla add -p moment` or `perla add -p lodash -s jspm` if you want a different source for your packages.
+You have a project now, what about dependencies? what if you want to use something like `lodash` or `monent`? Then simply type `perla add moment` or `perla add lodash -s jspm` if you want a different source for your packages.
 
 If you're not sure what the correct name for your dependency is then try searching for it `perla search -n lodash-es`, if you think that might be the correct package then you can see more details about it `perla show -p lodash-es`
 
