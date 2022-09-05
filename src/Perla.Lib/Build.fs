@@ -179,11 +179,7 @@ module Build =
     doc.Body.QuerySelectorAll("[data-entry-point][type=module]")
     |> Seq.iter (fun el ->
       match el.GetAttribute("src") |> Option.ofObj with
-      | Some src ->
-        el.SetAttribute(
-          "src",
-          Path.ChangeExtension(src, ".js")
-        )
+      | Some src -> el.SetAttribute("src", Path.ChangeExtension(src, ".js"))
       | None -> ())
 
     task {
