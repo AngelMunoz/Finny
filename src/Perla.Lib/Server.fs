@@ -260,8 +260,9 @@ document.head.appendChild(style)"""
     =
     task {
       let logger = ctx.GetLogger("Perla Middleware")
-
-      if not (ctx.Request.Path.Value.Contains(".js")) then
+      let isJs = ctx.Request.Path.Value.Contains(".js")
+      let isTs = ctx.Request.Path.Value.Contains(".ts")
+      if not (isJs || isTs) then
         return! next.Invoke()
       else
         let path = ctx.Request.Path.Value
