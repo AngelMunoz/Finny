@@ -21,8 +21,11 @@
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
         <WarnOn>3390;$(WarnOn)</WarnOn>
     </PropertyGroup>
+        <ItemGroup>
+        <None Include="$(MSBuildThisFileDirectory)\..\LICENSE" Pack="true" Visible="false" PackagePath=""/>
+        <None Include="$(MSBuildThisFileDirectory)\..\README.md" Pack="true" Visible="false" PackagePath=""/>
+    </ItemGroup>
     <ItemGroup>
-        <None Include="$(MSBuildThisFileDirectory)\LICENSE" Pack="true" PackagePath="LICENSE" />
-        <None Include="$(MSBuildThisFileDirectory)\README.md" Pack="true" PackagePath="README.md" />
+        <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.0.0" PrivateAssets="All" />
     </ItemGroup>
 </Project>
