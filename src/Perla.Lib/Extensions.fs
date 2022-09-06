@@ -117,7 +117,7 @@ type HttpContextExtensions() =
 
 module Constants =
   [<Literal>]
-  let Esbuild_Version = "0.15.17"
+  let Esbuild_Version = "0.15.7"
 
   [<Literal>]
   let Esbuild_Target = "es2020"
