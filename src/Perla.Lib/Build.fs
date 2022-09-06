@@ -291,7 +291,7 @@ module Build =
       | None -> Seq.empty
       | Some paths -> paths.includes |> Option.defaultValue Seq.empty
 
-    let emitEnvFile = defaultArg buildConfig.emitEnvFile false
+    let emitEnvFile = defaultArg buildConfig.emitEnvFile true
 
     task {
       match config.fable with
@@ -422,9 +422,10 @@ module Build =
 
       let envPath = envPath.Substring(1)
 
-      if emitEnvFile then
+      match emitEnvFile, Fs.getPerlaEnvContent () with
+      | true, Some content ->
         Logger.log $"Generating perla env file "
-        let content = Fs.getPerlaEnvContent ()
+
         let envPath = Path.Combine(outDir, envPath)
 
         try
@@ -443,5 +444,8 @@ module Build =
 #else
           Logger.log "Couldn't create the perla env file"
 #endif
+      | false, _
+      | _, None -> ()
+
       Logger.log "Build finished."
     }

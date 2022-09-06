@@ -495,13 +495,20 @@ module Fs =
       Error ex
 
   let getPerlaEnvContent () =
-    let env = Env.getPerlaEnvVars ()
-    let sb = StringBuilder()
+    option {
+      let env = Env.getPerlaEnvVars ()
+      let sb = StringBuilder()
 
-    for key, value in env do
-      sb.Append($"""export const {key} = "{value}";""") |> ignore
+      for key, value in env do
+        sb.Append($"""export const {key} = "{value}";""") |> ignore
 
-    sb.ToString()
+      let content = sb.ToString()
+
+      if String.IsNullOrWhiteSpace content then
+        return! None
+      else
+        return content
+    }
 
 
   let getOrCreateImportMap path =
