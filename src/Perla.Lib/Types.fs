@@ -174,7 +174,7 @@ module Types =
         injects = None
         externals = None
         fileLoaders = BuildConfig.DefaultFileLoaders() |> Some
-        emitEnvFile = Some false }
+        emitEnvFile = Some true }
 
   type PerlaConfig =
     { ``$schema``: string option
