@@ -360,9 +360,11 @@ document.head.appendChild(style)"""
           logger.LogWarning(
             "An env file was requested but no env variables were found"
           )
+
           let message =
             """If you want to use env variables, remember to prefix them with 'PERLA_' e.g.
 'PERLA_myApiKey' or 'PERLA_CLIENT_SECRET', then you will be able to import them via the env file"""
+
           return Results.NotFound({| message = message |})
     }
 
