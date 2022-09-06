@@ -57,6 +57,6 @@ Minify the sources to reduce bundle size.
 
 ### Emit Env File (emitEnvFile)
 
-- **Default: false**
+- **Default: true**
 
-If you have added environment variables for development (see [development]]) you could also generate the same file at build in case you want to deploy right after you generated your production build. This setting is opt in rather than opt out because it could leave sensitive information behind if you don't clean CI, or even your deployment environment.
+If you have added environment variables for development (see [development]]) you could also generate the same file at build in case you want to deploy right after you generated your production build. This setting is opt out rather than opt in, if no `PERLA_` env vars are present then the file won't be emitted.

@@ -82,3 +82,5 @@ let clientToken = importMember "/env.js"
 ```
 
 at build time we don't emit anything for security reasons
+
+> **NOTE**: If you're using TS/JSX/TSX then you might want to enable `"preserveValueImports": true` in your tsconfig.json if for some reason the import is not working at dev time
