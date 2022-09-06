@@ -152,10 +152,14 @@ module private Middleware =
           return! None
       })
 
-  let transformPredicate (extensions: string list) (ctx: HttpContext) =
+  let transformPredicate
+    (extensions: string list)
+    (envPath: string)
+    (ctx: HttpContext)
+    =
     extensions |> List.exists ctx.Request.Path.Value.Contains
     && not (ctx.Request.Path.Value.Contains("~perla~"))
-    && ctx.Request.Path.Value <> "/env.js"
+    && ctx.Request.Path.Value <> envPath
 
   let private cssImport
     (mountedDirs: Map<string, string>)
@@ -332,20 +336,34 @@ document.head.appendChild(style)"""
     task {
       let logger = ctx.GetLogger("Perla:")
 
-      let stream: Stream =
-        match script with
-        | PerlaScript.LiveReload ->
-          File.OpenRead(
-            Path.Combine(Path.PerlaRootDirectory, "./livereload.js")
-          )
-        | PerlaScript.Worker ->
-          File.OpenRead(Path.Combine(Path.PerlaRootDirectory, "./worker.js"))
-        | PerlaScript.Env ->
-          let content = Fs.getPerlaEnvContent () |> Encoding.UTF8.GetBytes
-          new MemoryStream(content)
+      logger.LogInformation($"Sending Script %A{script}")
 
-      logger.LogInformation($"Perla: Sending Script %A{script}")
-      return Results.Stream(stream, "text/javascript")
+      let readFromDisk file =
+        File.OpenRead(Path.Combine(Path.PerlaRootDirectory, file))
+
+      match script with
+      | PerlaScript.LiveReload ->
+        return Results.Stream(readFromDisk "./livereload.js", "text/javascript")
+
+      | PerlaScript.Worker ->
+        return Results.Stream(readFromDisk "./worker.js", "text/javascript")
+
+      | PerlaScript.Env ->
+        match Fs.getPerlaEnvContent () with
+        | Some content ->
+          return
+            Results.Stream(
+              new MemoryStream(Encoding.UTF8.GetBytes content),
+              "text/javascript"
+            )
+        | None ->
+          logger.LogWarning(
+            "An env file was requested but no env variables were found"
+          )
+          let message =
+            """If you want to use env variables, remember to prefix them with 'PERLA_' e.g.
+'PERLA_myApiKey' or 'PERLA_CLIENT_SECRET', then you will be able to import them via the env file"""
+          return Results.NotFound({| message = message |})
     }
 
   let SseHandler (watchConfig: WatchConfig) isFableEnabled (ctx: HttpContext) =
@@ -643,7 +661,7 @@ module Server =
       app.UseStaticFiles staticFileOptions |> ignore
 
     app.UseWhen(
-      Middleware.transformPredicate ignoreStatic,
+      Middleware.transformPredicate ignoreStatic envPath,
       Middleware.configureTransformMiddleware config
     )
     |> ignore
