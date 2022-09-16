@@ -1,6 +1,6 @@
 ﻿#i "nuget: C:/Users/scyth/repos/Perla/src/nuget"
 #i "nuget: https://api.nuget.org/v3/index.json"
-#r "nuget: Newtonsoft.Json, 13.0.1"
+#r "nuget: Newtonsoft.Json, 12.0.3"
 #r "nuget: CalceTypes, 1.0.1"
 
 open System.IO

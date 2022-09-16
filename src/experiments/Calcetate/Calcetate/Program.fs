@@ -1,4 +1,5 @@
-﻿open System
+﻿open FSharp.Control.Reactive
+open System
 open Calcetate
 open CalceTypes
 open Calcetate.FileSystem
@@ -18,44 +19,63 @@ let pluginsDir = getPluginsDir perlaDir
 
 let plugins = loadPlugins pluginsDir
 
-let supportedExtensions = plugins |> List.map(fun p -> p.extension)
+let supportedExtensions = plugins |> List.map (fun p -> p.extension)
 
-let config = Fs.getPerlaConfig perlaConfigPath |> Result.valueOr(fun _ -> failwith "failed")
+let config =
+  Fs.getPerlaConfig perlaConfigPath
+  |> Result.valueOr (fun _ -> failwith "failed")
 
 mountDirectories perlaDir config
 
-let watcher = getMountedWatcher()
+let watcher = getMountedWatcher ()
 watcher.EnableRaisingEvents <- true
 
 let eventStream = watchEvents supportedExtensions watcher
+
 eventStream
-|> Observable.add(fun event ->
+|> Observable.add (fun event ->
   let file = event.path
   let ext = System.IO.Path.GetExtension file
-  let plugin = plugins |> List.find(fun p -> p.extension = ext)
+  let plugin = plugins |> List.find (fun p -> p.extension = ext)
 
-  let file = mounted.ConvertPathFromInternal event.path |> mounted.GetFileEntry
+  let file =
+    mounted.ConvertPathFromInternal event.path
+    |> mounted.GetFileEntry
+
   let content = file.ReadAllText()
-  match plugin.transform  with
-  | Some transform ->
-    let result = transform { content = content; path = event.path }
-    let output = mounted.ConvertPathFromInternal(event.path.Replace(ext, plugin.extension))
-    use file = mounted.OpenFile(output, System.IO.FileMode.OpenOrCreate, System.IO.FileAccess.ReadWrite, System.IO.FileShare.ReadWrite)
-    file.WriteAllText result.content
-  | None -> ()
-)
 
-backgroundTask {
-    Logger.log "Starting Task"
+  plugin.transform
+  |> Option.map (fun transform ->
+    try
+      let result = transform { content = content; path = event.path }
 
-    while true do
-        let! line = Console.In.ReadLineAsync()
-        printfn "Got %s" line
+      let output =
+        mounted.ConvertPathFromInternal(
+          event.path.Replace(ext, plugin.extension)
+        )
 
-        if line = "q" then
-            printfn "good bye!"
-            exit (0)
+      use file =
+        mounted.OpenFile(
+          output,
+          System.IO.FileMode.OpenOrCreate,
+          System.IO.FileAccess.ReadWrite,
+          System.IO.FileShare.ReadWrite
+        )
+
+      file.WriteAllText result.content
+    with
+    | ex -> eprintfn "%O" ex)
+  |> ignore)
+
+async {
+  Logger.log "Starting Task"
+
+  while true do
+    let! line = Console.In.ReadLineAsync() |> Async.AwaitTask
+    printfn "Got %s" line
+
+    if line = "q" then
+      printfn "good bye!"
+      exit (0)
 }
-|> Async.AwaitTask
 |> Async.RunSynchronously
-
