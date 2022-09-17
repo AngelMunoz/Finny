@@ -51,7 +51,7 @@ eventStream
 
       let output =
         mounted.ConvertPathFromInternal(
-          event.path.Replace(ext, plugin.extension)
+          System.IO.Path.ChangeExtension(event.path, ".json")
         )
 
       use file =
