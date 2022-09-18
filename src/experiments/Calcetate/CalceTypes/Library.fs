@@ -3,33 +3,61 @@
 open System
 open System.Threading.Tasks
 
-type OnLoadArgs =
-    { url: Uri
-      source: string
-      loader: string }
+type PluginApi =
+  | Stable
+  | Next
 
-type ResolveArgs =
-  { filepath: string; }
+type PluginError =
+  | Load of string
+  | ShouldTransform of string
+  | Transform of string
+  | InjectImports of string
+
+type Runtime =
+  | Build
+  | DevServer
+
+type FileExtension =
+  | JS
+  | CSS
+  | HTML
+  | Custom of string
 
 type LoadArgs =
-  { filepath: string; }
+    { runtime: Runtime;
+      path: string;
+      filePaths: string array;
+      tryReadContent: string -> Result<string, string> }
 
 type LoadResult =
-  { content: string; extension: string }
+  { content: string; targetExtension: FileExtension }
+
+type OnLoad = LoadArgs -> Result<LoadArgs, PluginError>
+
+type ShouldTransformArgs =
+  { runtime: Runtime;
+    extension: FileExtension
+    content: string; }
+
+type OnShouldTransform = ShouldTransformArgs -> Result<bool, PluginError>
 
 type TransformArgs =
-  { content: string; path: string }
+  { runtime: Runtime; content: string; currentExtension: FileExtension }
 
 type TransformResult =
-  { content: string; }
+  { content: string; targetExtension: FileExtension;  }
 
-type OnResolveCallback = ResolveArgs -> bool
-type OnLoadCallback = LoadArgs -> LoadResult
-type OnTransformCallback = TransformArgs -> TransformResult
+type OnTransform = TransformArgs -> Result<TransformResult, PluginError>
+
+type InjectImportsResult =
+  { imports: Map<string, string>; scopes: Map<string, Map<string, string>> }
+
+type OnInjectImports = Runtime -> Result<InjectImportsResult, PluginError>
 
 type PluginInfo =
     { name: string
-      extension: string
-      resolve: OnResolveCallback option
-      load: OnLoadCallback option
-      transform: OnTransformCallback option }
+      pluginApi: PluginApi
+      load: OnLoad option
+      shouldTransform: OnShouldTransform option
+      transform: OnTransform option
+      injectImports: OnInjectImports option }
