@@ -3,41 +3,61 @@
 open System
 open System.Threading.Tasks
 
-type CurrentStage =
-  | Load
+type PluginApi =
+  | Stable
+  | Next
+
+type PluginError =
+  | Load of string
+  | ShouldTransform of string
+  | Transform of string
+  | InjectImports of string
+
+type Runtime =
   | Build
+  | DevServer
 
-type OnBuildArgs = { source: string; target: string }
-type OnBuildResult = { content: byte[]; extension: string }
-type OnBuildCallback = OnBuildArgs -> Task<OnBuildResult>
+type FileExtension =
+  | JS
+  | CSS
+  | HTML
+  | Custom of string
 
-type OnCopyArgs = { source: string; target: string }
-type OnCopyResult = { content: byte[]; extension: string }
-type OnCopyCallback = OnCopyArgs -> Task<OnCopyResult>
+type LoadArgs =
+    { runtime: Runtime;
+      path: string;
+      filePaths: string array;
+      tryReadContent: string -> Result<string, string> }
 
-type OnVirtualizeArgs = { stage: CurrentStage }
+type LoadResult =
+  { content: string; targetExtension: FileExtension }
 
-type OnVirtualizeResult =
-  { content: byte[]
-    extension: string
-    mimeType: string
-    url: string
-    path: string }
+type OnLoad = LoadArgs -> Result<LoadArgs, PluginError>
 
-type OnVirtualizeCallback = OnVirtualizeArgs -> Task<OnVirtualizeResult>
+type ShouldTransformArgs =
+  { runtime: Runtime;
+    extension: FileExtension
+    content: string; }
 
-type OnLoadArgs =
-  { url: Uri
-    source: string
-    loader: string }
+type OnShouldTransform = ShouldTransformArgs -> Result<bool, PluginError>
 
-type OnLoadResult = { content: byte[]; mimeType: string }
-type OnLoadCallback = OnLoadArgs -> Task<OnLoadResult>
+type TransformArgs =
+  { runtime: Runtime; content: string; currentExtension: FileExtension }
 
+type TransformResult =
+  { content: string; targetExtension: FileExtension;  }
+
+type OnTransform = TransformArgs -> Result<TransformResult, PluginError>
+
+type InjectImportsResult =
+  { imports: Map<string, string>; scopes: Map<string, Map<string, string>> }
+
+type OnInjectImports = Runtime -> Result<InjectImportsResult, PluginError>
 
 type PluginInfo =
-  { name: string
-    build: OnBuildCallback option
-    copy: OnCopyCallback option
-    virtualize: OnVirtualizeCallback option
-    load: OnLoadCallback option }
+    { name: string
+      pluginApi: PluginApi
+      load: OnLoad option
+      shouldTransform: OnShouldTransform option
+      transform: OnTransform option
+      injectImports: OnInjectImports option }
