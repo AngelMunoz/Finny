@@ -5,11 +5,11 @@ VisualStudioVersion = 17.0.31717.71
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{EBA7993D-AB8A-4F76-8E91-1903BFD523F1}"
 EndProject
-Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "Perla", "src\Perla\Perla.fsproj", "{37A5F6A7-5FA6-4839-8798-5034BD522202}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Perla", "src\Perla\Perla.fsproj", "{37A5F6A7-5FA6-4839-8798-5034BD522202}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "App", "App", "{40C29442-8C0A-40D9-9F93-BC04D17FC870}"
 EndProject
-Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "App", "src\App\src\App.fsproj", "{6A52D478-4F60-4189-9271-66D814C29DCC}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "App", "src\App\src\App.fsproj", "{6A52D478-4F60-4189-9271-66D814C29DCC}"
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Perla.Lib", "src\Perla.Lib\Perla.Lib.fsproj", "{5F0C5440-56DB-49D4-A9CF-51FB210FDEB4}"
 EndProject
@@ -18,10 +18,10 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		.editorconfig = .editorconfig
 		.gitignore = .gitignore
 		build.fsx = build.fsx
-		Directory.build.props = Directory.build.props
 		LICENSE = LICENSE
 		perla.schema.json = perla.schema.json
 		README.md = README.md
+		tools.fsx = tools.fsx
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "experiments", "experiments", "{6180FBFF-8364-4512-ABED-9E2302B71065}"
