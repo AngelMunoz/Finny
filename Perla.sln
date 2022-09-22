@@ -11,7 +11,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "App", "App", "{40C29442-8C0
 EndProject
 Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "App", "src\App\src\App.fsproj", "{6A52D478-4F60-4189-9271-66D814C29DCC}"
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Perla.Lib", "src\Perla.Lib\Perla.Lib.fsproj", "{5F0C5440-56DB-49D4-A9CF-51FB210FDEB4}"
+Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "Perla.Lib", "src\Perla.Lib\Perla.Lib.fsproj", "{5F0C5440-56DB-49D4-A9CF-51FB210FDEB4}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{E8DF567A-FA9E-4CCF-B117-E4D73572E92E}"
 	ProjectSection(SolutionItems) = preProject
@@ -26,17 +26,17 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "experiments", "experiments", "{6180FBFF-8364-4512-ABED-9E2302B71065}"
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Shellfish", "src\experiments\Shellfish\Shellfish.fsproj", "{8D521A50-E2B2-471A-B806-4EC8B89E3166}"
+Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "Shellfish", "src\experiments\Shellfish\Shellfish.fsproj", "{8D521A50-E2B2-471A-B806-4EC8B89E3166}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Calcetate", "Calcetate", "{A4C9BAA3-A123-486B-90D8-E0DB0C1DBCF5}"
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "CalceTypes", "src\experiments\Calcetate\CalceTypes\CalceTypes.fsproj", "{F4B434C5-5273-44C7-8D29-BA55647670F9}"
+Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "CalceTypes", "src\experiments\Calcetate\CalceTypes\CalceTypes.fsproj", "{F4B434C5-5273-44C7-8D29-BA55647670F9}"
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Calcetate", "src\experiments\Calcetate\Calcetate\Calcetate.fsproj", "{6D21A5EA-5E75-4175-8B6F-3D2F4334C30C}"
+Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "Calcetate", "src\experiments\Calcetate\Calcetate\Calcetate.fsproj", "{6D21A5EA-5E75-4175-8B6F-3D2F4334C30C}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Nacre", "Nacre", "{55AA27E9-7EB4-4E97-BF7E-718362EDF051}"
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Nacre", "src\experiments\Nacre\Nacre\Nacre.fsproj", "{2C5BC1B4-C2FA-4358-A3CA-DA42BEC0FCA2}"
+Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "Nacre", "src\experiments\Nacre\Nacre\Nacre.fsproj", "{2C5BC1B4-C2FA-4358-A3CA-DA42BEC0FCA2}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

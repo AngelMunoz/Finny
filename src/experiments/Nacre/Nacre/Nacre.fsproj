@@ -20,10 +20,10 @@
 
     <ItemGroup>
       <PackageReference Include="Argu" Version="6.1.1" />
-      <PackageReference Include="Giraffe" Version="5.0.0" />
-      <PackageReference Include="Microsoft.Playwright" Version="1.17.2" />
-      <PackageReference Include="scriban" Version="5.0.0" />
-      <PackageReference Include="Spectre.Console" Version="0.43.0" />
+      <PackageReference Include="Giraffe" Version="6.0.0" />
+      <PackageReference Include="Microsoft.Playwright" Version="1.25.0" />
+      <PackageReference Include="scriban" Version="5.5.0" />
+      <PackageReference Include="Spectre.Console" Version="0.45.0" />
     </ItemGroup>
 
 </Project>
