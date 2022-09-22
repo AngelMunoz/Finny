@@ -19,8 +19,6 @@ let pluginsDir = getPluginsDir perlaDir
 
 let plugins = loadPlugins pluginsDir
 
-let supportedExtensions = plugins |> List.map (fun p -> p.extension)
-
 let config =
   Fs.getPerlaConfig perlaConfigPath
   |> Result.valueOr (fun _ -> failwith "failed")
@@ -30,42 +28,78 @@ mountDirectories perlaDir config
 let watcher = getMountedWatcher ()
 watcher.EnableRaisingEvents <- true
 
-let eventStream = watchEvents supportedExtensions watcher
+let eventStream = watchEvents watcher
 
 eventStream
+|> Observable.filter(fun event -> event.ChangeType <> Fs.ChangeKind.Deleted)
 |> Observable.add (fun event ->
-  let file = event.path
-  let ext = System.IO.Path.GetExtension file
-  let plugin = plugins |> List.find (fun p -> p.extension = ext)
+  let ext = (System.IO.Path.GetExtension event.path).ToLowerInvariant()
 
   let file =
-    mounted.ConvertPathFromInternal event.path
-    |> mounted.GetFileEntry
-
-  let content = file.ReadAllText()
-
-  plugin.transform
-  |> Option.map (fun transform ->
     try
-      let result = transform { content = content; path = event.path }
+      mounted.ConvertPathFromInternal event.path |> mounted.GetFileEntry
+      |> Some
+    with ex ->
+      printfn "%s" ex.Message
+      None
 
-      let output =
-        mounted.ConvertPathFromInternal(
-          System.IO.Path.ChangeExtension(event.path, ".json")
-        )
+  let content =
+    match file with
+    | Some file -> file.ReadAllText()
+    | None -> ""
 
-      use file =
-        mounted.OpenFile(
-          output,
-          System.IO.FileMode.OpenOrCreate,
-          System.IO.FileAccess.ReadWrite,
-          System.IO.FileShare.ReadWrite
-        )
+  let onShouldTransform (plugin: PluginInfo) =
+    match plugin.shouldTransform with
+    | Some shouldTransform ->
+      let result =
+        shouldTransform
+          { content = content
+            runtime = Runtime.DevServer
+            extension = FileExtension.FromString ext }
 
-      file.WriteAllText result.content
-    with
-    | ex -> eprintfn "%O" ex)
-  |> ignore)
+      match result with
+      | Ok value -> value
+      | Error err -> false
+    | None -> false
+
+  let onTransform (plugin: PluginInfo) =
+    match plugin.transform with
+    | Some transform ->
+      try
+        let result =
+          transform
+            { runtime = Runtime.DevServer
+              content = content
+              currentExtension = FileExtension.Custom ext }
+
+        match result with
+        | Ok result ->
+          let output =
+            mounted.ConvertPathFromInternal(
+              System.IO.Path.ChangeExtension(
+                event.path,
+                result.targetExtension.AsString
+              )
+            )
+
+          use file =
+            mounted.OpenFile(
+              output,
+              System.IO.FileMode.OpenOrCreate,
+              System.IO.FileAccess.ReadWrite,
+              System.IO.FileShare.ReadWrite
+            )
+
+          file.WriteAllText result.content
+        | Error err -> eprintfn "%A" err
+      with ex ->
+        eprintfn "%O" ex
+    | None -> printfn $"No plugins for '{ext}' files were found"
+
+  plugins
+  |> List.tryFind onShouldTransform
+  |> Option.map onTransform
+  |> Option.defaultValue ())
 
 async {
   Logger.log "Starting Task"
