@@ -1,30 +1,39 @@
-﻿#i "nuget: C:/Users/scyth/repos/Perla/src/nuget"
+﻿#i "nuget: C:/Users/scyth/repos/Perla/src/nupkg"
 #i "nuget: https://api.nuget.org/v3/index.json"
 #r "nuget: Newtonsoft.Json, 12.0.3"
-#r "nuget: CalceTypes, 1.0.1"
+#r "nuget: CalceTypes, 1.0.2"
 
-open System.IO
 open System.Xml
 open Newtonsoft.Json
 
-open type System.Text.Encoding
-
 open CalceTypes
 
-let onTransform: OnTransformCallback =
-    fun (args: TransformArgs) ->
+let shouldTransform: OnShouldTransform =
+    fun args ->
+        [ ".xml"; ".fsproj"; ".csproj" ]
+        |> List.contains args.extension.AsString 
+        |> Ok
+
+let transform: OnTransform =
+    fun args ->
         let doc = XmlDocument()
-        doc.LoadXml(args.content)
+        doc.LoadXml args.content
 
-        let content = JsonConvert.SerializeXmlNode doc |> UTF8.GetBytes
+        try
+            let content = JsonConvert.SerializeXmlNode(doc)
 
-        { content = content |> UTF8.GetString }
+            { content = content
+              targetExtension = FileExtension.Custom ".json" }
+            |> Ok
+        with ex ->
+            PluginError.Transform ex.Message |> Error
 
-let Plugin =
+let Plugin: PluginInfo =
     { name = "xml-to-json"
-      extension = ".fsproj"
-      resolve = None
+      pluginApi = PluginApi.Stable
       load = None
-      transform = Some onTransform }
+      shouldTransform = Some shouldTransform
+      transform = Some transform
+      injectImports = None }
 
 Plugin
