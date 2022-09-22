@@ -45,7 +45,6 @@ let getMountedWatcher () =
   watcher
 
 let watchEvents
-  (supportedExtensions: string list)
   (watcher: IFileSystemWatcher)
   : IObservable<Fs.FileChangedEvent> =
   let throttle = TimeSpan.FromMilliseconds(400.)
@@ -79,11 +78,6 @@ let watchEvents
     changed watcher.Deleted
     renamed watcher.Renamed ]
   |> Observable.mergeSeq
-  |> Observable.filter (fun event ->
-    let path = fs.ConvertPathFromInternal event.path
-
-    supportedExtensions
-    |> List.contains (path.GetExtensionWithDot()))
 
 
 let loadPlugins (fs: SubFileSystem) =
