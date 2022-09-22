@@ -23,6 +23,20 @@ type FileExtension =
   | HTML
   | Custom of string
 
+  member this.AsString =
+    match this with
+    | JS -> ".js"
+    | CSS -> ".css"
+    | HTML -> ".html"
+    | Custom ext -> ext
+
+  static member FromString ext =
+    match ext with
+    | ".js" -> JS
+    | ".css" -> CSS
+    | ".html" -> HTML
+    | other -> Custom other
+
 type LoadArgs =
     { runtime: Runtime;
       path: string;
