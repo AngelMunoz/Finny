@@ -1,4 +1,5 @@
-﻿open FSharp.Control.Reactive
+﻿open System.IO
+open FSharp.Control.Reactive
 open System
 open Calcetate
 open CalceTypes
@@ -12,8 +13,11 @@ open FSharp.Compiler.IO
 open Zio
 open Zio.FileSystems
 
-let perlaConfigPath = System.IO.Path.GetPerlaConfigPath()
-let perlaDir = System.IO.Path.GetDirectoryName perlaConfigPath
+let perlaConfigPath =
+  Path.GetPerlaConfigPath()
+
+let perlaDir =
+  Path.GetDirectoryName perlaConfigPath
 
 let pluginsDir = getPluginsDir perlaDir
 
@@ -23,17 +27,19 @@ let config =
   Fs.getPerlaConfig perlaConfigPath
   |> Result.valueOr (fun _ -> failwith "failed")
 
-mountDirectories perlaDir config
+let mountedDirectories =
+  getMountedDirectories perlaDir config
 
-let watcher = getMountedWatcher ()
-watcher.EnableRaisingEvents <- true
+mountDirectories mountedDirectories
 
-let eventStream = watchEvents watcher
+let eventStream =
+  getMountedDirsWatcher mountedDirectories
 
 eventStream
-|> Observable.filter(fun event -> event.ChangeType <> Fs.ChangeKind.Deleted)
+|> Observable.filter (fun f -> mounted.FileExists f.path)
 |> Observable.add (fun event ->
-  let ext = (System.IO.Path.GetExtension event.path).ToLowerInvariant()
+  printfn "%A" event
+  let ext = (Path.GetExtension event.path).ToLowerInvariant()
 
   let file =
     try
@@ -76,7 +82,7 @@ eventStream
         | Ok result ->
           let output =
             mounted.ConvertPathFromInternal(
-              System.IO.Path.ChangeExtension(
+              Path.ChangeExtension(
                 event.path,
                 result.targetExtension.AsString
               )
@@ -85,12 +91,13 @@ eventStream
           use file =
             mounted.OpenFile(
               output,
-              System.IO.FileMode.OpenOrCreate,
-              System.IO.FileAccess.ReadWrite,
-              System.IO.FileShare.ReadWrite
+              FileMode.OpenOrCreate,
+              FileAccess.ReadWrite,
+              FileShare.ReadWrite
             )
 
           file.WriteAllText result.content
+          printfn "Writing file at: %s" output.FullName
         | Error err -> eprintfn "%A" err
       with ex ->
         eprintfn "%O" ex
@@ -107,6 +114,10 @@ async {
   while true do
     let! line = Console.In.ReadLineAsync() |> Async.AwaitTask
     printfn "Got %s" line
+
+    if line = "showfs" then
+        mounted.EnumeratePaths("/src", "*.*", SearchOption.AllDirectories)
+        |> Seq.iter(fun f -> printfn $"{f.FullName}")
 
     if line = "q" then
       printfn "good bye!"
