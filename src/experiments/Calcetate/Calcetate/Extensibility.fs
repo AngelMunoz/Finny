@@ -4,10 +4,10 @@ open System
 open System.Collections.Concurrent
 open System.IO
 open System.Threading.Tasks
-open AngleSharp.Html
-open CalceTypes
 open System.Text
 open FSharp.Control
+open Perla.Lib
+open Perla.Lib.Plugin
 open Perla.Lib.Logger
 open FsToolkit.ErrorHandling
 
@@ -84,6 +84,7 @@ let ApplyPluginsToFile (plugins: RunnablePlugin list) fileTransform =
       | true -> return! (next.transform result).AsTask() |> Async.AwaitTask
       | false -> return result
     }
+
   plugins |> AsyncSeq.ofSeq |> AsyncSeq.foldAsync folder fileTransform
 
 let GetSupportedPlugins plugins =

@@ -4,9 +4,6 @@ open System
 open System.Text.Json
 open System.Text.Json.Serialization
 
-open LiteDB
-
-
 module Types =
 
   let (|RestartFable|StartFable|StopFable|UnknownFable|) =
@@ -309,7 +306,7 @@ module Types =
 
   [<CLIMutable>]
   type PerlaTemplateRepository =
-    { _id: ObjectId
+    { _id: string
       name: string
       fullName: string
       branch: string
@@ -321,7 +318,7 @@ module Types =
       (path: string)
       (name: string, fullName: string, branch: string)
       =
-      { _id = ObjectId.NewObjectId()
+      { _id = Guid.NewGuid().ToString()
         name = name
         fullName = fullName
         branch = branch

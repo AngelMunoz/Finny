@@ -1,0 +1,25 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net6.0;net7.0</TargetFrameworks>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="Esbuild.fs" />
+    <Compile Include="Fable.fs" />
+    <Compile Include="Build.fs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="SharpZipLib" Version="$(SharpZipLibVersion)" />
+    <PackageReference Include="CliWrap" Version="3.5.0" />
+    <PackageReference Include="AngleSharp" Version="$(AngleSharpVersion)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Perla.FileSystem\Perla.FileSystem.fsproj" />
+    <ProjectReference Include="..\Perla.Lib\Perla.Lib.fsproj" />
+  </ItemGroup>
+
+</Project>

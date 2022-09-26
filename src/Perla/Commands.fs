@@ -810,11 +810,11 @@ module Commands =
 
   let runRemoveTemplate (name: string) =
     let deleteOperation =
-      option {
-        let! repo = Database.findByFullName name
+      Database.findByFullName name
+      |> Option.map (fun repo ->
         Fs.removePerlaRepository repo
-        return! Database.deleteByFullName repo.fullName
-      }
+        repo)
+      |> Option.map (fun repo -> Database.deleteByFullName repo.fullName)
 
     match deleteOperation with
     | Some true ->

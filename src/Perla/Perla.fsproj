@@ -17,10 +17,16 @@
 
   <ItemGroup>
     <PackageReference Include="Argu" Version="6.1.1" />
+    <PackageReference Include="FSharp.Control.AsyncSeq" Version="$(FsAsyncSeqVersion)" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Perla.Lib\Perla.Lib.fsproj" />
+    <ProjectReference Include="..\Perla.Scaffolding\Perla.Scaffolding.fsproj" />
+    <ProjectReference Include="..\Perla.FileSystem\Perla.FileSystem.fsproj" />
+    <ProjectReference Include="..\Perla.Build.Services\Perla.Build.Services.fsproj" />
+    <ProjectReference Include="..\Perla.Extensibility\Perla.Extensibility.fsproj" />
+    <ProjectReference Include="..\Perla.Server\Perla.Server.fsproj" />
   </ItemGroup>
 
 </Project>

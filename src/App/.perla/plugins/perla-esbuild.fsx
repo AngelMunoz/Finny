@@ -1,12 +1,11 @@
 ﻿#i "nuget: C:/Users/scyth/repos/Perla/src/nupkg"
 #i "nuget: https://api.nuget.org/v3/index.json"
-#r "nuget: Newtonsoft.Json, 12.0.3"
+#r "nuget: Perla.Lib, 0.24.1"
 #r "nuget: CalceTypes, 0.0.7"
 
 open System.Xml
-open Newtonsoft.Json
-
 open CalceTypes
+
 
 let shouldTransform: FilePredicate =
     fun args -> [ ".xml"; ".fsproj"; ".csproj" ] |> List.contains args.extension.AsString

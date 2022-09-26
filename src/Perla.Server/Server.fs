@@ -503,7 +503,10 @@ module Server =
     socketsHandler.AutomaticDecompression <- DecompressionMethods.None
     socketsHandler.UseCookies <- false
     let client = new HttpMessageInvoker(socketsHandler)
-    let reqConfig = ForwarderRequestConfig(ActivityTimeout=TimeSpan.FromSeconds(100.))
+
+    let reqConfig =
+      ForwarderRequestConfig(ActivityTimeout = TimeSpan.FromSeconds(100.))
+
     client, reqConfig
 
   let private startFable =

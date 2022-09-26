@@ -1,4 +1,4 @@
-﻿namespace CalceTypes
+namespace Perla.Lib.Plugin
 
 open System.Threading.Tasks
 
@@ -30,9 +30,10 @@ type FileExtension =
     | other -> Custom other
 
 type FileTransform =
-  { /// The path where the file changed event was activated
+  {
+    /// The path where the file changed event was activated
     /// This value should not be modified between plugin transformations
-    /// because it could break further processing of the file
+    /// because it could break further processing of the sfile
     originalPath: string
     /// The text of the file, this will change between plugin
     /// transformations
@@ -41,7 +42,8 @@ type FileTransform =
     /// this will change between plugin transformations
     /// It also serves for plugin authors to determine
     /// if their plugin should act on this particular file
-    extension: FileExtension }
+    extension: FileExtension
+  }
 
 ///<summary>
 /// A function predicate that allows the plugin author

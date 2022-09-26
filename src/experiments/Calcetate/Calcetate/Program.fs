@@ -5,12 +5,11 @@ open System.Text
 open FSharp.Control
 open FSharp.Control.Reactive
 
-open CalceTypes
-
 open Calcetate
 open Calcetate.FileSystem
 open Microsoft.FSharp.Core
 open Perla.Lib
+open Perla.Lib.Plugin
 open Perla.Lib.Logger
 
 open FsToolkit.ErrorHandling

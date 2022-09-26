@@ -1,4 +1,4 @@
-<Project>
+﻿<Project>
     <PropertyGroup>
         <PackageLicenseExpression>MIT</PackageLicenseExpression>
         <Copyright>Copyright 2020 Angel D. Munoz.</Copyright>
@@ -26,6 +26,14 @@
         <None Include="$(MSBuildThisFileDirectory)\..\README.md" Pack="true" Visible="false" PackagePath=""/>
     </ItemGroup>
     <ItemGroup>
-        <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.0.0" PrivateAssets="All" />
+        <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.1.1" PrivateAssets="All" />
     </ItemGroup>
+
+    <PropertyGroup>
+        <FsToolkitVersion>2.13.0</FsToolkitVersion>
+        <FsReactiveVersion>5.0.5</FsReactiveVersion>
+        <FsAsyncSeqVersion>3.2.1</FsAsyncSeqVersion>
+        <SharpZipLibVersion>1.4.0</SharpZipLibVersion>
+        <AngleSharpVersion>0.17.1</AngleSharpVersion>
+    </PropertyGroup>
 </Project>
