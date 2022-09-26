@@ -211,15 +211,16 @@ type DevServerArgs =
       | Version _ -> "Prints out the cli version to the console."
 
 module Commands =
-  let private (|ParseRegex|_|) regex str =
-    let m = Text.RegularExpressions.Regex(regex).Match(str)
 
-    if m.Success then
-      Some(List.tail [ for x in m.Groups -> x.Value ])
-    else
-      None
+  let private parseUrl url =
+    let (|ParseRegex|_|) regex str =
+      let m = Text.RegularExpressions.Regex(regex).Match(str)
 
-  let parseUrl url =
+      if m.Success then
+        Some(List.tail [ for x in m.Groups -> x.Value ])
+      else
+        None
+
     match url with
     | ParseRegex @"https://cdn.skypack.dev/pin/(@?[^@]+)@v([\d.]+)"
                  [ name; version ] -> Some(Source.Skypack, name, version)
