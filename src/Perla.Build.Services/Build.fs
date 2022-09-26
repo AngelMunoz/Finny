@@ -282,9 +282,7 @@ module Build =
       match buildConfig.copyPaths with
       | None -> BuildConfig.DefaultExcludes()
       | Some paths ->
-        paths.excludes
-        |> Option.map List.ofSeq
-        |> Option.defaultValue (BuildConfig.DefaultExcludes())
+        paths.excludes |> Option.defaultValue (BuildConfig.DefaultExcludes())
 
     let copyIncludes =
       match buildConfig.copyPaths with
@@ -373,7 +371,7 @@ module Build =
         let excludedFiles =
           totalPaths
           |> Array.filter (fun ((path, _)) ->
-            copyExcludes |> List.exists (fun ext -> path.Contains(ext)) |> not)
+            copyExcludes |> Seq.exists (fun ext -> path.Contains(ext)) |> not)
 
         [| yield! excludedFiles; yield! includedFiles |]
         |> Array.Parallel.iter (fun (origin, target) ->

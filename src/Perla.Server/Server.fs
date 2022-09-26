@@ -21,7 +21,6 @@ open Microsoft.Extensions.Logging
 open Microsoft.Extensions.FileProviders
 open Microsoft.AspNetCore.StaticFiles
 
-open Perla.Lib.Types
 open Yarp.ReverseProxy
 open Yarp.ReverseProxy.Forwarder
 
@@ -35,9 +34,9 @@ open FsToolkit.ErrorHandling
 open CliWrap
 
 open Perla.Lib
-open Types
-open Fable
-open Logger
+open Perla.Lib.Types
+open Perla.Lib.Fable
+open Perla.Lib.Logger
 
 module private LiveReload =
   let getReloadEvent (event: Fs.FileChangedEvent) =
@@ -575,7 +574,7 @@ module Server =
     let mountedDirs = defaultArg serverConfig.mountDirectories Map.empty
 
     let watchConfig =
-      defaultArg serverConfig.watchConfig (WatchConfig.Default())
+      defaultArg serverConfig.watchConfig (WatchConfig.DefaultConfig())
 
     let http, https =
       match isAddressPortOccupied customHost customPort with
