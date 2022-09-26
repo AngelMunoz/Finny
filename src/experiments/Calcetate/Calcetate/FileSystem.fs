@@ -19,13 +19,11 @@ let watchEvents
   mountPoint
   (watcher: IFileSystemWatcher)
   : IObservable<Fs.FileChangedEvent> =
-  let throttle = TimeSpan.FromMilliseconds(400.)
 
   let getMountPath eventPath = $"{mountPoint}{eventPath}"
 
   let changed event =
     event
-    |> Observable.throttle throttle
     |> Observable.map (fun (event: FileChangedEventArgs) ->
       let changed: Fs.FileChangedEvent =
         { oldName = None
@@ -37,7 +35,6 @@ let watchEvents
 
   let renamed event =
     event
-    |> Observable.throttle throttle
     |> Observable.map (fun (event: FileRenamedEventArgs) ->
       let renamed: Fs.FileChangedEvent =
         { oldName = getMountPath event.OldFullPath.FullName |> Some
@@ -86,6 +83,7 @@ let getMountedDirsWatcher (mountedDirs: Lazy<(string * IFileSystem) list>) =
       watcher.EnableRaisingEvents <- true
       watchEvents mountPoint watcher ]
   |> Observable.mergeSeq
+  |> Observable.throttle (TimeSpan.FromMilliseconds(400.))
 
 let getPluginsDir projectRoot =
   let path = fs.ConvertPathFromInternal(projectRoot)

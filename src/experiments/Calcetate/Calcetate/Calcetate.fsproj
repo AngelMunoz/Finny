@@ -10,7 +10,7 @@
 		<Compile Include="Program.fs" />
 	</ItemGroup>
 	<ItemGroup>
-	  <PackageReference Include="FSharp.Compiler.Service" Version="41.0.6" />
+	  <PackageReference Include="FSharp.Compiler.Service" Version="42.7.100-preview.22427.1" />
 	  <PackageReference Include="FSharp.Control.Reactive" Version="5.0.5" />
 	  <PackageReference Include="FsToolkit.ErrorHandling" Version="2.13.0" />
 	  <PackageReference Include="FsToolkit.ErrorHandling.TaskResult" Version="2.13.0" />

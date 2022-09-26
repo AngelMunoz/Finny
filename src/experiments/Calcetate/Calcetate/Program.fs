@@ -1,23 +1,24 @@
-﻿open System.IO
+﻿open System
+open System.IO
+
+open System.Text
+open FSharp.Control
 open FSharp.Control.Reactive
-open System
-open Calcetate
+
 open CalceTypes
+
+open Calcetate
 open Calcetate.FileSystem
-open Calcetate.Extensibility
+open Microsoft.FSharp.Core
 open Perla.Lib
 open Perla.Lib.Logger
 
 open FsToolkit.ErrorHandling
-open FSharp.Compiler.IO
 open Zio
-open Zio.FileSystems
 
-let perlaConfigPath =
-  Path.GetPerlaConfigPath()
+let perlaConfigPath = Path.GetPerlaConfigPath()
 
-let perlaDir =
-  Path.GetDirectoryName perlaConfigPath
+let perlaDir = Path.GetDirectoryName perlaConfigPath
 
 let pluginsDir = getPluginsDir perlaDir
 
@@ -27,86 +28,60 @@ let config =
   Fs.getPerlaConfig perlaConfigPath
   |> Result.valueOr (fun _ -> failwith "failed")
 
-let mountedDirectories =
-  getMountedDirectories perlaDir config
+let mountedDirectories = getMountedDirectories perlaDir config
 
 mountDirectories mountedDirectories
 
-let eventStream =
-  getMountedDirsWatcher mountedDirectories
+let sourcesWatcher = getMountedDirsWatcher mountedDirectories
 
-eventStream
-|> Observable.filter (fun f -> mounted.FileExists f.path)
-|> Observable.add (fun event ->
-  printfn "%A" event
-  let ext = (Path.GetExtension event.path).ToLowerInvariant()
+let applyPluginsToTransform =
+  Extensibility.GetSupportedPlugins plugins |> Extensibility.ApplyPluginsToFile
 
-  let file =
-    try
-      mounted.ConvertPathFromInternal event.path |> mounted.GetFileEntry
-      |> Some
-    with ex ->
-      printfn "%s" ex.Message
-      None
-
-  let content =
-    match file with
-    | Some file -> file.ReadAllText()
-    | None -> ""
-
-  let onShouldTransform (plugin: PluginInfo) =
-    match plugin.shouldTransform with
-    | Some shouldTransform ->
-      let result =
-        shouldTransform
-          { content = content
-            runtime = Runtime.DevServer
-            extension = FileExtension.FromString ext }
-
-      match result with
-      | Ok value -> value
-      | Error err -> false
-    | None -> false
-
-  let onTransform (plugin: PluginInfo) =
-    match plugin.transform with
-    | Some transform ->
+let hasFileTransform (event: Fs.FileChangedEvent) =
+  option {
+    let! file =
       try
-        let result =
-          transform
-            { runtime = Runtime.DevServer
-              content = content
-              currentExtension = FileExtension.Custom ext }
-
-        match result with
-        | Ok result ->
-          let output =
-            mounted.ConvertPathFromInternal(
-              Path.ChangeExtension(
-                event.path,
-                result.targetExtension.AsString
-              )
-            )
-
-          use file =
-            mounted.OpenFile(
-              output,
-              FileMode.OpenOrCreate,
-              FileAccess.ReadWrite,
-              FileShare.ReadWrite
-            )
-
-          file.WriteAllText result.content
-          printfn "Writing file at: %s" output.FullName
-        | Error err -> eprintfn "%A" err
+        mounted.ConvertPathFromInternal event.path
+        |> mounted.GetFileEntry
+        |> Some
       with ex ->
-        eprintfn "%O" ex
-    | None -> printfn $"No plugins for '{ext}' files were found"
+        Logger.log ("Unable to find file within mounted paths", ex)
+        None
 
-  plugins
-  |> List.tryFind onShouldTransform
-  |> Option.map onTransform
-  |> Option.defaultValue ())
+    let extension =
+      (Path.GetExtension event.path).ToLowerInvariant()
+      |> FileExtension.FromString
+
+    return
+      { originalPath = file.Path.FullName
+        content = file.ReadAllText()
+        extension = extension }
+  }
+
+let writeToDisk fileTransform =
+  let output =
+    Path.ChangeExtension(
+      fileTransform.originalPath,
+      fileTransform.extension.AsString
+    )
+    |> mounted.ConvertPathFromInternal
+
+  use file =
+    mounted.OpenFile(
+      output,
+      FileMode.OpenOrCreate,
+      FileAccess.ReadWrite,
+      FileShare.ReadWrite
+    )
+
+  fileTransform.content |> Encoding.UTF8.GetBytes |> file.Write
+  Logger.log $"Writing file at: {output.FullName}"
+
+sourcesWatcher
+|> Observable.choose hasFileTransform
+|> Observable.map applyPluginsToTransform
+|> Observable.switchAsync
+|> Observable.add writeToDisk
 
 async {
   Logger.log "Starting Task"
@@ -116,8 +91,8 @@ async {
     printfn "Got %s" line
 
     if line = "showfs" then
-        mounted.EnumeratePaths("/src", "*.*", SearchOption.AllDirectories)
-        |> Seq.iter(fun f -> printfn $"{f.FullName}")
+      mounted.EnumeratePaths("/src", "*.*", SearchOption.AllDirectories)
+      |> Seq.iter (fun f -> printfn $"{f.FullName}")
 
     if line = "q" then
       printfn "good bye!"
