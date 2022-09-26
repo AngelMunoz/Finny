@@ -6,34 +6,6 @@ open System.Text.Json.Serialization
 
 module Types =
 
-  let (|RestartFable|StartFable|StopFable|UnknownFable|) =
-    function
-    | "restart:fable" -> RestartFable
-    | "start:fable" -> StartFable
-    | "stop:fable" -> StopFable
-    | value -> UnknownFable value
-
-  let (|RestartServer|StartServer|StopServer|Clear|Exit|Unknown|) =
-    function
-    | "restart" -> RestartServer
-    | "start" -> StartServer
-    | "stop" -> StopServer
-    | "clear"
-    | "cls" -> Clear
-    | "exit"
-    | "stop" -> Exit
-    | value -> Unknown value
-
-  let (|Typescript|Javascript|Jsx|Css|Json|Other|) value =
-    match value with
-    | ".ts"
-    | ".tsx" -> Typescript
-    | ".js" -> Javascript
-    | ".jsx" -> Jsx
-    | ".json" -> Json
-    | ".css" -> Css
-    | _ -> Other value
-
   [<RequireQualifiedAccess>]
   type LoaderType =
     | Typescript
@@ -57,40 +29,15 @@ module Types =
     | ReplaceCSS of string
     | CompileError of string
 
-    member this.AsString =
-      match this with
-      | FullReload data -> $"event:reload\ndata:{data}\n\n"
-      | ReplaceCSS data -> $"event:replace-css\ndata:{data}\n\n"
-      | CompileError err -> $"event:compile-err\ndata:{err}\n\n"
-
-
   type FableConfig =
     { autoStart: bool option
       project: string option
       extension: string option
       outDir: string option }
 
-    static member DefaultConfig() =
-      { autoStart = Some false
-        project = Some "./src/App.fsproj"
-        extension = None
-        outDir = None }
-
   type WatchConfig =
     { extensions: string seq option
       directories: string seq option }
-
-    static member Default() =
-      { extensions =
-          [ "*.js"; "*.css"; "*.ts"; "*.tsx"; "*.jsx"; "*.json" ]
-          |> List.toSeq
-          |> Some
-        directories =
-          seq {
-            "index.html"
-            "./src"
-          }
-          |> Some }
 
   type DevServerConfig =
     { autoStart: bool option
@@ -103,20 +50,9 @@ module Types =
       enableEnv: bool option
       envPath: string option }
 
-    static member DefaultConfig() =
-      { autoStart = Some true
-        port = Some 7331
-        host = None
-        mountDirectories = Map.ofList ([ "./src", "/src" ]) |> Some
-        watchConfig = WatchConfig.Default() |> Some
-        liveReload = Some true
-        useSSL = Some false
-        enableEnv = Some true
-        envPath = Some "/env.js" }
-
   type CopyPaths =
-    { includes: (string seq) option
-      excludes: (string seq) option }
+    { includes: string seq option
+      excludes: string seq option }
 
   type BuildConfig =
     { esBuildPath: string option
@@ -129,49 +65,10 @@ module Types =
       minify: bool option
       jsxFactory: string option
       jsxFragment: string option
-      injects: (string seq) option
-      externals: (string seq) option
+      injects: string seq option
+      externals: string seq option
       fileLoaders: Map<string, string> option
       emitEnvFile: bool option }
-
-    static member DefaultExcludes() =
-      [ "index.html"
-        ".fsproj"
-        ".fable"
-        "fable_modules"
-        "bin"
-        "obj"
-        ".fs"
-        ".js"
-        ".css"
-        ".ts"
-        ".jsx"
-        ".tsx"
-        ".woff"
-        ".woff2" ]
-
-    static member DefaultFileLoaders() =
-      [ ".png", "file"; ".woff", "file"; ".woff2", "file"; ".svg", "file" ]
-      |> Map.ofList
-
-    static member DefaultConfig() =
-      { esBuildPath = None
-        esbuildVersion = Some Constants.Esbuild_Version
-        copyPaths =
-          { includes = None
-            excludes = BuildConfig.DefaultExcludes() |> Seq.ofList |> Some }
-          |> Some
-        target = Some Constants.Esbuild_Target
-        outDir = None
-        bundle = Some true
-        format = Some "esm"
-        minify = Some true
-        jsxFactory = None
-        jsxFragment = None
-        injects = None
-        externals = None
-        fileLoaders = BuildConfig.DefaultFileLoaders() |> Some
-        emitEnvFile = Some true }
 
   type PerlaConfig =
     { ``$schema``: string option
@@ -180,21 +77,6 @@ module Types =
       devServer: DevServerConfig option
       build: BuildConfig option
       packages: Map<string, string> option }
-
-    static member DefaultConfig(?withFable: bool) =
-      let fable =
-        match withFable with
-        | Some true -> FableConfig.DefaultConfig() |> Some
-        | _ -> None
-
-      { ``$schema`` =
-          Some
-            "https://raw.githubusercontent.com/AngelMunoz/Perla/main/perla.schema.json"
-        index = Some "./index.html"
-        fable = fable
-        devServer = DevServerConfig.DefaultConfig() |> Some
-        build = BuildConfig.DefaultConfig() |> Some
-        packages = None }
 
   type Scope = Map<string, string>
 
@@ -314,26 +196,9 @@ module Types =
       createdAt: DateTime
       updatedAt: Nullable<DateTime> }
 
-    static member NewClamRepo
-      (path: string)
-      (name: string, fullName: string, branch: string)
-      =
-      { _id = Guid.NewGuid().ToString()
-        name = name
-        fullName = fullName
-        branch = branch
-        path = path
-        createdAt = DateTime.Now
-        updatedAt = Nullable() }
-
   type NameParsingErrors =
     | MissingRepoName
     | WrongGithubFormat
-
-    member this.AsString =
-      match this with
-      | MissingRepoName -> "The repository name is missing"
-      | WrongGithubFormat -> "The repository name is not a valid github name"
 
   type RepositoryOptions =
     { fullRepositoryName: string
@@ -342,7 +207,6 @@ module Types =
   type ProjectOptions =
     { projectName: string
       templateName: string }
-
 
   exception CommandNotParsedException of string
   exception HelpRequestedException
