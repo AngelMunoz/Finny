@@ -103,8 +103,15 @@ type PluginFunctions =
 [<Struct>]
 type PluginInfo =
   { name: string
+    path: string
     shouldProcessFile: FilePredicate voption
     transform: TransformAction voption }
+
+[<Struct>]
+type RunnablePlugin =
+  { plugin: PluginInfo
+    shouldTransform: FilePredicate
+    transform: TransformAction }
 
 type PerlaPluginBuilder(name) =
   member _.Yield _ = []

@@ -797,7 +797,7 @@ module Commands =
 
         match content with
         | Some content ->
-          Extensibility.getConfigurationFromScript content
+          Extensibility.Scaffolding.getConfigurationFromScript content
           |> Scaffolding.compileAndCopy templatePath targetPath
         | None -> Scaffolding.compileAndCopy templatePath targetPath None
 
