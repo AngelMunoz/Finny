@@ -19,7 +19,7 @@ type Plugin =
     Plugin.PluginCache.Value |> Seq.map (fun entry -> entry.Key)
 
   static member fromCache(pluginName: string, path: string) =
-    Logger.plugin $"Attempting to extracting plugin'{pluginName}' from cache"
+    Logger.pluginLog $"Attempting to extracting plugin'{pluginName}' from cache"
 
     Plugin.PluginCache.Value
     |> Seq.tryFind (fun entry ->
@@ -28,7 +28,7 @@ type Plugin =
 
   static member fromText(name: string, content: string, ?skipCache) =
     let skipCache = defaultArg skipCache false
-    Logger.plugin $"Extracting plugin '{name}' from text"
+    Logger.pluginLog $"Extracting plugin '{name}' from text"
 
     let Fsi = Fsi.getSession ()
 
@@ -41,7 +41,7 @@ type Plugin =
       | None, None -> None
 
     let logError ex =
-      Logger.plugin ($"An error ocurrer while processing {name}", ex)
+      Logger.pluginLog ($"An error ocurrer while processing {name}", ex)
 
     let evaluation =
       evaluation
@@ -56,9 +56,9 @@ type Plugin =
 
       if not skipCache then
         if not (Plugin.PluginCache.Value.TryAdd(plugin, Fsi)) then
-          Logger.plugin $"Couldn't add %s{plugin.name}"
+          Logger.pluginLog $"Couldn't add %s{plugin.name}"
         else
-          Logger.plugin $"Added %s{plugin.name} to plugin cache"
+          Logger.pluginLog $"Added %s{plugin.name} to plugin cache"
 
       Some plugin
     | _ -> None

@@ -94,12 +94,16 @@ module Logger =
   [<Literal>]
   let private ServePrefix = "Serve:"
 
+  [<Literal>]
+  let private PluginPrefix = "Plugin:"
+
   [<Struct>]
   type PrefixKind =
     | Log
     | Scaffold
     | Build
     | Serve
+    | Plugin
 
   [<Struct>]
   type LogEnding =
@@ -117,6 +121,7 @@ module Logger =
                | PrefixKind.Scaffold -> ScaffoldPrefix
                | PrefixKind.Build -> BuildPrefix
                | PrefixKind.Serve -> ServePrefix
+               | PrefixKind.Plugin -> PluginPrefix
 
              $"{cur}{pr}")
            ""
@@ -165,6 +170,15 @@ module Logger =
         message,
         ?ex = ex,
         prefixes = [ Log; Scaffold ],
+        ?ending = ending,
+        ?escape = escape
+      )
+
+    static member pluginLog(message, ?ex: exn, ?ending, ?escape) =
+      Logger.log (
+        message,
+        ?ex = ex,
+        prefixes = [ Log; Plugin ],
         ?ending = ending,
         ?escape = escape
       )
