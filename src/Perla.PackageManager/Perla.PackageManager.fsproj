@@ -1,0 +1,23 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="Types.fsi" />
+    <Compile Include="Types.fs" />
+    <Compile Include="Jspm.fsi" />
+    <Compile Include="Jspm.fs" />
+    <Compile Include="Skypack.fsi" />
+    <Compile Include="Skypack.fs" />
+    <Compile Include="Library.fsi" />
+    <Compile Include="Library.fs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Flurl.Http" Version="3.2.4" />
+  </ItemGroup>
+
+</Project>
