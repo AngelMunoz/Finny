@@ -1,4 +1,4 @@
-﻿namespace Perla.Lib
+﻿namespace Perla
 
 open System
 open System.IO
@@ -21,7 +21,6 @@ open Microsoft.Extensions.Logging
 open Microsoft.Extensions.FileProviders
 open Microsoft.AspNetCore.StaticFiles
 
-open Perla.Lib.Types
 open Yarp.ReverseProxy
 open Yarp.ReverseProxy.Forwarder
 
@@ -34,10 +33,10 @@ open FsToolkit.ErrorHandling
 
 open CliWrap
 
-open Perla.Lib
-open Types
-open Fable
-open Logger
+open Perla
+open Perla.Types
+open Perla.Fable
+open Perla.Logger
 
 module private LiveReload =
   let getReloadEvent (event: Fs.FileChangedEvent) =
@@ -503,7 +502,10 @@ module Server =
     socketsHandler.AutomaticDecompression <- DecompressionMethods.None
     socketsHandler.UseCookies <- false
     let client = new HttpMessageInvoker(socketsHandler)
-    let reqConfig = ForwarderRequestConfig(ActivityTimeout=TimeSpan.FromSeconds(100.))
+
+    let reqConfig =
+      ForwarderRequestConfig(ActivityTimeout = TimeSpan.FromSeconds(100.))
+
     client, reqConfig
 
   let private startFable =

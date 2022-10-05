@@ -5,9 +5,8 @@ open System
 open Argu
 open FsToolkit.ErrorHandling
 open Perla
-open Perla.Lib
-open Types
-open Logger
+open Perla.Types
+open Perla.Logger
 
 let processExit (result: Task<Result<int, exn>>) =
   task {

@@ -1,10 +1,11 @@
-﻿namespace Perla.Lib
+﻿namespace Perla
 
 open CliWrap
 
 open System
-open Types
-open Logger
+open Perla
+open Perla.Types
+open Perla.Logger
 
 module Fable =
   let mutable private activeFable: int option = None

@@ -6,12 +6,16 @@ open System.Threading.Tasks
 open FSharp.Control
 open FsToolkit.ErrorHandling
 open FSharp.Control.Reactive
-open Perla.Lib
-open Types
-open Server
-open Build
-open Logger
+
 open Spectre.Console
+
+open Perla
+open Perla.Types
+open Perla.Server
+open Perla.Build
+open Perla.Logger
+open Perla.Scaffolding
+open Perla.Plugins.Extensibility
 
 open Argu
 
@@ -363,7 +367,7 @@ module Commands =
 
       let children =
         let names =
-          Fs.getPerlaRepositoryChildren result
+          Fs.getPerlaRepositoryChildren result.path
           |> Array.map (fun d -> $"[green]{d.Name}[/]")
 
         String.Join("\n", names) |> Markup
@@ -569,32 +573,7 @@ module Commands =
           |> Error
     }
 
-  let private printSearchTable (searchData: SkypackSearchResult seq) =
-    let table =
-      Table()
-        .AddColumn(TableColumn("Name"))
-        .AddColumn(TableColumn("Description"))
-        .AddColumn(TableColumn("Maintainers"))
-        .AddColumn(TableColumn("Last Updated"))
 
-    for row in searchData do
-      let maintainers =
-        row.maintainers
-        |> Seq.truncate 3
-        |> Seq.map (fun maintainer ->
-          $"[yellow]{maintainer.name}[/] - [yellow]{maintainer.email}[/]")
-
-      let maintainers = String.Join("\n", maintainers)
-
-      table.AddRow(
-        Markup($"[bold green]{row.name}[/]"),
-        Markup(row.description),
-        Markup(maintainers),
-        Markup(row.updatedAt.ToShortDateString())
-      )
-      |> ignore
-
-    AnsiConsole.Write table
 
   let runSearch (options: SearchOptions) =
     taskResult {
@@ -603,78 +582,11 @@ module Commands =
         | Some package -> Ok package
         | None -> Error PackageNotFoundException
 
-      let! results =
-        Logger.spinner (
-          "Searching for package information",
-          Http.searchPackage package options.page
-        )
-
-      results.results |> Seq.truncate 5 |> printSearchTable
-
-      Logger.log (
-        $"[bold green]Found[/]: {results.meta.totalCount}",
-        escape = false
-      )
-
-      Logger.log (
-        $"[bold green]Page[/] {results.meta.page} of {results.meta.totalPages}",
-        escape = false
-      )
-
+      do! PackageSearch.searchPackage (package, defaultArg options.page 1)
       return 0
     }
 
-  let private printShowTable (package: ShowSearchResults) =
-    let table =
-      Table()
-        .AddColumn(TableColumn("Description"))
-        .AddColumn(TableColumn("Is Deprecated"))
-        .AddColumn(TableColumn("Dependency Count"))
-        .AddColumn(TableColumn("License"))
-        .AddColumn(TableColumn("Versions"))
-        .AddColumn(TableColumn("Maintainers"))
-        .AddColumn(TableColumn("Last Update"))
 
-    let maintainers =
-      package.maintainers
-      |> Seq.truncate 5
-      |> Seq.map (fun maintainer ->
-        $"[yellow]{maintainer.name}[/] - [yellow]{maintainer.email}[/]")
-
-    let maintainers = String.Join("\n", maintainers)
-
-    let versions =
-      package.distTags
-      |> Map.toSeq
-      |> Seq.truncate 5
-      |> Seq.map (fun (name, version) ->
-        $"[bold yellow]{name}[/] - [dim green]{version}[/]")
-
-    let versions = String.Join("\n", versions)
-
-    let deprecated =
-      if package.isDeprecated then
-        "[bold red]Yes[/]"
-      else
-        "[green]No[/]"
-
-    let sep =
-      Rule($"[bold green]{package.name}[/]").Centered().RuleStyle("bold green")
-
-    AnsiConsole.Write sep
-
-    table.AddRow(
-      Markup(package.description),
-      Markup(deprecated),
-      Markup($"[bold green]%i{package.dependenciesCount}[/]"),
-      Markup($"[bold yellow]{package.license}[/]"),
-      Markup(versions),
-      Markup(maintainers),
-      Markup(package.updatedAt.ToShortDateString())
-    )
-    |> ignore
-
-    AnsiConsole.Write table
 
   let runShow (options: ShowPackageOptions) =
     taskResult {
@@ -683,13 +595,7 @@ module Commands =
         | Some package -> Ok package
         | None -> Error PackageNotFoundException
 
-      let! package =
-        Logger.spinner (
-          "Searching for package information",
-          Http.showPackage package
-        )
-
-      printShowTable package
+      do! PackageSearch.showPackage (package)
       return 0
     }
 
@@ -750,7 +656,8 @@ module Commands =
       let imports = lockFile.imports |> Map.remove name
 
       let scopes =
-        lockFile.scopes |> Map.map (fun _ value -> value |> Map.remove name)
+        defaultArg lockFile.scopes Map.empty
+        |> Map.map (fun _ value -> value |> Map.remove name)
 
       Logger.log ("Updating importmap...")
       Logger.log ($"Writing scopes: %A{scopes}")
@@ -760,7 +667,7 @@ module Commands =
         Fs.writeLockFile
           (Path.GetPerlaConfigPath())
           { lockFile with
-              scopes = scopes
+              scopes = Some scopes
               imports = imports }
 
       do! Fs.createPerlaConfig (Path.GetPerlaConfigPath()) opts
@@ -786,7 +693,7 @@ module Commands =
           escape = false
         )
 
-        let templatePath = Fs.getPerlaTemplatePath clamRepo child
+        let templatePath = Fs.getPerlaTemplatePath clamRepo.path child
         let targetPath = Fs.getPerlaTemplateTarget opts.projectName
 
         let content =
@@ -796,7 +703,7 @@ module Commands =
 
         match content with
         | Some content ->
-          Extensibility.getConfigurationFromScript content
+          Scaffolding.getConfigurationFromScript content
           |> Scaffolding.compileAndCopy templatePath targetPath
         | None -> Scaffolding.compileAndCopy templatePath targetPath None
 
@@ -812,7 +719,7 @@ module Commands =
     let deleteOperation =
       option {
         let! repo = Database.findByFullName name
-        Fs.removePerlaRepository repo
+        Fs.removePerlaRepository repo.path
         return! Database.deleteByFullName repo.fullName
       }
 
@@ -901,7 +808,7 @@ module Commands =
         let scopes =
           let scopes = scopes |> Map.ofList
 
-          lockFile.scopes
+          defaultArg lockFile.scopes Map.empty
           |> Map.fold
                (fun acc key value ->
                  match acc |> Map.tryFind key with
@@ -919,7 +826,7 @@ module Commands =
 
         { lockFile with
             imports = imports
-            scopes = scopes }
+            scopes = Some scopes }
 
       do! Fs.createPerlaConfig (Path.GetPerlaConfigPath()) fdsConfig
       do! Fs.writeLockFile (Path.GetPerlaConfigPath()) lockFile

@@ -1,13 +1,14 @@
-﻿namespace Perla.Lib
+﻿namespace Perla
 
 
 open System
 open System.Collections
 open System.Text
 open FsToolkit.ErrorHandling
-open Microsoft.Extensions.Logging
-open Perla.Lib
-open Types
+
+open Perla
+open Perla.Types
+open Perla.Logger
 
 [<RequireQualifiedAccess>]
 module Env =
@@ -79,170 +80,10 @@ module Json =
     JsonSerializer.Serialize({| dependencies = dependencies |}, jsonOptions ())
 
 
-module Logger =
-  open System.Threading.Tasks
-  open Spectre.Console
-
-  [<Literal>]
-  let private LogPrefix = "Perla:"
-
-  [<Literal>]
-  let private ScaffoldPrefix = "Scaffolding:"
-
-  [<Literal>]
-  let private BuildPrefix = "Build:"
-
-  [<Literal>]
-  let private ServePrefix = "Serve:"
-
-  [<Struct>]
-  type PrefixKind =
-    | Log
-    | Scaffold
-    | Build
-    | Serve
-
-  [<Struct>]
-  type LogEnding =
-    | NewLine
-    | SameLine
-
-  let format (prefix: PrefixKind list) (message: string) : FormattableString =
-    let prefix =
-      prefix
-      |> List.fold
-           (fun cur next ->
-             let pr =
-               match next with
-               | PrefixKind.Log -> LogPrefix
-               | PrefixKind.Scaffold -> ScaffoldPrefix
-               | PrefixKind.Build -> BuildPrefix
-               | PrefixKind.Serve -> ServePrefix
-
-             $"{cur}{pr}")
-           ""
-
-    $"[yellow]{prefix}[/] {message}"
-
-  type Logger =
-    static member log(message, ?ex: exn, ?prefixes, ?ending, ?escape) =
-      let prefixes =
-        let prefixes = defaultArg prefixes [ Log ]
-
-        if prefixes.Length = 0 then [ Log ] else prefixes
-
-      let escape = defaultArg escape true
-      let formatted = format prefixes message
-
-      match (defaultArg ending NewLine) with
-      | NewLine ->
-        if escape then
-          AnsiConsole.MarkupLineInterpolated formatted
-        else
-          AnsiConsole.MarkupLine(formatted.ToString())
-      | SameLine ->
-        if escape then
-          AnsiConsole.MarkupInterpolated formatted
-        else
-          AnsiConsole.Markup(formatted.ToString())
-
-      match ex with
-      | Some ex ->
-#if DEBUG
-        AnsiConsole.WriteException(
-          ex,
-          ExceptionFormats.ShortenEverything ||| ExceptionFormats.ShowLinks
-        )
-#else
-        AnsiConsole.WriteException(
-          ex,
-          ExceptionFormats.ShortenPaths ||| ExceptionFormats.ShowLinks
-        )
-#endif
-      | None -> ()
-
-    static member scaffold(message, ?ex: exn, ?ending, ?escape) =
-      Logger.log (
-        message,
-        ?ex = ex,
-        prefixes = [ Log; Scaffold ],
-        ?ending = ending,
-        ?escape = escape
-      )
-
-    static member build(message, ?ex: exn, ?ending, ?escape) =
-      Logger.log (
-        message,
-        ?ex = ex,
-        prefixes = [ Log; Build ],
-        ?ending = ending,
-        ?escape = escape
-      )
-
-    static member serve(message, ?ex: exn, ?ending, ?escape) =
-      Logger.log (
-        message,
-        ?ex = ex,
-        prefixes = [ Log; Serve ],
-        ?ending = ending,
-        ?escape = escape
-      )
-
-    static member spinner<'Operation>
-      (
-        title: string,
-        task: Task<'Operation>
-      ) : Task<'Operation> =
-      let status = AnsiConsole.Status()
-      status.Spinner <- Spinner.Known.Dots
-      status.StartAsync(title, (fun _ -> task))
-
-    static member spinner<'Operation>
-      (
-        title: string,
-        task: Async<'Operation>
-      ) : Task<'Operation> =
-      let status = AnsiConsole.Status()
-      status.Spinner <- Spinner.Known.Dots
-      status.StartAsync(title, (fun _ -> task |> Async.StartAsTask))
-
-
-    static member inline spinner<'Operation>
-      (
-        title: string,
-        [<InlineIfLambda>] operation: StatusContext -> Task<'Operation>
-      ) : Task<'Operation> =
-      let status = AnsiConsole.Status()
-      status.Spinner <- Spinner.Known.Dots
-      status.StartAsync(title, operation)
-
-    static member inline spinner<'Operation>
-      (
-        title: string,
-        [<InlineIfLambda>] operation: StatusContext -> Async<'Operation>
-      ) : Task<'Operation> =
-      let status = AnsiConsole.Status()
-      status.Spinner <- Spinner.Known.Dots
-      status.StartAsync(title, (fun ctx -> operation ctx |> Async.StartAsTask))
-
-  let getPerlaLogger () =
-    { new ILogger with
-        member _.Log(logLevel, eventId, state, ex, formatter) =
-          let format = formatter.Invoke(state, ex)
-          Logger.log (format)
-
-        member _.IsEnabled(level) = true
-
-        member _.BeginScope(state) =
-          { new IDisposable with
-              member _.Dispose() = () } }
-
-
 [<RequireQualifiedAccessAttribute>]
 module Http =
   open Flurl
   open Flurl.Http
-  open Logger
 
   [<Literal>]
   let SKYPACK_CDN = "https://cdn.skypack.dev"
@@ -376,6 +217,7 @@ module Http =
 module Fs =
   open System.IO
   open FSharp.Control.Reactive
+  open Perla.PackageManager.Types
 
   type WatchResource =
     | File of string
@@ -406,20 +248,16 @@ module Fs =
     Path.Combine(Path.TemplatesDirectory, $"{repositoryName}-{branch}")
     |> Path.GetFullPath
 
-  let getPerlaTemplatePath
-    (repo: PerlaTemplateRepository)
-    (child: string option)
-    =
+  let getPerlaTemplatePath (path: string) (child: string option) =
     match child with
-    | Some child -> Path.Combine(repo.path, child)
-    | None -> repo.path
+    | Some child -> Path.Combine(path, child)
+    | None -> path
     |> Path.GetFullPath
 
   let getPerlaTemplateTarget projectName =
     Path.Combine("./", projectName) |> Path.GetFullPath
 
-  let removePerlaRepository (repository: PerlaTemplateRepository) =
-    Directory.Delete(repository.path, true)
+  let removePerlaRepository (path: string) = Directory.Delete(path, true)
 
   let getPerlaTemplateScriptContent templatePath clamRepoPath =
     let readTemplateScript =
@@ -436,8 +274,8 @@ module Fs =
 
     readTemplateScript |> Option.orElseWith (fun () -> readRepoScript ())
 
-  let getPerlaRepositoryChildren (repo: PerlaTemplateRepository) =
-    DirectoryInfo(repo.path).GetDirectories()
+  let getPerlaRepositoryChildren (path: string) =
+    DirectoryInfo(path).GetDirectories()
 
   let getPerlaConfig filepath =
     try
@@ -476,16 +314,14 @@ module Fs =
 
         let bytes = File.ReadAllBytes(path)
 
-        return Json.FromBytes<PackagesLock> bytes
+        return Json.FromBytes<ImportMap> bytes
       with
       | :? System.IO.FileNotFoundException ->
-        return
-          { imports = Map.empty
-            scopes = Map.empty }
+        return { imports = Map.empty; scopes = None }
       | ex -> return! ex |> Error
     }
 
-  let writeLockFile configPath (fdsLock: PackagesLock) =
+  let writeLockFile configPath (fdsLock: ImportMap) =
     let path = Path.GetFullPath($"%s{configPath}.importmap")
     let serialized = Json.ToBytes fdsLock
 
@@ -523,9 +359,7 @@ module Fs =
         return Json.FromBytes<ImportMap> bytes
       with
       | :? System.IO.FileNotFoundException ->
-        return
-          { imports = Map.empty
-            scopes = Map.empty }
+        return { imports = Map.empty; scopes = None }
       | ex -> return! ex |> Error
     }
 

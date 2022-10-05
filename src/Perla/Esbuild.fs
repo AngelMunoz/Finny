@@ -1,4 +1,4 @@
-﻿namespace Perla.Lib
+﻿namespace Perla
 
 open System
 open System.IO
@@ -13,9 +13,9 @@ open CliWrap
 
 open FsToolkit.ErrorHandling
 
-open Perla.Lib
-open Types
-open Logger
+open Perla
+open Perla.Types
+open Perla.Logger
 
 module Esbuild =
   let addEsExternals

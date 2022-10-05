@@ -17,7 +17,6 @@
 	  <PackageReference Include="Zio" Version="0.15.0" />
 	</ItemGroup>
 	<ItemGroup>
-	  <ProjectReference Include="..\..\..\Perla.Lib\Perla.Lib.fsproj" />
 	  <ProjectReference Include="..\CalceTypes\CalceTypes.fsproj" />
 	</ItemGroup>
 </Project>

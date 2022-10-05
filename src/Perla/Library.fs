@@ -1,7 +1,8 @@
-﻿namespace Perla.Lib
+﻿namespace Perla
 
 open System.Text
-open Perla.Lib.Types
+
+open Perla.Types
 
 [<AutoOpen>]
 module Lib =

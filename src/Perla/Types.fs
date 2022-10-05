@@ -1,4 +1,4 @@
-﻿namespace Perla.Lib
+﻿namespace Perla
 
 open System
 open System.Text.Json
@@ -199,14 +199,6 @@ module Types =
         build = BuildConfig.DefaultConfig() |> Some
         packages = None }
 
-  type Scope = Map<string, string>
-
-  type ImportMap =
-    { imports: Map<string, string>
-      scopes: Map<string, Scope> }
-
-  type PackagesLock = ImportMap
-
   type Source =
     | Skypack = 0
     | Jspm = 1
@@ -216,71 +208,6 @@ module Types =
   type InitKind =
     | Full = 0
     | Simple = 1
-
-  type SkypackSearchResult =
-    { createdAt: DateTime
-      description: string
-      hasTypes: bool
-      isDeprecated: bool
-      maintainers: {| name: string; email: string |} seq
-      name: string
-      popularityScore: float
-      updatedAt: DateTime }
-
-  type ShowSearchResults =
-    { name: string
-      versions: Map<string, DateTime>
-      distTags: Map<string, string>
-      maintainers: {| name: string; email: string |} seq
-      license: string
-      updatedAt: DateTime
-      registry: string
-      description: string
-      isDeprecated: bool
-      dependenciesCount: int
-      links: Map<string, string> seq }
-
-  type PackageCheck =
-    { title: string
-      pass: bool option
-      url: string }
-
-  type JspmResponse =
-    { staticDeps: string seq
-      dynamicDeps: string seq
-      map: ImportMap }
-
-  type SkypackSearchResponse =
-    { meta: {| page: int
-               resultsPerPage: int
-               time: int
-               totalCount: int64
-               totalPages: int |}
-      results: SkypackSearchResult seq
-      [<JsonExtensionData>]
-      extras: Map<string, JsonElement> }
-
-  type SkypackPackageResponse =
-    { name: string
-      versions: Map<string, DateTime>
-      maintainers: {| name: string; email: string |} seq
-      license: string
-      projectType: string
-      distTags: Map<string, string>
-      keywords: string seq
-      updatedAt: DateTime
-      links: Map<string, string> seq
-      qualityScore: float
-      createdAt: DateTime
-      buildStatus: string
-      registry: string
-      readmeHtml: string
-      description: string
-      popularityScore: float
-      isDeprecated: bool
-      dependenciesCount: int
-      [<JsonExtensionData>]
-      extras: Map<string, JsonElement> }
 
   type InitOptions =
     { path: string option
@@ -307,28 +234,6 @@ module Types =
 
   type ListPackagesOptions = { format: ListFormat }
 
-  [<CLIMutable>]
-  type PerlaTemplateRepository =
-    { _id: ObjectId
-      name: string
-      fullName: string
-      branch: string
-      path: string
-      createdAt: DateTime
-      updatedAt: Nullable<DateTime> }
-
-    static member NewClamRepo
-      (path: string)
-      (name: string, fullName: string, branch: string)
-      =
-      { _id = ObjectId.NewObjectId()
-        name = name
-        fullName = fullName
-        branch = branch
-        path = path
-        createdAt = DateTime.Now
-        updatedAt = Nullable() }
-
   type NameParsingErrors =
     | MissingRepoName
     | WrongGithubFormat
@@ -353,8 +258,4 @@ module Types =
   exception MissingImportMapPathException
   exception PackageNotFoundException
   exception HeaderNotFoundException of string
-  exception TemplateNotFoundException of string
   exception FailedToParseNameException of string
-  exception AddTemplateFailedException
-  exception UpdateTemplateFailedException
-  exception DeleteTemplateFailedException

@@ -1,9 +1,10 @@
-﻿namespace Perla.Lib
+﻿namespace Perla
 
-open Perla.Lib.Types
 open Zio
-open Perla.Lib.Logger
 open Zio.FileSystems
+
+open Perla.Types
+open Perla.Logger
 
 /// <summary>
 /// Encloses all of the operations related with operating with

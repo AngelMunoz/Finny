@@ -1,5 +1,5 @@
 ﻿[<AutoOpen>]
-module Perla.Lib.Extensions
+module Perla.Extensions
 
 
 open System

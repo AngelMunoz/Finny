@@ -1,4 +1,4 @@
-﻿namespace Perla.Lib
+﻿namespace Perla
 
 open System
 open System.IO
@@ -8,10 +8,11 @@ open System.Threading.Tasks
 open AngleSharp
 open AngleSharp.Html.Parser
 
-open Types
-open Fable
-open Esbuild
-open Logger
+open Perla
+open Perla.Types
+open Perla.Fable
+open Perla.Esbuild
+open Perla.Logger
 
 module Build =
 
