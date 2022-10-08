@@ -13,7 +13,7 @@ Friend Module FileOperations
         Try
             Return File.ReadAllTextAsync(path)
         Catch ex As FileNotFoundException
-            Dim content As String = "{ ""imports"": {} }"
+            Const content As String = "{ ""imports"": {} }"
             Using _file = File.CreateText(path)
                 _file.WriteLine(content)
             End Using
@@ -35,21 +35,21 @@ End Module
 Module Actions
 
     Public Async Function AddPackage(options As AddPackageOptions) As Task
-        Dim _result = ImportMap.FromString(Await TryGetFileContents(options.Map))
+        Dim result = ImportMap.FromString(Await TryGetFileContents(options.Map))
         Dim _importMap As ImportMap
-        If _result.IsOk Then
-            _importMap = _result.ResultValue
+        If result.IsOk Then
+            _importMap = result.ResultValue
         Else
             _importMap = ImportMap.CreateMap(New Dictionary(Of String, String)())
         End If
-        Dim _envs = New GeneratorEnv() {GeneratorEnv.Module, GeneratorEnv.Browser}
+        Dim envs = New GeneratorEnv() {GeneratorEnv.Module, GeneratorEnv.Browser}
         Try
             Dim __result =
                 Await Logger.spinner(
                     $"Adding {options.Package}...",
-                    PackageManager.AddJspm(options.Package, environments:=_envs, importMap:=_importMap)
+                    PackageManager.AddJspm(options.Package, environments:=envs, importMap:=_importMap)
                 )
-            If _result.IsOk Then
+            If result.IsOk Then
                 _importMap = __result.ResultValue
             Else
                 _importMap = ImportMap.CreateMap(New Dictionary(Of String, String)())
