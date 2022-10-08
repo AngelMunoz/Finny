@@ -3,6 +3,9 @@
 open System.Runtime.InteropServices
 open System.Collections.Generic
 open System.Runtime.CompilerServices
+open System.Text.Json
+open System.Text.Json.Serialization
+open System.IO
 
 [<Extension>]
 type DictionaryExtensions =
@@ -16,6 +19,10 @@ module Types =
   type ImportMap =
     { imports: Map<string, string>
       scopes: Map<string, Map<string, string>> option }
+
+    member this.ToJson([<Optional>] ?indented: bool) =
+      let opts = JsonSerializerOptions(WriteIndented = defaultArg indented true, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)
+      JsonSerializer.Serialize(this, opts)
 
     static member CreateMap
       (
@@ -36,6 +43,20 @@ module Types =
         | None -> None
 
       { imports = imports; scopes = scopes }
+
+    static member FromString(content: string) =
+      try
+        JsonSerializer.Deserialize<ImportMap>(content)
+        |> Ok
+      with ex -> Error ex.Message
+
+    static member FromStringAsync(content: Stream) =
+      task {
+        try
+          let! result = JsonSerializer.DeserializeAsync<ImportMap>(content)
+          return Ok result
+        with ex -> return Error ex.Message
+      }
 
   [<Struct>]
   type GeneratorEnv =

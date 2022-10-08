@@ -1,5 +1,6 @@
 ﻿namespace Perla.PackageManager
 
+open System.Runtime.CompilerServices
 open System.Runtime.InteropServices
 
 open Perla.PackageManager.Types
@@ -169,3 +170,6 @@ module PackageManager =
         | Ok response -> return Ok response.map
         | Error err -> return Error err
       }
+
+[<assembly: Extension>]
+do ()

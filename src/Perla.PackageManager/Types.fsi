@@ -1,4 +1,4 @@
-namespace Perla.PackageManager
+﻿namespace Perla.PackageManager
 
 open System.Collections.Generic
 open System.Runtime.CompilerServices
@@ -20,11 +20,19 @@ module Types =
         { imports: Map<string, string>
           scopes: Map<string, Map<string, string>> option }
 
+        member ToJson: ?indented: bool -> string
+
         /// <summary>A C# Friendly function that creates a new import map</summary>
         /// <param name="imports">Sequence of imports and their urls</param>
         /// <param name="scopes">A Sequence that maps a scoping URL to the imports and their urls</param>
         static member CreateMap:
             imports: Dictionary<string, string> * ?scopes: Dictionary<string, Dictionary<string, string>> -> ImportMap
+
+        /// Tries to Deserialize an importmap json into an ImportMap object
+        static member FromString: content: string -> Result<ImportMap, string>
+
+        /// Tries to Deserialize an importmap json into an ImportMap In an asynchronous way
+        static member FromStringAsync: content: System.IO.Stream -> System.Threading.Tasks.Task<Result<ImportMap, string>>
 
     /// Used primarily for the JspmGenerator client
     /// This signals the Jspm generator API how to resolve
