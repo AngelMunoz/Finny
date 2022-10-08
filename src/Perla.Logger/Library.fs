@@ -4,6 +4,7 @@ open System.Threading.Tasks
 open Spectre.Console
 open System
 open Microsoft.Extensions.Logging
+open System.Runtime.InteropServices
 
 [<Struct>]
 type PrefixKind =
@@ -53,7 +54,7 @@ type Logger =
 
     $"[yellow]{prefix}[/] {message}"
 
-  static member log(message, ?ex: exn, ?prefixes, ?ending, ?escape) =
+  static member log(message, [<Optional>] ?ex: exn, [<Optional>]?prefixes, [<Optional>]?ending, [<Optional>]?escape) =
     let prefixes =
       let prefixes = defaultArg prefixes [ Log ]
 
@@ -89,7 +90,7 @@ type Logger =
 #endif
     | None -> ()
 
-  static member scaffold(message, ?ex: exn, ?ending, ?escape) =
+  static member scaffold(message, [<Optional>] ?ex: exn, [<Optional>] ?ending, [<Optional>] ?escape) =
     Logger.log (
       message,
       ?ex = ex,
@@ -98,7 +99,7 @@ type Logger =
       ?escape = escape
     )
 
-  static member build(message, ?ex: exn, ?ending, ?escape) =
+  static member build(message, [<Optional>] ?ex: exn, [<Optional>] ?ending, [<Optional>] ?escape) =
     Logger.log (
       message,
       ?ex = ex,
@@ -107,7 +108,7 @@ type Logger =
       ?escape = escape
     )
 
-  static member serve(message, ?ex: exn, ?ending, ?escape) =
+  static member serve(message, [<Optional>] ?ex: exn, [<Optional>] ?ending, [<Optional>] ?escape) =
     Logger.log (
       message,
       ?ex = ex,
