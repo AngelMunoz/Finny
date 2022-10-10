@@ -37,6 +37,7 @@ open Perla
 open Perla.Types
 open Perla.Fable
 open Perla.Logger
+open Perla.PackageManager.Types
 
 module private LiveReload =
   let getReloadEvent (event: Fs.FileChangedEvent) =
@@ -135,6 +136,7 @@ module private LiveReload =
 
 [<RequireQualifiedAccess>]
 module private Middleware =
+
   let tryFindMounted (path: string) mountedDirs =
     mountedDirs
     |> Map.tryPick (fun k v ->
