@@ -14,6 +14,7 @@ open Perla.Types
 open Perla.Server
 open Perla.Build
 open Perla.Logger
+open Perla.VirtualFs
 open Perla.Scaffolding
 open Perla.Plugins.Extensibility
 
@@ -140,6 +141,19 @@ type ListArgs =
       match this with
       | As_Package_Json -> "Lists packages in npm's package.json format."
 
+[<RequireQualifiedAccess>]
+type RestoreArgs =
+  | [<AltCommandLine("-s")>] Source of Source
+
+  static member ToOptions(args: ParseResults<RestoreArgs>) : RestoreOptions =
+    { source =
+        args.TryGetResult(RestoreArgs.Source) |> Option.defaultValue Source.Jspm }
+
+  interface IArgParserTemplate with
+    member s.Usage =
+      match s with
+      | Source _ -> "Where to pull dependencies from. defaults to Jspm"
+
 type RepositoryArgs =
   | [<AltCommandLine("-n")>] Repository_Name of string
   | [<AltCommandLine("-b")>] Branch of string option
@@ -180,7 +194,7 @@ type DevServerArgs =
     ParseResults<SearchArgs>
   | [<CliPrefix(CliPrefix.None)>] Show of ParseResults<ShowArgs>
   | [<CliPrefix(CliPrefix.None)>] Add of ParseResults<AddArgs>
-  | [<CliPrefix(CliPrefix.None)>] Restore
+  | [<CliPrefix(CliPrefix.None)>] Restore of ParseResults<RestoreArgs>
   | [<CliPrefix(CliPrefix.None)>] Remove of ParseResults<RemoveArgs>
   | [<CliPrefix(CliPrefix.None)>] List of ParseResults<ListArgs>
   | [<CliPrefix(CliPrefix.None)>] New of ParseResults<NewProjectArgs>
@@ -215,6 +229,8 @@ type DevServerArgs =
       | Version _ -> "Prints out the cli version to the console."
 
 module Commands =
+  open Perla.PackageManager.Types
+
   let private (|ParseRegex|_|) regex str =
     let m = Text.RegularExpressions.Regex(regex).Match(str)
 
@@ -345,7 +361,7 @@ module Commands =
     | _ -> None, templateName, None
 
   let runListTemplates () =
-    let results = Database.listEntries ()
+    let results = Templates.List()
 
     let table =
       Table()
@@ -367,8 +383,8 @@ module Commands =
 
       let children =
         let names =
-          Fs.getPerlaRepositoryChildren result.path
-          |> Array.map (fun d -> $"[green]{d.Name}[/]")
+          PerlaFs.GetTemplateChildren result.path
+          |> Seq.map (fun d -> $"[green]{d}[/]")
 
         String.Join("\n", names) |> Markup
 
@@ -392,106 +408,105 @@ module Commands =
 
     0
 
+  let private updateTemplate
+    (template: PerlaTemplateRepository)
+    (branch: string)
+    (context: StatusContext)
+    =
+    context.Status <-
+      $"Download and extracting template {template.fullName}/{branch}"
+
+    Templates.Update({ template with branch = branch })
+
+  let private addTemplate
+    (simpleName: string)
+    (fullName: string)
+    (branch: string)
+    (path: string)
+    (context: StatusContext)
+    =
+    context.Status <- $"Download and extracting template {fullName}/{branch}"
+
+    Templates.Add(simpleName, fullName, branch, path)
+
   let runAddTemplate (autoContinue: bool option) (opts: RepositoryOptions) =
     taskResult {
-      match getRepositoryName opts.fullRepositoryName with
-      | Error err -> return! err.AsString |> FailedToParseNameException |> Error
-      | Ok simpleName ->
-        if Database.existsByFullName opts.fullRepositoryName then
-          match autoContinue with
-          | Some true ->
-            let updateOperation =
-              taskOption {
-                let! repo = Database.findByFullName opts.fullRepositoryName
-                let repo = { repo with branch = opts.branch }
+      let autoContinue = defaultArg autoContinue false
 
-                let! repo =
-                  repo |> Scaffolding.downloadRepo |> Scaffolding.unzipAndClean
+      let! simpleName =
+        getRepositoryName opts.fullRepositoryName
+        |> Result.mapError (fun err ->
+          err.AsString |> FailedToParseNameException)
 
-                return! Database.updateEntry (Some repo)
-              }
+      let template =
+        opts.fullRepositoryName |> NameKind.FullName |> Templates.FindOne
 
-            match! updateOperation with
-            | Some true ->
+      match template with
+      | Some template ->
+        if autoContinue then
+          match!
+            Logger.spinner (
+              "Updating Templates",
+              updateTemplate template opts.branch
+            )
+          with
+          | true ->
+            Logger.log
+              $"{opts.fullRepositoryName} - {opts.branch} updated correctly"
+
+            return 0
+          | false ->
+            Logger.log
+              $"{opts.fullRepositoryName} - {opts.branch} was not updated"
+
+            return 1
+        else
+          let prompt = SelectionPrompt<string>().AddChoices([ "Yes"; "No" ])
+
+          prompt.Title <-
+            $"\"{opts.fullRepositoryName}\" already exists, Do you want to update it?"
+
+          match AnsiConsole.Prompt(prompt) with
+          | "Yes" ->
+            match!
+              Logger.spinner (
+                "Updating Templates",
+                updateTemplate template opts.branch
+              )
+            with
+            | true ->
               Logger.log
                 $"{opts.fullRepositoryName} - {opts.branch} updated correctly"
 
               return 0
-            | _ -> return 0
+            | false ->
+              Logger.log
+                $"{opts.fullRepositoryName} - {opts.branch} was not updated"
+
+              return 1
           | _ ->
-            let prompt = SelectionPrompt<string>().AddChoices([ "Yes"; "No" ])
-
-            prompt.Title <-
-              $"\"{opts.fullRepositoryName}\" already exists, Do you want to update it?"
-
-            match AnsiConsole.Prompt(prompt) with
-            | "Yes" ->
-              let updateOperation =
-                Logger.spinner (
-                  "Updating Templates",
-                  fun context ->
-                    taskOption {
-                      let! repo =
-                        Database.findByFullName opts.fullRepositoryName
-
-                      let repo = { repo with branch = opts.branch }
-
-                      let! repo =
-                        repo
-                        |> (fun repository ->
-                          context.Status <- "Downloading Templates"
-
-                          repository)
-                        |> Scaffolding.downloadRepo
-                        |> (fun tsk ->
-                          context.Status <- "Extracting Templates"
-                          tsk)
-                        |> Scaffolding.unzipAndClean
-
-                      return! Database.updateEntry (Some repo)
-                    }
-                )
-
-              match! updateOperation with
-              | Some true ->
-                Logger.log
-                  $"{opts.fullRepositoryName} - {opts.branch} updated correctly"
-
-                return 0
-              | _ -> return! UpdateTemplateFailedException |> Error
-            | _ -> return 0
-        else
-          let path =
-            Fs.getPerlaRepositoryPath opts.fullRepositoryName opts.branch
-
-          let addedRepository =
-            Logger.spinner (
-              "Adding new templates",
-              fun context ->
-                taskOption {
-                  let! addedRepository =
-                    (simpleName, opts.fullRepositoryName, opts.branch)
-                    |> (PerlaTemplateRepository.NewClamRepo path)
-                    |> (fun tsk ->
-                      context.Status <- "Downloading Templates"
-                      tsk)
-                    |> Scaffolding.downloadRepo
-                    |> (fun tsk ->
-                      context.Status <- "Extracting Templates"
-                      tsk)
-                    |> Scaffolding.unzipAndClean
-
-                  return! Database.createEntry (Some addedRepository)
-                }
-            )
-
-          match! addedRepository with
-          | Some repository ->
-            Logger.log
-              $"Succesfully added {repository.fullName} at {repository.path}"
-
+            Logger.log $"Template {template.fullName} was not updated"
             return 0
-          | None -> return! AddTemplateFailedException |> Error
+      | None ->
+        let path =
+          Path.Combine(PerlaFs.Templates, opts.fullRepositoryName, opts.branch)
+
+        let! tplId =
+          Logger.spinner (
+            "Adding new templates",
+            addTemplate simpleName opts.fullRepositoryName opts.branch path
+          )
+
+        match Templates.FindOne(tplId) with
+        | Some template ->
+          Logger.log $"Succesfully added {template.fullName} at {template.path}"
+          return 0
+        | None ->
+          Logger.log
+            $"Template may have been downloaded but for some reason we can't find it, this is likely a bug"
+
+          return 1
+
     }
 
 
@@ -682,9 +697,10 @@ module Commands =
     result {
       let repository =
         match user, child with
-        | Some user, Some _ -> Database.findByFullName $"{user}/{template}"
-        | Some _, None -> Database.findByFullName opts.templateName
-        | None, _ -> Database.findByName template
+        | Some user, Some _ ->
+          Templates.FindOne(NameKind.FullName $"{user}/{template}")
+        | Some _, None -> Templates.FindOne(NameKind.FullName opts.templateName)
+        | None, _ -> Templates.FindOne(NameKind.Name template)
 
       match repository with
       | Some clamRepo ->
@@ -693,34 +709,41 @@ module Commands =
           escape = false
         )
 
-        let templatePath = Fs.getPerlaTemplatePath clamRepo.path child
-        let targetPath = Fs.getPerlaTemplateTarget opts.projectName
+        let templatePath =
+          PerlaFs.GetPathForTemplate(
+            clamRepo.name,
+            clamRepo.branch,
+            ?child = child
+          )
+
+        let targetPath = $"./{opts.projectName}"
 
         let content =
-          Fs.getPerlaTemplateScriptContent templatePath clamRepo.path
+          PerlaFs.GetTemplateScriptContent(templatePath, clamRepo.path)
+          |> Option.map (Scaffolding.getConfigurationFromScript)
+          |> Option.flatten
 
         Logger.log ($"Creating structure...")
 
-        match content with
-        | Some content ->
-          Scaffolding.getConfigurationFromScript content
-          |> Scaffolding.compileAndCopy templatePath targetPath
-        | None -> Scaffolding.compileAndCopy templatePath targetPath None
+        PerlaFs.WriteTemplateToDisk(
+          templatePath,
+          targetPath,
+          ?payload = content
+        )
 
         return 0
       | None ->
-        return!
-          TemplateNotFoundException
-            $"Template [{opts.templateName}] was not found"
-          |> Error
+        Logger.log $"Template [{opts.templateName}] was not found"
+        return 1
+
     }
 
   let runRemoveTemplate (name: string) =
     let deleteOperation =
       option {
-        let! repo = Database.findByFullName name
-        Fs.removePerlaRepository repo.path
-        return! Database.deleteByFullName repo.fullName
+        let! repo = Templates.FindOne(NameKind.FullName name)
+        PerlaFs.RemoveTemplateFromDisk repo.path
+        return! Templates.Delete repo.fullName
       }
 
     match deleteOperation with
@@ -737,31 +760,48 @@ module Commands =
         escape = false
       )
 
-      DeleteTemplateFailedException |> Error
-    | None -> name |> TemplateNotFoundException |> Error
+      Ok 1
+    | None ->
+      Logger.log (
+        $"[bold red]{name}[/] was not found in the repository list.",
+        escape = false
+      )
+
+      Ok 1
 
   let runUpdateTemplate (opts: RepositoryOptions) =
     taskResult {
-      let updateOperation =
-        taskOption {
-          let! repo = Database.findByFullName opts.fullRepositoryName
-          let repo = { repo with branch = opts.branch }
 
-          let! repo =
-            repo |> Scaffolding.downloadRepo |> Scaffolding.unzipAndClean
+      match Templates.FindOne(NameKind.FullName opts.fullRepositoryName) with
+      | Some template ->
+        match!
+          Logger.spinner (
+            "Updating Template",
+            updateTemplate template opts.branch
+          )
+        with
+        | true ->
+          Logger.log (
+            $"[bold green]{opts.fullRepositoryName}[/] - [yellow]{opts.branch}[/] updated correctly",
+            escape = false
+          )
 
-          return! Database.updateEntry (Some repo)
-        }
+          return 0
+        | _ ->
+          Logger.log (
+            $"[bold red]{opts.fullRepositoryName}[/] - [yellow]{opts.branch}[/] failed to update",
+            escape = false
+          )
 
-      match! updateOperation with
-      | Some true ->
+          return 1
+      | None ->
         Logger.log (
-          $"[bold green]{opts.fullRepositoryName}[/] - [yellow]{opts.branch}[/] updated correctly",
+          $"[bold red]{opts.fullRepositoryName}[/] - [yellow]{opts.branch}[/] failed to update",
           escape = false
         )
 
-        return 0
-      | _ -> return! UpdateTemplateFailedException |> Error
+        return 1
+
     }
 
   let runAdd (options: AddPackageOptions) =
@@ -769,101 +809,68 @@ module Commands =
       let! package, version =
         match options.package with
         | Some package -> parsePackageName package |> Ok
-        | None -> MissingPackageNameException |> Error
+        | None -> Error(exn "Missing package name")
 
-      let alias = options.alias |> Option.defaultValue package
+      match options.alias with
+      | Some _ ->
+        Logger.log (
+          $"[bold yellow]Aliases management will change in the future, they will be ignored if this warning appears[/]",
+          escape = false
+        )
+      | None -> ()
 
-      let source = defaultArg options.source Source.Skypack
+      let provider =
+        defaultArg options.source Source.Jspm
+        |> function
+          | Source.Skypack -> Provider.Skypack
+          | Source.Unpkg -> Provider.Unpkg
+          | Source.Jsdelivr -> Provider.Jsdelivr
+          | Source.JspmSystem -> Provider.JspmSystem
+          | Source.Jspm
+          | _ -> Provider.Jspm
 
       let version =
         match version with
         | Some version -> $"@{version}"
         | None -> ""
 
-      let! deps, scopes =
+      let importMap = PerlaFs.ImportMap()
+      Logger.log "Updating importmap..."
+
+      let! map =
         Logger.spinner (
           $"Adding: [bold yellow]{package}{version}[/]",
-          Http.getPackageUrlInfo $"{package}{version}" alias source
+          Dependencies.Add($"{package}{version}", importMap, provider)
         )
+        |> TaskResult.mapError (fun err -> exn err)
 
-
-      let! fdsConfig = Fs.getPerlaConfig (Path.GetPerlaConfigPath())
-      let! lockFile = Fs.getOrCreateLockFile (Path.GetPerlaConfigPath())
-
-      let packages =
-        fdsConfig.packages
-        |> Option.defaultValue Map.empty
-        |> Map.toList
-        |> fun existing -> existing @ deps
-        |> Map.ofList
-
-      let fdsConfig = { fdsConfig with packages = packages |> Some }
-
-      let lockFile =
-        let imports =
-          lockFile.imports
-          |> Map.toList
-          |> fun existing -> existing @ deps |> Map.ofList
-
-        let scopes =
-          let scopes = scopes |> Map.ofList
-
-          defaultArg lockFile.scopes Map.empty
-          |> Map.fold
-               (fun acc key value ->
-                 match acc |> Map.tryFind key with
-                 | Some found ->
-                   let newValue =
-                     (found |> Map.toList) @ (value |> Map.toList) |> Map.ofList
-
-                   acc |> Map.add key newValue
-                 | None -> acc |> Map.add key value)
-               scopes
-
-        Logger.log ("Updating importmap...")
-        Logger.log ($"Writing scopes: %A{scopes}")
-        Logger.log ($"Writing imports: %A{imports}")
-
-        { lockFile with
-            imports = imports
-            scopes = Some scopes }
-
-      do! Fs.createPerlaConfig (Path.GetPerlaConfigPath()) fdsConfig
-      do! Fs.writeLockFile (Path.GetPerlaConfigPath()) lockFile
-
+      PerlaFs.WriteMap(map)
       return 0
     }
 
-  let runRestore () =
+  let runRestore (options: RestoreOptions) =
     taskResult {
-      let! fdsConfig = Fs.getPerlaConfig (Path.GetPerlaConfigPath())
-      let! lockFile = Fs.getOrCreateLockFile (Path.GetPerlaConfigPath())
-
-      if lockFile.imports |> Map.isEmpty |> not then
-        return! exn "Import map already exists" |> Error
-
-      let packages = fdsConfig.packages |> Option.defaultValue Map.empty
-
-      let addRuns =
-        packages
-        |> Map.toList
-        |> List.map (fun (k, v) ->
-          match parseUrl v with
-          | None -> raise (FormatException "Packages has incorrect format")
-          | Some (source, name, version) ->
-            let alias = if k = name then None else Some k
-
-            let options: AddPackageOptions =
-              { AddPackageOptions.package = Some $"{name}@{version}"
-                alias = alias
-                source = Some source }
-
-            runAdd options)
+      let importMap = PerlaFs.ImportMap()
 
       Logger.log "Regenerating import map..."
 
-      do! List.sequenceTaskResultM addRuns |> TaskResult.ignore
+      let packages = importMap.imports |> Map.keys
 
+      let provider =
+        options.source
+        |> function
+          | Source.Skypack -> Provider.Skypack
+          | Source.Unpkg -> Provider.Unpkg
+          | Source.Jsdelivr -> Provider.Jsdelivr
+          | Source.JspmSystem -> Provider.JspmSystem
+          | Source.Jspm
+          | _ -> Provider.Jspm
+
+      let! newMap =
+        Dependencies.Restore(packages, provider = provider)
+        |> TaskResult.mapError (fun err -> exn err)
+
+      PerlaFs.WriteMap(newMap)
       return 0
     }
 

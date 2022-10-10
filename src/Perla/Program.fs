@@ -44,7 +44,8 @@ let main argv =
         printfn $"{version.Major}.{version.Minor}.{version.Build}"
         return! Ok 0
       | [ List_Templates ] -> return Commands.runListTemplates ()
-      | [ Restore ] -> return! Commands.runRestore ()
+      | [ Restore args ] ->
+        return! args |> RestoreArgs.ToOptions |> Commands.runRestore
       | [ Remove_Template name ] -> return! Commands.runRemoveTemplate name
       | _ ->
         match parsed.TryGetSubCommand() with
