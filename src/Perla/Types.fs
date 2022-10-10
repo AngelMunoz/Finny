@@ -204,6 +204,7 @@ module Types =
     | Jspm = 1
     | Jsdelivr = 2
     | Unpkg = 3
+    | JspmSystem = 4
 
   type InitKind =
     | Full = 0
@@ -250,6 +251,8 @@ module Types =
   type ProjectOptions =
     { projectName: string
       templateName: string }
+
+  type RestoreOptions = { source: Source }
 
 
   exception CommandNotParsedException of string
