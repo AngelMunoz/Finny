@@ -7,6 +7,7 @@ open Perla.PackageManager
 open Perla.PackageManager.Types
 open Perla.PackageManager.Skypack
 open Perla.Logger
+open FsToolkit.ErrorHandling
 
 
 module PackageSearch =
@@ -122,5 +123,52 @@ module PackageSearch =
       printShowTable package
     }
 
-module Importmap =
-  ()
+type Dependencies =
+
+  static member inline Add
+    (
+      package: string,
+      map: ImportMap,
+      provider: Provider
+    ) =
+    PackageManager.AddJspm(
+      package,
+      [ GeneratorEnv.Browser; GeneratorEnv.Module; GeneratorEnv.Development ],
+      map,
+      provider
+    )
+
+  static member inline Restore(package: string, ?provider: Provider) =
+    PackageManager.AddJspm(
+      package,
+      [ GeneratorEnv.Browser; GeneratorEnv.Module; GeneratorEnv.Development ],
+      ?provider = provider
+    )
+
+  static member inline Restore(packages: string seq, ?provider: Provider) =
+    PackageManager.AddJspm(
+      packages,
+      [ GeneratorEnv.Browser; GeneratorEnv.Module; GeneratorEnv.Development ],
+      ?provider = provider
+    )
+
+  static member inline Remove
+    (
+      package: string,
+      map: ImportMap,
+      provider: Provider
+    ) =
+
+    PackageManager.Regenerate(
+      Map.remove package map.imports |> Map.keys,
+      [ GeneratorEnv.Browser; GeneratorEnv.Module; GeneratorEnv.Development ],
+      provider
+    )
+
+  static member inline SwitchProvider(map: ImportMap, provider: Provider) =
+    PackageManager.AddJspm(
+      [],
+      [ GeneratorEnv.Browser; GeneratorEnv.Module; GeneratorEnv.Development ],
+      importMap = map,
+      provider = provider
+    )
