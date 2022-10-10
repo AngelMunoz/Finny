@@ -34,7 +34,7 @@ type PackageSearchMeta =
 type PackageSearchResults =
     { meta: PackageSearchMeta
       results: seq<PackageSearchResult>
-      [<System.Text.Json.Serialization.JsonExtensionData>]
+      [<JsonExtensionData>]
       extras: Map<string, JsonElement> }
 
 type PackageInfo =

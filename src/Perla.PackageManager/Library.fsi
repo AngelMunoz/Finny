@@ -8,7 +8,7 @@ module PackageManager =
 
     /// When installing a package use this option
     /// to specify that kind of Dependency it is
-    [<Struct>]
+    [<Struct; RequireQualifiedAccess>]
     type EnvTarget =
         /// Dependencies that must be present for the website to work
         | Production

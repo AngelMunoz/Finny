@@ -21,7 +21,12 @@ module Types =
       scopes: Map<string, Map<string, string>> option }
 
     member this.ToJson([<Optional>] ?indented: bool) =
-      let opts = JsonSerializerOptions(WriteIndented = defaultArg indented true, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)
+      let opts =
+        JsonSerializerOptions(
+          WriteIndented = defaultArg indented true,
+          DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+        )
+
       JsonSerializer.Serialize(this, opts)
 
     static member CreateMap
@@ -46,19 +51,20 @@ module Types =
 
     static member FromString(content: string) =
       try
-        JsonSerializer.Deserialize<ImportMap>(content)
-        |> Ok
-      with ex -> Error ex.Message
+        JsonSerializer.Deserialize<ImportMap>(content) |> Ok
+      with ex ->
+        Error ex.Message
 
     static member FromStringAsync(content: Stream) =
       task {
         try
           let! result = JsonSerializer.DeserializeAsync<ImportMap>(content)
           return Ok result
-        with ex -> return Error ex.Message
+        with ex ->
+          return Error ex.Message
       }
 
-  [<Struct>]
+  [<Struct; RequireQualifiedAccess>]
   type GeneratorEnv =
     | Browser
     | Development
@@ -76,7 +82,7 @@ module Types =
       | Node -> "node"
       | Deno -> "deno"
 
-  [<Struct>]
+  [<Struct; RequireQualifiedAccess>]
   type Provider =
     | Jspm
     | Skypack

@@ -37,7 +37,7 @@ module Types =
     /// Used primarily for the JspmGenerator client
     /// This signals the Jspm generator API how to resolve
     /// the files and what kind of dependencies to provide
-    [<Struct>]
+    [<Struct; RequireQualifiedAccess>]
     type GeneratorEnv =
         | Browser
         | Development
@@ -51,7 +51,7 @@ module Types =
     /// User primarily for the JspmGenerator client
     /// This signals the JSPM generator API where to pull
     /// the dependencies and the URLs from, in the case o the
-    [<Struct>]
+    [<Struct; RequireQualifiedAccess>]
     type Provider =
         | Jspm
         | Skypack

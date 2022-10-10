@@ -10,7 +10,7 @@ open Perla.PackageManager.Skypack
 [<AutoOpen>]
 module PackageManager =
 
-  [<Struct>]
+  [<Struct; RequireQualifiedAccess>]
   type EnvTarget =
     | Production
     | Development
@@ -29,7 +29,7 @@ module PackageManager =
         let importMap =
           defaultArg importMap { imports = Map.empty; scopes = None }
 
-        let isProduction = (envTarget = Production)
+        let isProduction = (envTarget = EnvTarget.Production)
 
         let! dependencyInfo =
           Skypack.PackageUrls(package, isProduction, ?esVersion = esVersion)
@@ -69,7 +69,7 @@ module PackageManager =
         let importMap =
           defaultArg importMap { imports = Map.empty; scopes = None }
 
-        let isProduction = (envTarget = Production)
+        let isProduction = (envTarget = EnvTarget.Production)
 
         let! dependencyInfos =
           packages
