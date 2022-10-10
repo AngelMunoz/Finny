@@ -13,6 +13,7 @@ open Perla.Types
 open Perla.Fable
 open Perla.Esbuild
 open Perla.Logger
+open Perla.PackageManager.Types
 
 module Build =
 
