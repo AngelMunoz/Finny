@@ -54,13 +54,13 @@ module Json =
   open System.Text.Json.Serialization
 
   let private jsonOptions () =
-    let opts = JsonSerializerOptions()
-    opts.WriteIndented <- true
-    opts.AllowTrailingCommas <- true
-    opts.ReadCommentHandling <- JsonCommentHandling.Skip
-    opts.UnknownTypeHandling <- JsonUnknownTypeHandling.JsonElement
-    opts.DefaultIgnoreCondition <- JsonIgnoreCondition.WhenWritingNull
-    opts
+    JsonSerializerOptions(
+      WriteIndented = true,
+      AllowTrailingCommas = true,
+      ReadCommentHandling = JsonCommentHandling.Skip,
+      UnknownTypeHandling = JsonUnknownTypeHandling.JsonElement,
+      DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+    )
 
   let ToBytes value =
     JsonSerializer.SerializeToUtf8Bytes(value, jsonOptions ())
@@ -79,139 +79,6 @@ module Json =
   let ToPackageJson dependencies =
     JsonSerializer.Serialize({| dependencies = dependencies |}, jsonOptions ())
 
-
-[<RequireQualifiedAccessAttribute>]
-module Http =
-  open Flurl
-  open Flurl.Http
-
-  [<Literal>]
-  let SKYPACK_CDN = "https://cdn.skypack.dev"
-
-  [<Literal>]
-  let SKYPACK_API = "https://api.skypack.dev/v1"
-
-  [<Literal>]
-  let JSPM_API = "https://api.jspm.io/generate"
-
-  let private getSkypackInfo (name: string) (alias: string) =
-    taskResult {
-      try
-        let info = {| lookUp = $"%s{name}" |}
-        let! res = $"{SKYPACK_CDN}/{info.lookUp}".GetAsync()
-
-        if res.StatusCode >= 400 then
-          return! PackageNotFoundException |> Error
-
-        let mutable pinnedUrl = ""
-        let mutable importUrl = ""
-
-        let info =
-          if res.Headers.TryGetFirst("x-pinned-url", &pinnedUrl) |> not then
-            {| info with pin = None |}
-          else
-            {| info with pin = Some pinnedUrl |}
-
-        let info =
-          if res.Headers.TryGetFirst("x-import-url", &importUrl) |> not then
-            {| info with import = None |}
-          else
-            {| info with import = Some importUrl |}
-
-        return
-          [ alias, $"{SKYPACK_CDN}{info.pin |> Option.defaultValue info.lookUp}" ],
-          // skypack doesn't handle any import maps so the scopes will always be empty
-          []
-      with
-      | :? Flurl.Http.FlurlHttpException as ex ->
-        match ex.StatusCode |> Option.ofNullable with
-        | Some code when code >= 400 ->
-          return! PackageNotFoundException |> Error
-        | _ -> ()
-
-        return! ex :> Exception |> Error
-      | ex -> return! ex |> Error
-    }
-
-  let private getJspmInfo name alias source =
-    taskResult {
-      let queryParams =
-        {| install = [| $"{name}" |]
-           env = "browser"
-           provider =
-            match source with
-            | Source.Skypack -> "skypack"
-            | Source.Jspm -> "jspm"
-            | Source.Jsdelivr -> "jsdelivr"
-            | Source.Unpkg -> "unpkg"
-            | _ ->
-              Logger.log
-                $"Warn: an unknown provider has been specified: [{source}] defaulting to jspm"
-
-              "jspm" |}
-
-      try
-        let! res =
-          JSPM_API.SetQueryParams(queryParams).GetJsonAsync<JspmResponse>()
-
-        let scopes =
-          // F# type serialization hits again!
-          // the JSPM response may include a scope object or not
-          // so try to safely check if it exists or not
-          match res.map.scopes :> obj |> Option.ofObj with
-          | None -> Map.empty
-          | Some value -> value :?> Map<string, Scope>
-
-        return
-          res.map.imports |> Map.toList |> List.map (fun (k, v) -> alias, v),
-          scopes |> Map.toList
-      with :? Flurl.Http.FlurlHttpException as ex ->
-        match ex.StatusCode |> Option.ofNullable with
-        | Some code when code >= 400 ->
-          return! PackageNotFoundException |> Error
-        | _ -> ()
-
-        return! ex :> Exception |> Error
-    }
-
-  let getPackageUrlInfo (name: string) (alias: string) (source: Source) =
-    match source with
-    | Source.Skypack -> getSkypackInfo name alias
-    | _ -> getJspmInfo name alias source
-
-  let searchPackage (name: string) (page: int option) =
-    taskResult {
-      let page = defaultArg page 1
-
-      let! res =
-        SKYPACK_API
-          .AppendPathSegment("search")
-          .SetQueryParams({| q = name; p = page |})
-          .GetJsonAsync<SkypackSearchResponse>()
-
-      return
-        {| meta = res.meta
-           results = res.results |}
-    }
-
-  let showPackage name =
-    taskResult {
-      let! res =
-        $"{SKYPACK_API}/package/{name}".GetJsonAsync<SkypackPackageResponse>()
-
-      return
-        { name = res.name
-          versions = res.versions
-          distTags = res.distTags
-          maintainers = res.maintainers
-          license = res.license
-          updatedAt = res.updatedAt
-          registry = res.registry
-          description = res.description
-          isDeprecated = res.isDeprecated
-          dependenciesCount = res.dependenciesCount
-          links = res.links }
-    }
 
 [<RequireQualifiedAccess>]
 module Fs =
@@ -238,44 +105,6 @@ module Fs =
   type IFileWatcher =
     inherit IDisposable
     abstract member FileChanged: IObservable<FileChangedEvent>
-
-
-  ///<summary>
-  /// Gets the base templates directory (next to the perla binary)
-  /// and appends the final path repository name
-  /// </summary>
-  let getPerlaRepositoryPath (repositoryName: string) (branch: string) =
-    Path.Combine(Path.TemplatesDirectory, $"{repositoryName}-{branch}")
-    |> Path.GetFullPath
-
-  let getPerlaTemplatePath (path: string) (child: string option) =
-    match child with
-    | Some child -> Path.Combine(path, child)
-    | None -> path
-    |> Path.GetFullPath
-
-  let getPerlaTemplateTarget projectName =
-    Path.Combine("./", projectName) |> Path.GetFullPath
-
-  let removePerlaRepository (path: string) = Directory.Delete(path, true)
-
-  let getPerlaTemplateScriptContent templatePath clamRepoPath =
-    let readTemplateScript =
-      try
-        File.ReadAllText(Path.Combine(templatePath, "templating.fsx")) |> Some
-      with _ ->
-        None
-
-    let readRepoScript () =
-      try
-        File.ReadAllText(Path.Combine(clamRepoPath, "templating.fsx")) |> Some
-      with _ ->
-        None
-
-    readTemplateScript |> Option.orElseWith (fun () -> readRepoScript ())
-
-  let getPerlaRepositoryChildren (path: string) =
-    DirectoryInfo(path).GetDirectories()
 
   let getPerlaConfig filepath =
     try
