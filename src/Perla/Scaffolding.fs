@@ -1,17 +1,11 @@
 ﻿namespace Perla
 
 open System
-open System.Threading.Tasks
-open System.IO
-open System.IO.Compression
 open LiteDB
-open Scriban
 
 open Flurl.Http
-open FsToolkit.ErrorHandling
 
-open Perla.Logger
-
+open Perla.VirtualFs
 
 module Scaffolding =
 
@@ -36,254 +30,112 @@ module Scaffolding =
       | MissingRepoName -> "The repository name is missing"
       | WrongGithubFormat -> "The repository name is not a valid github name"
 
-  type PerlaTemplateRepository with
+  [<Struct; RequireQualifiedAccess>]
+  type NameKind =
+    | Name of name: string
+    | FullName of fullName: string
 
-    static member NewClamRepo
-      (path: string)
-      (name: string, fullName: string, branch: string)
-      =
-      { _id = ObjectId.NewObjectId()
-        name = name
-        fullName = fullName
-        branch = branch
-        path = path
-        createdAt = DateTime.Now
-        updatedAt = Nullable() }
+  let private templatesdb = lazy (new LiteDatabase(PerlaFs.Database))
 
-  exception TemplateNotFoundException of string
-  exception AddTemplateFailedException
-  exception UpdateTemplateFailedException
-  exception DeleteTemplateFailedException
+  let private repositories =
+    lazy
+      (let database = templatesdb.Value
+       let repo = database.GetCollection<PerlaTemplateRepository>()
 
-  module Database =
+       repo.EnsureIndex(fun template -> template.fullName) |> ignore
 
-    let clamRepos (database: ILiteDatabase) =
-      let repo = database.GetCollection<PerlaTemplateRepository>()
+       repo.EnsureIndex(fun template -> template.name) |> ignore
+       repo)
 
-      repo.EnsureIndex(fun clamRepo -> clamRepo.fullName) |> ignore
+  let downloadAndExtract repo =
+    task {
 
-      repo.EnsureIndex(fun clamRepo -> clamRepo.name) |> ignore
+      PerlaFs.createTemplatesDirectory ()
 
-      repo
+      let url =
+        $"https://github.com/{repo.fullName}/archive/refs/heads/{repo.branch}.zip"
 
-    let listEntries () =
-      use db = new LiteDatabase(Path.LocalDBPath)
-      let clamRepos = clamRepos db
-      clamRepos.FindAll() |> Seq.toList
+      use! stream = url.GetStreamAsync()
+      PerlaFs.extractTemplateZip repo.path stream
+    }
 
-    let createEntry (clamRepo: PerlaTemplateRepository option) =
-      option {
-        let! clamRepo = clamRepo
-        use db = new LiteDatabase(Path.LocalDBPath)
-        let clamRepos = clamRepos db
-        let result = clamRepos.Insert(clamRepo)
 
-        match result |> Option.ofObj with
-        | Some _ -> return clamRepo
-        | None -> return! None
+
+  type Templates =
+
+    static member List() =
+      repositories.Value.FindAll() |> Seq.toList
+
+    static member Add(name, fullName, branch, path) =
+      task {
+        let template =
+          { _id = ObjectId.NewObjectId()
+            name = name
+            fullName = fullName
+            branch = branch
+            path = path
+            createdAt = DateTime.Now
+            updatedAt = Nullable() }
+
+        do! downloadAndExtract template
+
+        return repositories.Value.Insert(template).AsObjectId
       }
 
     /// <summary>
     /// Checks if the the repository with given a name in the form of
     /// Username/Repository
     /// exists
-    /// <param name="fullName">Full name of the template in the Username/Repository scheme</param>
     /// </summary>
-    let existsByFullName fullName =
-      use db = new LiteDatabase(Path.LocalDBPath)
-      let clamRepos = clamRepos db
-      clamRepos.Exists(fun clamRepo -> clamRepo.fullName = fullName)
+    /// <param name="name">Full name of the template in the Username/Repository scheme</param>
+    static member Exists(name: NameKind) =
+      repositories.Value.Exists(fun clamRepo ->
+        match name with
+        | NameKind.Name name -> clamRepo.name = name
+        | NameKind.FullName name -> clamRepo.fullName = name)
 
     /// <summary>
-    /// Checks if the repository exists given a simple name
-    /// <param name="name">Simple name of the repository (not including the GitHub owner)</param>
+    /// Checks if the the repository with given a name in the form of
+    /// Username/Repository
+    /// exists
     /// </summary>
-    let existsByName name =
-      use db = new LiteDatabase(Path.LocalDBPath)
-      let clamRepos = clamRepos db
-      clamRepos.Exists(fun clamRepo -> clamRepo.name = name)
-
-    /// <summary>
-    /// Finds a repository using the name of the repository.
-    /// <param name="name">Simple name of the repository (not including the GitHub owner)</param>
-    /// </summary>
-    let findByName name =
-      use db = new LiteDatabase(Path.LocalDBPath)
-      let clamRepos = clamRepos db
-
-      clamRepos.FindOne(fun repo -> repo.name = name) :> obj
+    /// <param name="name">Full name of the template in the Username/Repository scheme</param>
+    static member FindOne(name: NameKind) : PerlaTemplateRepository option =
+      repositories.Value.FindOne(fun clamRepo ->
+        match name with
+        | NameKind.Name name -> clamRepo.name = name
+        | NameKind.FullName name -> clamRepo.fullName = name)
+      |> box
       |> Option.ofObj
-      |> Option.map (fun o -> o :?> PerlaTemplateRepository)
+      |> Option.map unbox
 
-    /// <summary>
-    /// Finds a repository using the full name of the repository (ex. Username/Repository)
-    /// <param name="fullName">Full name of the repository including the GitHub owner</param>
-    /// </summary>
-    let findByFullName fullName =
-      use db = new LiteDatabase(Path.LocalDBPath)
-      let clamRepos = clamRepos db
+    static member FindOne(id: ObjectId) : PerlaTemplateRepository option =
+      repositories.Value.FindById(id) |> box |> Option.ofObj |> Option.map unbox
 
-      clamRepos.FindOne(fun repo -> repo.fullName = fullName) :> obj
-      |> Option.ofObj
-      |> Option.map (fun o -> o :?> PerlaTemplateRepository)
+    static member Update(template: PerlaTemplateRepository) =
+      task {
+        match Templates.FindOne(NameKind.FullName template.fullName) with
+        | Some repo ->
+          let updated = { repo with updatedAt = Nullable(DateTime.Now) }
+          templatesdb.Value.BeginTrans() |> ignore
 
-    let updateByName name =
-      match findByName name with
-      | Some repo ->
-        use db = new LiteDatabase(Path.LocalDBPath)
-        let clamRepos = clamRepos db
-        let repo = { repo with updatedAt = Nullable(DateTime.Now) }
-        clamRepos.Update(BsonValue(repo._id), repo)
-      | None -> false
+          try
+            do! downloadAndExtract updated
 
-    let updateEntry (repo: PerlaTemplateRepository option) =
-      option {
-        let! repo = repo
-        use db = new LiteDatabase(Path.LocalDBPath)
-        let clamRepos = clamRepos db
-        let repo = { repo with updatedAt = Nullable(DateTime.Now) }
-        return clamRepos.Update(BsonValue(repo._id), repo)
+            return
+              repositories.Value.Update(repo._id, updated)
+              && templatesdb.Value.Commit()
+          with _ ->
+            templatesdb.Value.Rollback() |> ignore
+            return false
+        | None -> return false
       }
 
-    let deleteByFullName fullName =
-      match findByFullName fullName with
-      | Some repo ->
-        use db = new LiteDatabase(Path.LocalDBPath)
-        let clamRepos = clamRepos db
-        clamRepos.Delete(BsonValue(repo._id))
+    static member Delete(fullName: string) =
+      match Templates.FindOne(NameKind.FullName fullName) with
+      | Some template ->
+        templatesdb.Value.BeginTrans() |> ignore
+        PerlaFs.removeTemplateDir template.path
+        repositories.Value.Delete(template._id) |> ignore
+        templatesdb.Value.Commit()
       | None -> false
-
-  let downloadRepo repo =
-    task {
-      let url =
-        $"https://github.com/{repo.fullName}/archive/refs/heads/{repo.branch}.zip"
-
-      Directory.CreateDirectory Path.TemplatesDirectory |> ignore
-
-      try
-        do!
-          url.DownloadFileAsync(Path.TemplatesDirectory, $"{repo.name}.zip")
-          :> Task
-
-        return Some repo
-      with _ ->
-        return None
-    }
-
-  let unzipAndClean (repo: Task<PerlaTemplateRepository option>) =
-    task {
-      let! repo = repo
-
-      match repo with
-      | Some repo ->
-        Directory.CreateDirectory Path.TemplatesDirectory |> ignore
-
-        let username = (Directory.GetParent repo.path).Name
-
-        try
-          Directory.Delete(repo.path, true) |> ignore
-        with :? DirectoryNotFoundException ->
-          Logger.scaffold "Did not delete directory"
-
-        let relativePath =
-          Path.Join(repo.path, "../", "../") |> Path.GetFullPath
-
-        let zipPath =
-          Path.Combine(relativePath, $"{repo.name}.zip") |> Path.GetFullPath
-
-        ZipFile.ExtractToDirectory(
-          zipPath,
-          Path.Combine(Path.TemplatesDirectory, username)
-        )
-
-        File.Delete(zipPath)
-        return Some repo
-      | None -> return None
-    }
-
-  let private collectRepositoryFiles (path: string) =
-    let foldFilesAndTemplates (files, templates) (next: string) =
-      if next.Contains(".tpl.") then
-        (files, next :: templates)
-      else
-        (next :: files, templates)
-
-    let opts = EnumerationOptions()
-    opts.RecurseSubdirectories <- true
-
-    Directory.EnumerateFiles(path, "*.*", opts)
-    |> Seq.filter (fun path -> not <| path.Contains(".fsx"))
-    |> Seq.fold foldFilesAndTemplates (List.empty<string>, List.empty<string>)
-
-  let private compileFiles (payload: obj option) (file: string) =
-    let tpl = Template.Parse(file)
-    tpl.Render(payload |> Option.toObj)
-
-  let compileAndCopy (origin: string) (target: string) (payload: obj option) =
-    let (files, templates) = collectRepositoryFiles origin
-
-    let copyFiles () =
-      files
-      |> Array.ofList
-      |> Array.Parallel.iter (fun file ->
-        let target = file.Replace(origin, target)
-        Directory.GetParent(target).Create()
-        File.Copy(file, target, true))
-
-    let copyTemplates () =
-      templates
-      |> Array.ofList
-      |> Array.Parallel.iter (fun path ->
-        let target = path.Replace(origin, target).Replace(".tpl", "")
-
-        Directory.GetParent(target).Create()
-
-        let content = File.ReadAllText(path) |> compileFiles payload
-
-        File.WriteAllText(target, content))
-
-    Directory.CreateDirectory(target) |> ignore
-    copyFiles ()
-    copyTemplates ()
-
-
-  ///<summary>
-  /// Gets the base templates directory (next to the perla binary)
-  /// and appends the final path repository name
-  /// </summary>
-  let getPerlaRepositoryPath (repositoryName: string) (branch: string) =
-    Path.Combine(Path.TemplatesDirectory, $"{repositoryName}-{branch}")
-    |> Path.GetFullPath
-
-  let getPerlaTemplatePath
-    (repo: PerlaTemplateRepository)
-    (child: string option)
-    =
-    match child with
-    | Some child -> Path.Combine(repo.path, child)
-    | None -> repo.path
-    |> Path.GetFullPath
-
-  let getPerlaTemplateTarget projectName =
-    Path.Combine("./", projectName) |> Path.GetFullPath
-
-  let removePerlaRepository (repository: PerlaTemplateRepository) =
-    Directory.Delete(repository.path, true)
-
-  let getPerlaTemplateScriptContent templatePath clamRepoPath =
-    let readTemplateScript =
-      try
-        File.ReadAllText(Path.Combine(templatePath, "templating.fsx")) |> Some
-      with _ ->
-        None
-
-    let readRepoScript () =
-      try
-        File.ReadAllText(Path.Combine(clamRepoPath, "templating.fsx")) |> Some
-      with _ ->
-        None
-
-    readTemplateScript |> Option.orElseWith (fun () -> readRepoScript ())
-
-  let getPerlaRepositoryChildren (repo: PerlaTemplateRepository) =
-    DirectoryInfo(repo.path).GetDirectories()
