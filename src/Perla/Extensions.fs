@@ -137,6 +137,15 @@ module Constants =
   [<Literal>]
   let ScaffoldConfiguration = "TemplateConfiguration"
 
+  [<Literal>]
+  let TemplatesDatabase = "templates.db"
+
+  [<Literal>]
+  let TemplatesDirectory = "templates"
+
+  [<Literal>]
+  let ImportMapName = "perla.jsonc.importmap"
+
 type Path with
 
   static member PerlaRootDirectory =
