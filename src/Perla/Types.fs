@@ -176,13 +176,22 @@ module Types =
         fileLoaders = BuildConfig.DefaultFileLoaders() |> Some
         emitEnvFile = Some true }
 
+  [<Struct>]
+  type Dependency =
+    { name: string
+      version: string
+      alias: string option }
+
   type PerlaConfig =
     { ``$schema``: string option
       index: string option
       fable: FableConfig option
       devServer: DevServerConfig option
       build: BuildConfig option
-      packages: Map<string, string> option }
+      // Deprecate this in the json schema
+      packages: Map<string, string> option
+      dependencies: Dependency seq option
+      devDependencies: Dependency seq option }
 
     static member DefaultConfig(?withFable: bool) =
       let fable =
@@ -197,7 +206,9 @@ module Types =
         fable = fable
         devServer = DevServerConfig.DefaultConfig() |> Some
         build = BuildConfig.DefaultConfig() |> Some
-        packages = None }
+        packages = None
+        dependencies = None
+        devDependencies = None }
 
   type Source =
     | Skypack = 0
