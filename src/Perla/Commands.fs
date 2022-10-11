@@ -14,9 +14,11 @@ open Perla.Types
 open Perla.Server
 open Perla.Build
 open Perla.Logger
-open Perla.VirtualFs
+open Perla.FileSystem
+open Perla.Json
 open Perla.Scaffolding
 open Perla.Plugins.Extensibility
+open Perla.PackageManager
 
 open Argu
 
@@ -252,12 +254,7 @@ module Commands =
     | _ -> None
 
   let getServerOptions (serverargs: ServerArgs list) =
-    let config =
-      match Fs.getPerlaConfig (Path.GetPerlaConfigPath()) with
-      | Ok config -> config
-      | Error err ->
-        Logger.log ("Failed to get perla config, using defaults", err)
-        PerlaConfig.DefaultConfig()
+    let config = FileSystem.PerlaConfig()
 
     let devServerConfig =
       match config.devServer with
@@ -278,12 +275,7 @@ module Commands =
           serverargs |> List.fold foldServerOpts devServerConfig |> Some }
 
   let getBuildOptions (serverargs: BuildArgs list) =
-    let config =
-      match Fs.getPerlaConfig (Path.GetPerlaConfigPath()) with
-      | Ok config -> config
-      | Error err ->
-        Logger.log ("Failed to get perla config, using defaults", err)
-        PerlaConfig.DefaultConfig()
+    let config = FileSystem.PerlaConfig()
 
     let buildConfig =
       match config.build with
@@ -360,16 +352,35 @@ module Commands =
     | [| template |] -> None, template, None
     | _ -> None, templateName, None
 
+  let private dependencyTable (deps: Dependency seq, title: string) =
+    let table = Table().AddColumns([| "Name"; "Version"; "Alias" |])
+    table.Title <- TableTitle(title)
+
+    for column in table.Columns do
+      column.Alignment <- Justify.Left
+
+    for dependency in deps do
+      table.AddRow(
+        dependency.name,
+        dependency.version,
+        defaultArg dependency.alias ""
+      )
+      |> ignore
+
+    table
+
   let runListTemplates () =
     let results = Templates.List()
 
     let table =
       Table()
-        .AddColumn("Name")
-        .AddColumn("Templates")
-        .AddColumn("Template Branch")
-        .AddColumn("Last Update")
-        .AddColumn("Location")
+        .AddColumns(
+          [| "Name"
+             "Templates"
+             "Template Branch"
+             "Last Update"
+             "Location" |]
+        )
 
     for column in table.Columns do
       column.Alignment <- Justify.Center
@@ -383,7 +394,11 @@ module Commands =
 
       let children =
         let names =
-          PerlaFs.GetTemplateChildren result.path
+          FileSystem.PathForTemplate(
+            result.fullName,
+            result.branch,
+            result.name
+          )
           |> Seq.map (fun d -> $"[green]{d}[/]")
 
         String.Join("\n", names) |> Markup
@@ -489,7 +504,11 @@ module Commands =
             return 0
       | None ->
         let path =
-          Path.Combine(PerlaFs.Templates, opts.fullRepositoryName, opts.branch)
+          Path.Combine(
+            FileSystem.Templates,
+            opts.fullRepositoryName,
+            opts.branch
+          )
 
         let! tplId =
           Logger.spinner (
@@ -512,8 +531,6 @@ module Commands =
 
   let runInit (options: InitOptions) =
     taskResult {
-      let path = Path.GetPerlaConfigPath(?directoryPath = options.path)
-
       let initKind = defaultArg options.initKind InitKind.Full
 
       match initKind with
@@ -567,19 +584,16 @@ module Commands =
 
             return 0
       | InitKind.Simple ->
-        let config =
-          PerlaConfig.DefaultConfig(defaultArg options.withFable false)
+        FileSystem.PerlaConfig(?fromDirectory = options.path) |> ignore
+        FileSystem.SetCwdToPerlaRoot(?fromPath = options.path)
+        let withFable = defaultArg options.withFable false
 
-        let fable =
-          config.fable
-          |> Option.map (fun fable -> { fable with autoStart = Some true })
+        if withFable then
+          let fable =
+            { FableConfig.DefaultConfig() with autoStart = None } |> Some
 
-        let config =
-          {| ``$schema`` = config.``$schema``
-             index = config.index
-             fable = fable |}
-
-        do! Fs.createPerlaConfig path config
+          FileSystem.WritePerlaConfigSection(PerlaConfigSection.Fable fable)
+          |> ignore
 
         return 0
       | _ ->
@@ -616,9 +630,13 @@ module Commands =
 
   let runList (options: ListPackagesOptions) =
     taskResult {
-      let! config = Fs.getPerlaConfig (Path.GetPerlaConfigPath())
+      let config = FileSystem.PerlaConfig()
+      let dependencies = config.dependencies |> Option.defaultValue Seq.empty
 
-      let installedPackages = config.packages |> Option.defaultValue Map.empty
+      let devDependencies =
+        config.devDependencies |> Option.defaultValue Seq.empty
+
+
 
       match options.format with
       | HumanReadable ->
@@ -627,27 +645,32 @@ module Commands =
           escape = false
         )
 
-        for importMap in installedPackages do
-          match parseUrl importMap.Value with
-          | Some (_, name, version) ->
-            Logger.log (
-              $"[bold yellow]{importMap.Key}[/]: [green]{name}@{version}[/]",
-              escape = false
-            )
-          | None ->
-            Logger.log (
-              $"[bold red]{importMap.Key}[/]: [yellow]Couldn't parse {importMap.Value}[/]",
-              escape = false
-            )
+        let prodtable =
+          dependencyTable (dependencies, "Production Dependencies")
+
+        let devTable =
+          dependencyTable (devDependencies, "Development Dependencies")
+
+        AnsiConsole.Write(prodtable)
+        AnsiConsole.WriteLine()
+        AnsiConsole.Write(devTable)
+
       | PackageJson ->
-        installedPackages
-        |> Map.toList
-        |> List.choose (fun (_alias, importMap) ->
-          parseUrl importMap
-          |> Option.map (fun (_, name, version) -> (name, version)))
-        |> Map.ofList
-        |> Json.ToPackageJson
-        |> printfn "%s"
+        let inline aliasDependency (dep: Dependency) =
+          let name =
+            match dep.alias with
+            | Some alias -> $"{alias}:{dep.name}"
+            | None -> dep.name
+
+          name, dep.version
+
+        let depsMap = dependencies |> Seq.map aliasDependency |> Map.ofSeq
+        let devDepsMap = dependencies |> Seq.map aliasDependency |> Map.ofSeq
+
+        {| dependencies = depsMap
+           devDependencies = devDepsMap |}
+        |> Json.ToText
+        |> AnsiConsole.Write
 
       return 0
     }
@@ -660,33 +683,45 @@ module Commands =
       if name = "" then
         return! PackageNotFoundException |> Error
 
-      let! fdsConfig = Fs.getPerlaConfig (Path.GetPerlaConfigPath())
-      let! lockFile = Fs.getOrCreateLockFile (Path.GetPerlaConfigPath())
+      let config = FileSystem.PerlaConfig()
+      let map = FileSystem.ImportMap()
+
+      let inline filterNameOrAlias (dep: Dependency) =
+        match dep.alias with
+        | Some alias -> not (dep.name = name || alias = name)
+        | None -> dep.name <> name
 
       let deps =
-        fdsConfig.packages |> Option.map (fun map -> map |> Map.remove name)
+        option {
+          let! dependencies = config.dependencies
 
-      let opts = { fdsConfig with packages = deps }
+          return dependencies |> Seq.filter filterNameOrAlias
+        }
 
-      let imports = lockFile.imports |> Map.remove name
+      let depDeps =
+        option {
+          let! devDependencies = config.devDependencies
 
-      let scopes =
-        defaultArg lockFile.scopes Map.empty
-        |> Map.map (fun _ value -> value |> Map.remove name)
+          return devDependencies |> Seq.filter filterNameOrAlias
+        }
 
-      Logger.log ("Updating importmap...")
-      Logger.log ($"Writing scopes: %A{scopes}")
-      Logger.log ($"Writing imports: %A{imports}")
+      FileSystem.WritePerlaConfigSections(
+        [ PerlaConfigSection.Dependencies deps
+          PerlaConfigSection.DevDependencies depDeps ]
+      )
+      |> ignore
 
-      do!
-        Fs.writeLockFile
-          (Path.GetPerlaConfigPath())
-          { lockFile with
-              scopes = Some scopes
-              imports = imports }
 
-      do! Fs.createPerlaConfig (Path.GetPerlaConfigPath()) opts
+      let deps =
+        deps
+        |> Option.defaultValue Seq.empty
+        |> Seq.map (fun p -> $"{p.name}@{p.version}")
 
+      let! map =
+        Dependencies.Restore(deps, Provider.Jspm)
+        |> TaskResult.mapError (fun err -> exn err)
+
+      FileSystem.WriteImportMap(map) |> ignore
       return 0
     }
 
@@ -694,55 +729,59 @@ module Commands =
     Logger.log ("Creating new project...")
     let (user, template, child) = getTemplateAndChild opts.templateName
 
-    result {
-      let repository =
+    option {
+      let! repository =
         match user, child with
         | Some user, Some _ ->
           Templates.FindOne(NameKind.FullName $"{user}/{template}")
         | Some _, None -> Templates.FindOne(NameKind.FullName opts.templateName)
         | None, _ -> Templates.FindOne(NameKind.Name template)
 
-      match repository with
-      | Some clamRepo ->
-        Logger.log (
-          $"Using [bold yellow]{clamRepo.name}:{clamRepo.branch}[/]",
-          escape = false
+      Logger.log (
+        $"Using [bold yellow]{repository.name}:{repository.branch}[/]",
+        escape = false
+      )
+
+      let templatePath =
+        FileSystem.PathForTemplate(
+          repository.fullName,
+          repository.branch,
+          tplName = repository.name
         )
 
-        let templatePath =
-          PerlaFs.GetPathForTemplate(
-            clamRepo.name,
-            clamRepo.branch,
-            ?child = child
-          )
+      let targetPath = $"./{templatePath}"
 
-        let targetPath = $"./{opts.projectName}"
-
-        let content =
-          PerlaFs.GetTemplateScriptContent(templatePath, clamRepo.path)
-          |> Option.map (Scaffolding.getConfigurationFromScript)
-          |> Option.flatten
-
-        Logger.log ($"Creating structure...")
-
-        PerlaFs.WriteTemplateToDisk(
-          templatePath,
-          targetPath,
-          ?payload = content
+      let content =
+        FileSystem.GetTemplateScriptContent(
+          repository.fullName,
+          repository.branch,
+          repository.name
         )
+        |> Option.map (Scaffolding.getConfigurationFromScript)
+        |> Option.flatten
 
-        return 0
+      Logger.log ($"Creating structure...")
+
+      FileSystem.WriteTplRepositoryToDisk(
+        templatePath,
+        targetPath,
+        ?payload = content
+      )
+
+      return 0
+    }
+    |> function
       | None ->
         Logger.log $"Template [{opts.templateName}] was not found"
-        return 1
+        Ok 1
+      | Some n -> Ok n
 
-    }
 
   let runRemoveTemplate (name: string) =
     let deleteOperation =
       option {
         let! repo = Templates.FindOne(NameKind.FullName name)
-        PerlaFs.RemoveTemplateFromDisk repo.path
+        FileSystem.RemoveTemplateDirectory repo.fullName
         return! Templates.Delete repo.fullName
       }
 
@@ -834,7 +873,7 @@ module Commands =
         | Some version -> $"@{version}"
         | None -> ""
 
-      let importMap = PerlaFs.ImportMap()
+      let importMap = FileSystem.ImportMap()
       Logger.log "Updating importmap..."
 
       let! map =
@@ -844,13 +883,13 @@ module Commands =
         )
         |> TaskResult.mapError (fun err -> exn err)
 
-      PerlaFs.WriteMap(map)
+      FileSystem.WriteImportMap(map) |> ignore
       return 0
     }
 
   let runRestore (options: RestoreOptions) =
     taskResult {
-      let importMap = PerlaFs.ImportMap()
+      let importMap = FileSystem.ImportMap()
 
       Logger.log "Regenerating import map..."
 
@@ -870,7 +909,7 @@ module Commands =
         Dependencies.Restore(packages, provider = provider)
         |> TaskResult.mapError (fun err -> exn err)
 
-      PerlaFs.WriteMap(newMap)
+      FileSystem.WriteImportMap(newMap) |> ignore
       return 0
     }
 
