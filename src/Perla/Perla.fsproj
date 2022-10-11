@@ -11,10 +11,13 @@
     <PackageProjectUrl>https://github.com/AngelMunoz/Perla</PackageProjectUrl>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="Extensions.fs" />
+    <Compile Include="Constants.fs" />
     <Compile Include="Types.fs" />
+    <Compile Include="Env.fs" />
+    <Compile Include="Json.fs" />
+    <Compile Include="FileSystem.fs" />
+    <Compile Include="VirtualFs.fs" />
     <Compile Include="IO.fs" />
-    <Compile Include="VirtualFS.fs" />
     <Compile Include="Scaffolding.fs" />
     <Compile Include="Esbuild.fs" />
     <Compile Include="Fable.fs" />
