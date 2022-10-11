@@ -50,7 +50,7 @@ module Fable =
   let fableCmd (isWatch: bool option) =
 
     fun (config: FableConfig) ->
-      let execBinName = if Env.isWindows then "dotnet.exe" else "dotnet"
+      let execBinName = if Env.IsWindows then "dotnet.exe" else "dotnet"
 
       Cli
         .Wrap(execBinName)

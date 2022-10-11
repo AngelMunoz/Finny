@@ -10,6 +10,8 @@ open AngleSharp.Html.Parser
 
 open Perla
 open Perla.Types
+open Perla.Json
+open Perla.FileSystem
 open Perla.Fable
 open Perla.Esbuild
 open Perla.Logger
@@ -184,39 +186,29 @@ module Build =
       | Some src -> el.SetAttribute("src", Path.ChangeExtension(src, ".js"))
       | None -> ())
 
-    task {
-      match! Fs.getOrCreateLockFile (System.IO.Path.GetPerlaConfigPath()) with
-      | Ok lock ->
-        let map: ImportMap =
-          { imports = lock.imports
-            scopes = lock.scopes }
+    let map = FileSystem.ImportMap()
+    script.TextContent <- Json.ToText(map, true)
 
-        script.TextContent <- Json.ToTextMinified map
+    for style in styles do
+      doc.Head.AppendChild(style) |> ignore
 
-        for style in styles do
-          doc.Head.AppendChild(style) |> ignore
+    let virtualEntries =
+      jsFiles
+      |> List.choose (function
+        | EntryPoint.VirtualPath (v, p) -> Some(v, p)
+        | EntryPoint.Physical _ -> None)
 
-        let virtualEntries =
-          jsFiles
-          |> List.choose (function
-            | EntryPoint.VirtualPath (v, p) -> Some(v, p)
-            | EntryPoint.Physical _ -> None)
+    for v, p in virtualEntries do
+      let element =
+        doc.Body.QuerySelector($"[data-entry-point][type=module][src='{v}']")
 
-        for v, p in virtualEntries do
-          let element =
-            doc.Body.QuerySelector(
-              $"[data-entry-point][type=module][src='{v}']"
-            )
+      if not (isNull element) then
+        element.Attributes["src"].Value <- p.Replace("\\", "/")
 
-          if not (isNull element) then
-            element.Attributes["src"].Value <- p.Replace("\\", "/")
+    doc.Head.AppendChild script |> ignore
+    let content = doc.ToHtml()
 
-        doc.Head.AppendChild script |> ignore
-        let content = doc.ToHtml()
-
-        File.WriteAllText($"{outDir}/{indexFile}", content)
-      | Error err -> Logger.build ("Failed to get or create lock file", err)
-    }
+    File.WriteAllText($"{outDir}/{indexFile}", content)
 
   let private buildFiles
     (workingDirectory: string)
@@ -249,25 +241,16 @@ module Build =
     }
 
   let getExcludes config =
-    task {
-      match! Fs.getOrCreateLockFile (System.IO.Path.GetPerlaConfigPath()) with
-      | Ok lock ->
-        let excludes =
-          lock.imports |> Map.toSeq |> Seq.map (fun (key, _) -> key)
+    let map = FileSystem.ImportMap()
+    let excludes = map.imports |> Map.toSeq |> Seq.map (fun (key, _) -> key)
 
-        return
-          config.externals
-          |> Option.map (fun ex ->
-            seq {
-              yield! ex
-              yield! excludes
-            })
-          |> Option.defaultValue excludes
-
-      | Error ex ->
-        Logger.build ("Failed to get or create lock file", ex)
-        return Seq.empty
-    }
+    config.externals
+    |> Option.map (fun ex ->
+      seq {
+        yield! ex
+        yield! excludes
+      })
+    |> Option.defaultValue excludes
 
   let execBuild (config: PerlaConfig) =
     let buildConfig = defaultArg config.build (BuildConfig.DefaultConfig())
@@ -318,7 +301,7 @@ module Build =
       let pwd = Directory.GetCurrentDirectory()
       let jsFiles = getEntryPoints pwd ResourceType.JS config
       let cssFiles = getEntryPoints pwd ResourceType.CSS config
-      let! excludes = getExcludes buildConfig
+      let excludes = getExcludes buildConfig
 
       let excludes =
         if emitEnvFile then
@@ -414,7 +397,7 @@ module Build =
             $"./{dirName}/{name}".Replace("\\", "/") ]
 
       Logger.log "Adding CSS Files to index.html"
-      do! insertMapAndCopy jsFiles cssFiles config
+      do insertMapAndCopy jsFiles cssFiles config
 
       let envPath =
         config.devServer
@@ -424,7 +407,7 @@ module Build =
 
       let envPath = envPath.Substring(1)
 
-      match emitEnvFile, Fs.getPerlaEnvContent () with
+      match emitEnvFile, Env.GetEnvContent() with
       | true, Some content ->
         Logger.log $"Generating perla env file "
 

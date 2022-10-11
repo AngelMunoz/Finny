@@ -7,6 +7,7 @@ open FsToolkit.ErrorHandling
 open Perla
 open Perla.Types
 open Perla.Logger
+open Perla.FileSystem
 
 let processExit (result: Task<Result<int, exn>>) =
   task {
@@ -52,11 +53,11 @@ let main argv =
         | Some (DevServerArgs.Build items) ->
           let buildConfig = Commands.getBuildOptions (items.GetAllResults())
 
-          System.IO.Path.SetCurrentDirectoryToPerlaConfigDirectory()
+          FileSystem.SetCwdToPerlaRoot()
           do! Commands.startBuild buildConfig :> Task
           return! Ok 0
         | Some (DevServerArgs.Serve items) ->
-          System.IO.Path.SetCurrentDirectoryToPerlaConfigDirectory()
+          FileSystem.SetCwdToPerlaRoot()
 
           do!
             Commands.startInteractive (fun () ->

@@ -16,8 +16,10 @@ open FsToolkit.ErrorHandling
 open Perla
 open Perla.Types
 open Perla.Logger
+open Perla.FileSystem
 
 module Esbuild =
+
   let addEsExternals
     (externals: (string seq) option)
     (args: Builders.ArgumentsBuilder)
@@ -111,17 +113,17 @@ module Esbuild =
     | None -> args
 
   let private tgzDownloadPath =
-    Path.Combine(Path.PerlaRootDirectory, "esbuild.tgz")
+    Path.Combine(FileSystem.AssemblyRoot, "esbuild.tgz")
 
   let esbuildExec =
-    let bin = if Env.isWindows then "" else "bin"
-    let exec = if Env.isWindows then ".exe" else ""
-    Path.Combine(Path.PerlaRootDirectory, "package", bin, $"esbuild{exec}")
+    let bin = if Env.IsWindows then "" else "bin"
+    let exec = if Env.IsWindows then ".exe" else ""
+    Path.Combine(FileSystem.AssemblyRoot, "package", bin, $"esbuild{exec}")
 
   let private tryDownloadEsBuild
     (esbuildVersion: string)
     : Task<string option> =
-    let binString = $"esbuild-{Env.platformString}-{Env.archString}"
+    let binString = $"esbuild-{Env.PlatformString}-{Env.ArchString}"
 
     let url =
       $"https://registry.npmjs.org/{binString}/-/{binString}-{esbuildVersion}.tgz"
@@ -163,7 +165,7 @@ module Esbuild =
 
         archive.ExtractContents(Path.Combine(Path.GetDirectoryName path))
 
-        if Env.isWindows |> not then
+        if Env.IsWindows |> not then
           Logger.log $"Executing: chmod +x on \"{esbuildExec}\""
           let res = chmodBinCmd().ExecuteAsync()
           do! res.Task :> Task

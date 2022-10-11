@@ -5,7 +5,7 @@ open LiteDB
 
 open Flurl.Http
 
-open Perla.VirtualFs
+open Perla.FileSystem
 
 module Scaffolding =
 
@@ -35,7 +35,7 @@ module Scaffolding =
     | Name of name: string
     | FullName of fullName: string
 
-  let private templatesdb = lazy (new LiteDatabase(PerlaFs.Database))
+  let private templatesdb = lazy (new LiteDatabase(FileSystem.Database))
 
   let private repositories =
     lazy
@@ -49,14 +49,11 @@ module Scaffolding =
 
   let downloadAndExtract repo =
     task {
-
-      PerlaFs.createTemplatesDirectory ()
-
       let url =
         $"https://github.com/{repo.fullName}/archive/refs/heads/{repo.branch}.zip"
 
       use! stream = url.GetStreamAsync()
-      PerlaFs.extractTemplateZip repo.path stream
+      FileSystem.ExtractTemplateZip repo.fullName stream
     }
 
 
@@ -135,7 +132,7 @@ module Scaffolding =
       match Templates.FindOne(NameKind.FullName fullName) with
       | Some template ->
         templatesdb.Value.BeginTrans() |> ignore
-        PerlaFs.removeTemplateDir template.path
+        FileSystem.RemoveTemplateDirectory template.fullName
         repositories.Value.Delete(template._id) |> ignore
         templatesdb.Value.Commit()
       | None -> false
