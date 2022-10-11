@@ -2,89 +2,21 @@
 
 
 open System
-open System.Collections
+open System.IO
 open System.Text
+
 open FsToolkit.ErrorHandling
 
 open Perla
 open Perla.Types
+open Perla.Json
+open Perla.FileSystem
 open Perla.Logger
-
-[<RequireQualifiedAccess>]
-module Env =
-  open System.Runtime.InteropServices
-
-  let isWindows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
-
-  let platformString =
-    if RuntimeInformation.IsOSPlatform(OSPlatform.Windows) then
-      "windows"
-    else if RuntimeInformation.IsOSPlatform(OSPlatform.Linux) then
-      "linux"
-    else if RuntimeInformation.IsOSPlatform(OSPlatform.OSX) then
-      "darwin"
-    else if RuntimeInformation.IsOSPlatform(OSPlatform.FreeBSD) then
-      "freebsd"
-    else
-      failwith "Unsupported OS"
-
-  let archString =
-    match RuntimeInformation.OSArchitecture with
-    | Architecture.Arm -> "arm"
-    | Architecture.Arm64 -> "arm64"
-    | Architecture.X64 -> "64"
-    | Architecture.X86 -> "32"
-    | _ -> failwith "Unsupported Architecture"
-
-  let getPerlaEnvVars () =
-    let env = Environment.GetEnvironmentVariables()
-    let prefix = "PERLA_"
-
-    [ for entry in env do
-        let entry = entry :?> DictionaryEntry
-        let key = entry.Key :?> string
-        let value = entry.Value :?> string
-
-        if key.StartsWith(prefix) then
-          (key.Replace(prefix, String.Empty), value) ]
-
-[<RequireQualifiedAccess>]
-module Json =
-  open System.Text.Json
-  open System.Text.Json.Serialization
-
-  let private jsonOptions () =
-    JsonSerializerOptions(
-      WriteIndented = true,
-      AllowTrailingCommas = true,
-      ReadCommentHandling = JsonCommentHandling.Skip,
-      UnknownTypeHandling = JsonUnknownTypeHandling.JsonElement,
-      DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
-    )
-
-  let ToBytes value =
-    JsonSerializer.SerializeToUtf8Bytes(value, jsonOptions ())
-
-  let FromBytes<'T> (bytes: byte array) =
-    JsonSerializer.Deserialize<'T>(ReadOnlySpan bytes, jsonOptions ())
-
-  let ToText value =
-    JsonSerializer.Serialize(value, jsonOptions ())
-
-  let ToTextMinified value =
-    let opts = jsonOptions ()
-    opts.WriteIndented <- false
-    JsonSerializer.Serialize(value, opts)
-
-  let ToPackageJson dependencies =
-    JsonSerializer.Serialize({| dependencies = dependencies |}, jsonOptions ())
-
+open Perla.PackageManager.Types
 
 [<RequireQualifiedAccess>]
 module Fs =
-  open System.IO
   open FSharp.Control.Reactive
-  open Perla.PackageManager.Types
 
   type WatchResource =
     | File of string
@@ -159,23 +91,6 @@ module Fs =
     with ex ->
       Error ex
 
-  let getPerlaEnvContent () =
-    option {
-      let env = Env.getPerlaEnvVars ()
-      let sb = StringBuilder()
-
-      for key, value in env do
-        sb.Append($"""export const {key} = "{value}";""") |> ignore
-
-      let content = sb.ToString()
-
-      if String.IsNullOrWhiteSpace content then
-        return! None
-      else
-        return content
-    }
-
-
   let getOrCreateImportMap path =
     taskResult {
       try
@@ -215,8 +130,7 @@ module Fs =
 
 
   let getPerlaConfigWatcher () =
-    let fsw =
-      new FileSystemWatcher(Path.GetPerlaConfigPath() |> Path.GetDirectoryName)
+    let fsw = new FileSystemWatcher(FileSystem.PerlaConfigPath)
 
     fsw.NotifyFilter <-
       NotifyFilters.FileName ||| NotifyFilters.Size ||| NotifyFilters.LastWrite
