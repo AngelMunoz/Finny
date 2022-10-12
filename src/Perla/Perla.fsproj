@@ -1,5 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
-
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net6.0</TargetFramework>
@@ -17,14 +16,15 @@
     <Compile Include="Json.fs" />
     <Compile Include="FileSystem.fs" />
     <Compile Include="VirtualFs.fs" />
-    <Compile Include="IO.fs" />
     <Compile Include="Scaffolding.fs" />
-    <Compile Include="Esbuild.fs" />
+    <Compile Include="Library.fs" />
+    <Compile Include="IO.fs" />
     <Compile Include="Fable.fs" />
     <Compile Include="Server.fs" />
+    <Compile Include="Esbuild.fs" />
     <Compile Include="Build.fs" />
-    <Compile Include="Library.fs" />
     <Compile Include="PackageManagement.fs" />
+    <Compile Include="Configuration.fs" />
     <Compile Include="Commands.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
@@ -36,15 +36,15 @@
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
   </ItemGroup>
-
   <ItemGroup>
-    <PackageReference Include="Argu" Version="6.1.1" />
     <PackageReference Include="AngleSharp" Version="0.17.1" />
     <PackageReference Include="CliWrap" Version="3.5.0" />
     <PackageReference Include="Flurl" Version="3.0.6" />
     <PackageReference Include="Flurl.Http" Version="3.2.4" />
     <PackageReference Include="FSharp.Control.AsyncSeq" Version="3.2.1" />
     <PackageReference Include="FSharp.Control.Reactive" Version="5.0.5" />
+    <PackageReference Include="FSharp.SystemCommandLine" Version="0.13.0-beta4" />
+    <PackageReference Include="FSharp.UMX" Version="1.1.0" />
     <PackageReference Include="Hellang.Middleware.SpaFallback" Version="2.0.0" />
     <PackageReference Include="SharpZipLib" Version="1.3.3" />
     <PackageReference Include="FsToolkit.ErrorHandling" Version="2.13.0" />
@@ -55,11 +55,9 @@
     <PackageReference Include="Scriban" Version="5.5.0" />
     <PackageReference Include="Zio" Version="0.15.0" />
   </ItemGroup>
-
   <ItemGroup>
     <ProjectReference Include="..\Perla.Logger\Perla.Logger.fsproj" />
     <ProjectReference Include="..\Perla.PackageManager\Perla.PackageManager.fsproj" />
     <ProjectReference Include="..\Perla.Plugins\Perla.Plugins.fsproj" />
   </ItemGroup>
-
 </Project>
