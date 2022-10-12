@@ -15,7 +15,7 @@ type PerlaConfigSection =
   | Dependencies of dependencies: Dependency seq option
   | DevDependencies of devDependencies: Dependency seq option
 
-let private jsonOptions () =
+let DefaultJsonOptions () =
   JsonSerializerOptions(
     WriteIndented = true,
     AllowTrailingCommas = true,
@@ -24,82 +24,27 @@ let private jsonOptions () =
     DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
   )
 
+let DefaultJsonNodeOptions () =
+  JsonNodeOptions(PropertyNameCaseInsensitive = true)
+
+let DefaultJsonDocumentOptions () =
+  JsonDocumentOptions(
+    AllowTrailingCommas = true,
+    CommentHandling = JsonCommentHandling.Skip
+  )
 
 type Json =
   static member ToBytes value =
-    JsonSerializer.SerializeToUtf8Bytes(value, jsonOptions ())
+    JsonSerializer.SerializeToUtf8Bytes(value, DefaultJsonOptions())
 
   static member FromBytes<'T>(value: byte array) =
-    JsonSerializer.Deserialize<'T>(ReadOnlySpan value, jsonOptions ())
+    JsonSerializer.Deserialize<'T>(ReadOnlySpan value, DefaultJsonOptions())
 
   static member ToText(value, ?minify) =
-    let opts = jsonOptions ()
+    let opts = DefaultJsonOptions()
     let minify = defaultArg minify false
     opts.WriteIndented <- minify
     JsonSerializer.Serialize(value, opts)
 
-  static member ToPackageJson dependencies =
-    JsonSerializer.Serialize({| dependencies = dependencies |}, jsonOptions ())
-
-  static member WritePerlaSection
-    (
-      section: PerlaConfigSection,
-      content: byte array
-    ) =
-    let node =
-      JsonNode.Parse(
-        ReadOnlySpan content,
-        JsonNodeOptions(PropertyNameCaseInsensitive = true),
-        JsonDocumentOptions(
-          AllowTrailingCommas = true,
-          CommentHandling = JsonCommentHandling.Skip
-        )
-      )
-
-    match section with
-    | PerlaConfigSection.Index value ->
-      node["index"] <- JsonSerializer.SerializeToNode(value)
-    | PerlaConfigSection.Fable value ->
-      node["fable"] <- JsonSerializer.SerializeToNode(value)
-    | PerlaConfigSection.Devserver value ->
-      node["devServer"] <- JsonSerializer.SerializeToNode(value)
-    | PerlaConfigSection.Build value ->
-      node["build"] <- JsonSerializer.SerializeToNode(value)
-    | PerlaConfigSection.Dependencies value ->
-      node["dependencies"] <- JsonSerializer.SerializeToNode(value)
-    | PerlaConfigSection.DevDependencies value ->
-      node["devDependencies"] <- JsonSerializer.SerializeToNode(value)
-
-    node.Deserialize<Types.PerlaConfig>()
-
-  static member WritePerlaSections
-    (
-      sections: PerlaConfigSection seq,
-      content: byte array
-    ) =
-    let node =
-      JsonNode.Parse(
-        ReadOnlySpan content,
-        JsonNodeOptions(PropertyNameCaseInsensitive = true),
-        JsonDocumentOptions(
-          AllowTrailingCommas = true,
-          CommentHandling = JsonCommentHandling.Skip
-        )
-      )
-
-    for section in sections do
-      match section with
-      | PerlaConfigSection.Index value ->
-        node["index"] <- JsonSerializer.SerializeToNode(value)
-      | PerlaConfigSection.Fable value ->
-        node["fable"] <- JsonSerializer.SerializeToNode(value)
-      | PerlaConfigSection.Devserver value ->
-        node["devServer"] <- JsonSerializer.SerializeToNode(value)
-      | PerlaConfigSection.Build value ->
-        node["build"] <- JsonSerializer.SerializeToNode(value)
-      | PerlaConfigSection.Dependencies value ->
-        node["dependencies"] <- JsonSerializer.SerializeToNode(value)
-      | PerlaConfigSection.DevDependencies value ->
-        node["devDependencies"] <- JsonSerializer.SerializeToNode(value)
-
-    node.Deserialize<Types.PerlaConfig>()
+  static member ToNode value =
+    JsonSerializer.SerializeToNode(value, DefaultJsonOptions())
