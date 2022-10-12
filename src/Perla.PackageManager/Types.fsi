@@ -32,7 +32,8 @@ module Types =
         static member FromString: content: string -> Result<ImportMap, string>
 
         /// Tries to Deserialize an importmap json into an ImportMap In an asynchronous way
-        static member FromStringAsync: content: System.IO.Stream -> System.Threading.Tasks.Task<Result<ImportMap, string>>
+        static member FromStringAsync:
+            content: System.IO.Stream -> System.Threading.Tasks.Task<Result<ImportMap, string>>
 
     /// Used primarily for the JspmGenerator client
     /// This signals the Jspm generator API how to resolve
@@ -60,6 +61,8 @@ module Types =
         | JspmSystem
 
         member AsString: string
+
+        static member FromString: string -> Provider
 
 module Constants =
 

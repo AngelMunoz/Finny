@@ -98,6 +98,15 @@ module Types =
       | Jsdelivr -> "jsdelivr"
       | JspmSystem -> "jspm.system"
 
+    static member FromString(value: string) =
+      match value.ToLowerInvariant() with
+      | "jspm" -> Jspm
+      | "skypack" -> Skypack
+      | "unpkg" -> Unpkg
+      | "jsdelivr" -> Jsdelivr
+      | "jspm.system" -> JspmSystem
+      | _ -> Jspm
+
 module Constants =
   [<Literal>]
   let JSPM_API = "https://api.jspm.io/generate"
