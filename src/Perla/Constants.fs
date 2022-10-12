@@ -16,6 +16,15 @@ let Default_Templates_Repository_Branch = "main"
 let PerlaConfigName = "perla.jsonc"
 
 [<Literal>]
+let IndexFile = "index.html"
+
+[<Literal>]
+let FableProject = "./src/App.fsproj"
+
+[<Literal>]
+let EnvPath = "/env.js"
+
+[<Literal>]
 let ProxyConfigName = "proxy-config.json"
 
 [<Literal>]
@@ -32,3 +41,7 @@ let ImportMapName = "perla.jsonc.importmap"
 
 [<Literal>]
 let TemplatingScriptName = "templating.fsx"
+
+[<Literal>]
+let JsonSchemaUrl =
+  "https://raw.githubusercontent.com/AngelMunoz/Perla/main/perla.schema.json"
