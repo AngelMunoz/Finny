@@ -181,6 +181,13 @@ module VirtualFs =
       | None -> return (event, None)
     }
 
+  let copyToDisk() =
+    let dir = FileSystem.GetTempDir()
+    let fs = new PhysicalFileSystem()
+    let path = fs.ConvertPathFromInternal dir
+    serverPaths.Value.CopyDirectory("/", fs, path, true, false)
+    dir
+
   let updateInVirtualFs
     (
       event: FileChangedEvent,
@@ -221,3 +228,10 @@ module VirtualFs =
     |> Observable.map tryCompileFile
     |> Observable.switchAsync
     |> Observable.map updateInVirtualFs
+
+type VirtualFileSystem =
+  static member Mount(config: PerlaConfig) =
+    VirtualFs.MountDirectories(config.mountDirectories)
+
+  static member CopyToDisk() =
+    VirtualFs.copyToDisk()
