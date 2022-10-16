@@ -6,48 +6,22 @@ module Units =
   type Semver
 
   [<Measure>]
-  type LocalPath
+  type SystemPath
 
   [<Measure>]
   type FileExtension
 
   [<Measure>]
-  type ServerPath
+  type ServerUrl
+
+  [<Measure>]
+  type UserPath
 
 
 module Types =
   open FSharp.UMX
   open Units
   open Perla.PackageManager.Types
-
-  [<RequireQualifiedAccess; Struct>]
-  type LoaderType =
-    | Typescript
-    | Tsx
-    | Jsx
-
-  [<RequireQualifiedAccess; Struct>]
-  type ReloadKind =
-    | FullReload
-    | HMR
-
-  [<RequireQualifiedAccess; Struct>]
-  type PerlaScript =
-    | LiveReload
-    | Worker
-    | Env
-
-  [<RequireQualifiedAccess>]
-  type ReloadEvents =
-    | FullReload of string
-    | ReplaceCSS of string
-    | CompileError of string
-
-    member this.AsString =
-      match this with
-      | FullReload data -> $"event:reload\ndata:{data}\n\n"
-      | ReplaceCSS data -> $"event:replace-css\ndata:{data}\n\n"
-      | CompileError err -> $"event:compile-err\ndata:{err}\n\n"
 
   [<Struct; RequireQualifiedAccess>]
   type RunConfiguration =
@@ -60,31 +34,34 @@ module Types =
       | Development -> "development"
 
   type FableConfig =
-    { project: string<LocalPath>
+    { project: string<SystemPath>
       extension: string<FileExtension>
       sourceMaps: bool
-      outDir: string<LocalPath> option }
+      outDir: string<SystemPath> option }
 
   type DevServerConfig =
     { port: int
       host: string
       liveReload: bool
-      useSSL: bool }
+      useSSL: bool
+      proxy: Map<string, string> }
 
-  type BuildConfig =
-    { esBuildPath: string<LocalPath>
+  type EsbuildConfig =
+    { esBuildPath: string<SystemPath>
       esbuildVersion: string<Semver>
-      includes: string seq
-      excludes: string seq
       ecmaVersion: string
-      outDir: string<LocalPath>
       minify: bool
       injects: string seq
       externals: string seq
       fileLoaders: Map<string, string>
-      emitEnvFile: bool
       jsxFactory: string option
       jsxFragment: string option }
+
+  type BuildConfig =
+    { includes: string seq
+      excludes: string seq
+      outDir: string<SystemPath>
+      emitEnvFile: bool }
 
   [<Struct>]
   type Dependency =
@@ -93,15 +70,16 @@ module Types =
       alias: string option }
 
   type PerlaConfig =
-    { index: string<LocalPath>
-      provider: Provider
+    { index: string<SystemPath>
       runConfiguration: RunConfiguration
-      fable: FableConfig option
-      mountDirectories: Map<string, string<LocalPath>>
-      enableEnv: bool
-      envPath: string<ServerPath>
-      devServer: DevServerConfig
+      provider: Provider
       build: BuildConfig
+      devServer: DevServerConfig
+      fable: FableConfig option
+      esbuild: EsbuildConfig
+      mountDirectories: Map<string<ServerUrl>, string<UserPath>>
+      enableEnv: bool
+      envPath: string<ServerUrl>
       dependencies: Dependency seq
       devDependencies: Dependency seq }
 

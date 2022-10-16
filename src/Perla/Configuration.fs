@@ -2,7 +2,9 @@ module Perla.Configuration
 
 open FSharp.UMX
 open Perla.Types
+open Perla.Units
 open Perla.PackageManager.Types
+
 
 module Types =
 
@@ -37,55 +39,50 @@ module Defaults =
       sourceMaps = true
       outDir = None }
 
-  let DevServerConfig =
+  let DevServerConfig: DevServerConfig =
     { port = 7331
       host = "127.0.0.1"
       liveReload = true
-      useSSL = true }
+      useSSL = true
+      proxy = Map.empty }
 
-  let BuildConfig =
-    { esBuildPath = UMX.tag (FileSystem.FileSystem.EsbuildBinaryPath())
+  let EsbuildConfig: EsbuildConfig =
+    { esBuildPath = FileSystem.FileSystem.EsbuildBinaryPath()
       esbuildVersion = UMX.tag Constants.Esbuild_Version
-      includes = Seq.empty
-      excludes =
-        seq {
-          "index.html"
-          ".fsproj"
-          ".fable"
-          "fable_modules"
-          "bin"
-          "obj"
-          ".fs"
-          ".js"
-          ".css"
-          ".ts"
-          ".jsx"
-          ".tsx"
-          ".woff"
-          ".woff2"
-        }
       ecmaVersion = Constants.Esbuild_Target
-      outDir = UMX.tag "./dist"
       minify = true
       injects = Seq.empty
       externals = Seq.empty
       fileLoaders =
         [ ".png", "file"; ".woff", "file"; ".woff2", "file"; ".svg", "file" ]
         |> Map.ofList
-      emitEnvFile = true
       jsxFactory = None
       jsxFragment = None }
 
+  let BuildConfig =
+    { includes = Seq.empty
+      excludes =
+        seq {
+          "./**/obj/**"
+          "./**/bin/**"
+          "./**/*.fs"
+          "./**/*.fsproj"
+        }
+      outDir = UMX.tag "./dist"
+      emitEnvFile = true }
+
   let PerlaConfig =
     { index = UMX.tag Constants.IndexFile
-      provider = Provider.Jspm
       runConfiguration = RunConfiguration.Development
+      provider = Provider.Jspm
+      build = BuildConfig
+      devServer = DevServerConfig
+      esbuild = EsbuildConfig
       fable = None
-      mountDirectories = Map.ofList [ "/src", UMX.tag "./src" ]
+      mountDirectories =
+        Map.ofList [ UMX.tag<ServerUrl> "/src", UMX.tag<UserPath> "./src" ]
       enableEnv = true
       envPath = UMX.tag Constants.EnvPath
-      devServer = DevServerConfig
-      build = BuildConfig
       dependencies = Seq.empty
       devDependencies = Seq.empty }
 
@@ -276,8 +273,8 @@ module Json =
 
       jsonNode, { config with devServer = devServer }
 
-  let fromBuildConfig (jsonNode: JsonNode) (config: PerlaConfig) =
-    match jsonNode[ "build" ].AsObject() |> Option.ofObj with
+  let fromEsbuildConfig (jsonNode: JsonNode) (config: PerlaConfig) =
+    match jsonNode[ "esbuild" ].AsObject() |> Option.ofObj with
     | None -> jsonNode, config
     | Some content ->
       let content =
@@ -296,33 +293,52 @@ module Json =
                             jsxFragment: string option |}>
           ()
 
-      let build =
-        let build = config.build
+      let esbuild =
+        let esbuild = config.esbuild
 
-        { build with
+        { esbuild with
             esBuildPath =
-              (defaultArg content.esBuildPath (UMX.untag build.esBuildPath))
+              (defaultArg content.esBuildPath (UMX.untag esbuild.esBuildPath))
               |> UMX.tag
             esbuildVersion =
               (defaultArg
                 content.esbuildVersion
-                (UMX.untag build.esbuildVersion))
+                (UMX.untag esbuild.esbuildVersion))
               |> UMX.tag
+            ecmaVersion =
+              (defaultArg content.ecmaVersion (UMX.untag esbuild.ecmaVersion))
+              |> UMX.tag
+            minify =
+              (defaultArg content.minify (UMX.untag esbuild.minify)) |> UMX.tag
+            injects = (defaultArg content.injects esbuild.injects)
+            externals = (defaultArg content.externals esbuild.externals)
+            fileLoaders = defaultArg content.fileLoaders esbuild.fileLoaders
+            jsxFactory = content.jsxFactory |> Option.orElse esbuild.jsxFactory
+            jsxFragment =
+              content.jsxFragment |> Option.orElse esbuild.jsxFragment }
+
+      jsonNode, { config with esbuild = esbuild }
+
+  let fromBuildConfig (jsonNode: JsonNode) (config: PerlaConfig) =
+    match jsonNode[ "build" ].AsObject() |> Option.ofObj with
+    | None -> jsonNode, config
+    | Some content ->
+      let content =
+        content.GetValue<{| includes: string seq option
+                            excludes: string seq option
+                            outDir: string option
+                            emitEnvFile: bool option |}>
+          ()
+
+      let build =
+        let build = config.build
+
+        { build with
             includes = defaultArg content.includes build.includes
             excludes = defaultArg content.excludes build.excludes
-            ecmaVersion =
-              (defaultArg content.ecmaVersion (UMX.untag build.ecmaVersion))
-              |> UMX.tag
             outDir =
               (defaultArg content.outDir (UMX.untag build.outDir)) |> UMX.tag
-            minify =
-              (defaultArg content.minify (UMX.untag build.minify)) |> UMX.tag
-            injects = (defaultArg content.injects build.injects)
-            externals = (defaultArg content.externals build.externals)
-            fileLoaders = defaultArg content.fileLoaders build.fileLoaders
-            emitEnvFile = defaultArg content.emitEnvFile build.emitEnvFile
-            jsxFactory = content.jsxFactory |> Option.orElse build.jsxFactory
-            jsxFragment = content.jsxFragment |> Option.orElse build.jsxFragment }
+            emitEnvFile = defaultArg content.emitEnvFile build.emitEnvFile }
 
       jsonNode, { config with build = build }
 
@@ -428,6 +444,7 @@ let FromFile (fileContent: JsonNode option) (config: PerlaConfig) =
     ||> Json.fromFable
     ||> Json.fromDevServer
     ||> Json.fromBuildConfig
+    ||> Json.fromEsbuildConfig
     ||> Json.fromPerla
   | None -> config
 
