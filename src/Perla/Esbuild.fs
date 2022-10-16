@@ -1,8 +1,9 @@
-﻿namespace Perla
+﻿namespace Perla.Esbuild
 
 open System
 open System.IO
 open System.Net.Http
+open System.Runtime.InteropServices
 open System.Text
 open System.Threading.Tasks
 
@@ -21,15 +22,16 @@ open Perla.FileSystem
 open Perla.Plugins
 open FSharp.UMX
 
+[<RequireQualifiedAccess; Struct>]
+type LoaderType =
+  | Typescript
+  | Tsx
+  | Jsx
 
+[<RequireQualifiedAccess>]
 module Esbuild =
 
 
-  [<RequireQualifiedAccess; Struct>]
-  type LoaderType =
-    | Typescript
-    | Tsx
-    | Jsx
 
 
   let addEsExternals
@@ -118,16 +120,12 @@ module Esbuild =
       args.Add $"""--tsconfig-raw={tsconfig} """
     | None -> args
 
-  let private getDefaultLoders config = config.fileLoaders
+type Esbuild =
 
-  let ProcessJS
-    (entryPoint: string)
-    (config: EsbuildConfig)
-    (outDir: string<SystemPath>)
-    =
+  static member ProcessJS(entryPoint: string,config: EsbuildConfig, outDir: string<SystemPath>, [<Optional>] ?externals: string seq) : Command =
 
     let execBin = config.esBuildPath |> UMX.untag
-    let fileLoaders = getDefaultLoders config
+    let fileLoaders = config.fileLoaders
 
     Cli
       .Wrap(execBin)
@@ -135,25 +133,23 @@ module Esbuild =
       .WithStandardOutputPipe(PipeTarget.ToStream(Console.OpenStandardOutput()))
       .WithArguments(fun args ->
         args.Add(entryPoint)
-        |> addEsExternals config.externals
-        |> addIsBundle true
-        |> addTarget config.ecmaVersion
-        |> addDefaultFileLoaders fileLoaders
-        |> addMinify config.minify
-        |> addFormat "esm"
-        |> addInjects config.injects
-        |> addJsxFactory config.jsxFactory
-        |> addJsxFragment config.jsxFragment
-        |> addOutDir outDir
+        |> Esbuild.addEsExternals config.externals
+        |> Esbuild.addIsBundle true
+        |> Esbuild.addTarget config.ecmaVersion
+        |> Esbuild.addDefaultFileLoaders fileLoaders
+        |> Esbuild.addMinify config.minify
+        |> Esbuild.addFormat "esm"
+        |> Esbuild.addInjects config.injects
+        |> Esbuild.addJsxFactory config.jsxFactory
+        |> Esbuild.addJsxFragment config.jsxFragment
+        |> Esbuild.addOutDir outDir
         |> ignore)
 
-  let ProcessCss
-    (entryPoint: string)
-    (config: EsbuildConfig)
-    (outDir: string<SystemPath>)
+  static member ProcessCss
+    (entryPoint: string, config: EsbuildConfig, outDir: string<SystemPath>)
     =
     let execBin = config.esBuildPath |> UMX.untag
-    let fileLoaders = getDefaultLoders config
+    let fileLoaders = config.fileLoaders
 
     Cli
       .Wrap(execBin)
@@ -161,17 +157,13 @@ module Esbuild =
       .WithStandardOutputPipe(PipeTarget.ToStream(Console.OpenStandardOutput()))
       .WithArguments(fun args ->
         args.Add(entryPoint)
-        |> addIsBundle true
-        |> addMinify config.minify
-        |> addOutDir outDir
-        |> addDefaultFileLoaders fileLoaders
+        |> Esbuild.addIsBundle true
+        |> Esbuild.addMinify config.minify
+        |> Esbuild.addOutDir outDir
+        |> Esbuild.addDefaultFileLoaders fileLoaders
         |> ignore)
 
-  let buildSingleFile
-    (config: EsbuildConfig)
-    (loader: LoaderType option)
-    (results: Stream)
-    (content: string)
+  static member  BuildSingleFile(config: EsbuildConfig, content: string, resultsContainer: Stream, [<Optional>] ?loader: LoaderType)
     : Command =
     let execBin = config.esBuildPath |> UMX.untag
     let tsconfig = FileSystem.TryReadTsConfig()
@@ -179,23 +171,23 @@ module Esbuild =
     Cli
       .Wrap(execBin)
       .WithStandardInputPipe(PipeSource.FromString(content))
-      .WithStandardOutputPipe(PipeTarget.ToStream(results))
+      .WithStandardOutputPipe(PipeTarget.ToStream(resultsContainer))
       .WithStandardErrorPipe(
         PipeTarget.ToDelegate(fun msg -> Logger.log($"[bold red]{msg}[/]", target = PrefixKind.Esbuild))
       )
       .WithArguments(fun args ->
         args
-        |> addTarget config.ecmaVersion
-        |> addLoader loader
-        |> addFormat "esm"
-        |> addJsxFactory config.jsxFactory
-        |> addJsxFragment config.jsxFragment
-        |> addInlineSourceMaps
-        |> addTsconfigRaw tsconfig
+        |> Esbuild.addTarget config.ecmaVersion
+        |> Esbuild.addLoader loader
+        |> Esbuild.addFormat "esm"
+        |> Esbuild.addJsxFactory config.jsxFactory
+        |> Esbuild.addJsxFragment config.jsxFragment
+        |> Esbuild.addInlineSourceMaps
+        |> Esbuild.addTsconfigRaw tsconfig
         |> ignore)
       .WithValidation(CommandResultValidation.None)
 
-  let GetPlugin (config: EsbuildConfig) : PluginInfo =
+  static member GetPlugin(config: EsbuildConfig) : PluginInfo =
     let shouldTransform: FilePredicate =
       fun args ->
         [ ".jsx"; ".tsx"; ".ts"; ".js"; ".css" ] |> List.contains args.extension
@@ -212,10 +204,10 @@ module Esbuild =
             | ".ts" -> Some LoaderType.Typescript
             | _ -> None
 
-          use mems = new MemoryStream()
-          let result = buildSingleFile config loader mems args.content
+          use resultsContainer = new MemoryStream()
+          let result = Esbuild.BuildSingleFile(config, args.content, resultsContainer, ?loader = loader)
           let! _ = result.ExecuteAsync()
-          use transformContent = new StreamReader(mems)
+          use transformContent = new StreamReader(resultsContainer)
           let! result = transformContent.ReadToEndAsync()
           return { content = result; extension = ".js" }
         }
