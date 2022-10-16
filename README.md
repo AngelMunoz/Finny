@@ -1,4 +1,4 @@
-# Perla Dev Server
+# Perla Dev Server [![wakatime](https://wakatime.com/badge/user/4537232c-b581-465b-9604-b10a55ffa7b4/project/d46e17c5-054e-4249-a2ab-4294d0e5e026.svg)](https://wakatime.com/badge/user/4537232c-b581-465b-9604-b10a55ffa7b4/project/d46e17c5-054e-4249-a2ab-4294d0e5e026)
 
 [![Open in Gitpod](https://gitpod.io/button/open-in-gitpod.svg)](https://gitpod.io/#https://github.com/AngelMunoz/Perla)
 
@@ -8,7 +8,7 @@ If that sounds like something nice, [Check The docs!](https://perla-docs.web.app
 
 ## Status
 
-> take a peek of PoC's and new stuff that may (or not) be coming to perla in the experiments directory
+> vNext is on full steam check https://github.com/AngelMunoz/Perla/pull/89 for more information
 
 This project is in development, current goals at this point are:
 
