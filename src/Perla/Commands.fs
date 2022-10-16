@@ -23,6 +23,7 @@ open Perla.PackageManager
 open Perla.PackageManager.Types
 open Perla.Configuration.Types
 open Perla.Configuration
+open FSharp.UMX
 
 module CliOptions =
 
@@ -36,7 +37,6 @@ module CliOptions =
     | HumanReadable
     | TextOnly
 
-
   type ServeOptions =
     { port: int option
       host: string option
@@ -46,7 +46,7 @@ module CliOptions =
   type BuildOptions = { mode: RunConfiguration option }
 
   type InitOptions =
-    { path: string
+    { path: DirectoryInfo
       useFable: bool
       mode: Init
       yes: bool }
@@ -94,6 +94,7 @@ module CliOptions =
 open CliOptions
 
 module Handlers =
+  open Units
 
   let runBuild (args: BuildOptions) =
 
@@ -249,7 +250,7 @@ module Handlers =
       | None ->
         let path =
           Path.Combine(
-            FileSystem.Templates,
+            UMX.untag FileSystem.Templates,
             opts.fullRepositoryName,
             opts.branch
           )
@@ -337,7 +338,10 @@ module Handlers =
             [ PerlaWritableField.Fable [ Project Constants.FableProject ] ]
           )
 
-          do! FileSystem.GenerateSimpleFable(options.path)
+          do!
+            FileSystem.GenerateSimpleFable(
+              UMX.tag<SystemPath> options.path.FullName
+            )
         | false -> ()
 
         return 0
@@ -497,8 +501,8 @@ module Handlers =
       Logger.log ($"Creating structure...")
 
       FileSystem.WriteTplRepositoryToDisk(
-        templatePath,
-        targetPath,
+        UMX.tag<SystemPath> templatePath,
+        UMX.tag<UserPath> targetPath,
         ?payload = content
       )
 
@@ -515,7 +519,7 @@ module Handlers =
     let deleteOperation =
       option {
         let! repo = Templates.FindOne(NameKind.FullName name)
-        FileSystem.RemoveTemplateDirectory repo.fullName
+        UMX.tag<SystemPath> repo.fullName |> FileSystem.RemoveTemplateDirectory
         return! Templates.Delete repo.fullName
       }
 
@@ -647,10 +651,10 @@ module Handlers =
   let runServe (configuration: ServeOptions) =
     let configuration = Configuration.CurrentConfig
     let withFable = configuration.fable.IsSome
-    let perlaWatcher = Fs.getPerlaConfigWatcher ()
+    // let perlaWatcher = Fs.getPerlaConfigWatcher ()
 
 
-    FileSystem.SetupEsbuild configuration.build.esbuildVersion
+    FileSystem.SetupEsbuild configuration.esbuild.esbuildVersion
     |> Async.AwaitTask
     |> Async.StartImmediate
 
@@ -663,6 +667,7 @@ module Handlers =
       Logger.log "Got it, see you around!..."
 
       exit 0)
+
 
 module Commands =
 
@@ -804,15 +809,14 @@ module Commands =
     let buildArgs
       (
         mode: string,
-        path: System.IO.DirectoryInfo option,
+        path: DirectoryInfo option,
         yes: bool option,
         fable: bool option
       ) : InitOptions =
       { mode = Init.FromString mode
         path =
           path
-          |> Option.map (fun d -> d.FullName)
-          |> Option.defaultWith (fun _ -> System.IO.Path.GetFullPath "./")
+          |> Option.defaultWith (fun _ -> DirectoryInfo(Path.GetFullPath "./"))
         yes = yes |> Option.defaultValue false
         useFable = fable |> Option.defaultValue false }
 
