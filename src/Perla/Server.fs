@@ -1,4 +1,4 @@
-﻿namespace Perla
+﻿namespace Perla.Server
 
 open System
 open System.IO
@@ -46,6 +46,34 @@ open Microsoft.AspNetCore.Http
 open Microsoft.Extensions.Logging
 open Microsoft.Extensions.Primitives
 open Microsoft.Net.Http.Headers
+
+module Types =
+
+  [<RequireQualifiedAccess; Struct>]
+  type ReloadKind =
+    | FullReload
+    | HMR
+
+
+  [<RequireQualifiedAccess; Struct>]
+  type PerlaScript =
+    | LiveReload
+    | Worker
+    | Env
+
+  [<RequireQualifiedAccess>]
+  type ReloadEvents =
+    | FullReload of string
+    | ReplaceCSS of string
+    | CompileError of string
+
+    member this.AsString =
+      match this with
+      | FullReload data -> $"event:reload\ndata:{data}\n\n"
+      | ReplaceCSS data -> $"event:replace-css\ndata:{data}\n\n"
+      | CompileError err -> $"event:compile-err\ndata:{err}\n\n"
+
+open Types
 
 [<AutoOpen>]
 module Extensions =
