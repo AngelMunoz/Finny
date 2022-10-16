@@ -48,7 +48,7 @@ module Defaults =
 
   let EsbuildConfig: EsbuildConfig =
     { esBuildPath = FileSystem.FileSystem.EsbuildBinaryPath()
-      esbuildVersion = UMX.tag Constants.Esbuild_Version
+      version = UMX.tag Constants.Esbuild_Version
       ecmaVersion = Constants.Esbuild_Target
       minify = true
       injects = Seq.empty
@@ -279,7 +279,7 @@ module Json =
     | Some content ->
       let content =
         content.GetValue<{| esBuildPath: string option
-                            esbuildVersion: string option
+                            version: string option
                             includes: string seq option
                             excludes: string seq option
                             ecmaVersion: string option
@@ -300,10 +300,10 @@ module Json =
             esBuildPath =
               (defaultArg content.esBuildPath (UMX.untag esbuild.esBuildPath))
               |> UMX.tag
-            esbuildVersion =
+            version =
               (defaultArg
-                content.esbuildVersion
-                (UMX.untag esbuild.esbuildVersion))
+                content.version
+                (UMX.untag esbuild.version))
               |> UMX.tag
             ecmaVersion =
               (defaultArg content.ecmaVersion (UMX.untag esbuild.ecmaVersion))

@@ -48,7 +48,7 @@ module Types =
 
   type EsbuildConfig =
     { esBuildPath: string<SystemPath>
-      esbuildVersion: string<Semver>
+      version: string<Semver>
       ecmaVersion: string
       minify: bool
       injects: string seq
