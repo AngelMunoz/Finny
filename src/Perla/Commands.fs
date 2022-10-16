@@ -158,10 +158,7 @@ module Handlers =
       0
     | ListFormat.TextOnly ->
       for result in results do
-        Logger.log (
-          $"[bold green]{result.fullName}[/] - {result.branch}",
-          ending = SameLine
-        )
+        Logger.log $"[bold green]{result.fullName}[/] - {result.branch}"
 
         let path = TextPath(result.path).StemColor(Color.Blue)
         AnsiConsole.Write path

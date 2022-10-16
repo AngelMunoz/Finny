@@ -17,7 +17,7 @@ open System.Collections.Generic
 type Fsi =
   static member GetSession
     (
-      [<Optional>] ?argv,
+      [<Optional>] ?argv: string seq,
       [<Optional>] ?stdout,
       [<Optional>] ?stderr
     ) =
@@ -88,11 +88,11 @@ type Plugin =
       let plugin = unbox plugin
 
       if not skipCache then
-        match Plugin.PluginCache.Value.TryAdd(plugin.name, plugin) with 
-        | true -> 
+        match Plugin.PluginCache.Value.TryAdd(plugin.name, plugin) with
+        | true ->
           Plugin.FsiSessions.Value.Add(plugin.name, Some Fsi)
           Logger.log $"Added %s{plugin.name} to plugin cache"
-        | false -> 
+        | false ->
           Logger.log $"Couldn't add %s{plugin.name}"
       Some plugin
     | _ -> None
@@ -100,7 +100,7 @@ type Plugin =
   static member FromTextBatch(plugins: (string * string) seq) =
     for (path, content) in plugins do
       Plugin.FromText(path, content) |> ignore
-  
+
   static member AddPlugin(plugin: PluginInfo) =
     match Plugin.PluginCache.Value.TryAdd(plugin.name, plugin) with
     | true ->
@@ -108,7 +108,7 @@ type Plugin =
       Logger.log $"Added %s{plugin.name} to plugin cache"
     | false -> Logger.log $"Couldn't add %s{plugin.name}"
 
-  static member SupportedPlugins([<Optional>] ?plugins: PluginInfo seq) =
+  static member SupportedPlugins([<Optional>] ?plugins: PluginInfo seq): RunnablePlugin seq =
     let plugins = defaultArg plugins (Plugin.CachedPlugins())
 
     let chooser (plugin: PluginInfo) =

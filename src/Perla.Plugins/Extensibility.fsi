@@ -14,14 +14,16 @@ open System.Collections.Generic
 [<Class>]
 type Fsi =
     static member GetSession:
-        #seq<string> option * TextWriter option * TextWriter option -> FsiEvaluationSession when 'a :> seq<string>
+        [<Optional>] ?argv: string seq *
+        [<Optional>] ?stdout: TextWriter *
+        [<Optional>] ?stderr: TextWriter -> FsiEvaluationSession
 
 [<Class>]
 type Plugin =
     static member CachedPlugins: unit -> seq<PluginInfo>
     static member FromTextBatch: plugins: seq<string * string> -> unit
     static member AddPlugin: plugin: PluginInfo -> unit
-    static member SupportedPlugins: seq<PluginInfo> option -> seq<RunnablePlugin>
+    static member SupportedPlugins: [<Optional>] ?plugins: seq<PluginInfo> -> seq<RunnablePlugin>
     static member ApplyPluginsToFile: fileInput: FileTransform * ?plugins: seq<RunnablePlugin> -> Async<FileTransform>
 
 module Scaffolding =

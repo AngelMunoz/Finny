@@ -181,7 +181,7 @@ module Esbuild =
       .WithStandardInputPipe(PipeSource.FromString(content))
       .WithStandardOutputPipe(PipeTarget.ToStream(results))
       .WithStandardErrorPipe(
-        PipeTarget.ToDelegate(fun msg -> Logger.log $"[bold red]{msg}[/]")
+        PipeTarget.ToDelegate(fun msg -> Logger.log($"[bold red]{msg}[/]", target = PrefixKind.Esbuild))
       )
       .WithArguments(fun args ->
         args
