@@ -6,8 +6,10 @@ open LiteDB
 open Flurl.Http
 
 open Perla.FileSystem
+open FSharp.UMX
 
 module Scaffolding =
+  open Units
 
   [<CLIMutable>]
   type PerlaTemplateRepository =
@@ -35,7 +37,8 @@ module Scaffolding =
     | Name of name: string
     | FullName of fullName: string
 
-  let private templatesdb = lazy (new LiteDatabase(FileSystem.Database))
+  let private templatesdb =
+    lazy (new LiteDatabase(UMX.untag FileSystem.Database))
 
   let private repositories =
     lazy
@@ -53,7 +56,7 @@ module Scaffolding =
         $"https://github.com/{repo.fullName}/archive/refs/heads/{repo.branch}.zip"
 
       use! stream = url.GetStreamAsync()
-      FileSystem.ExtractTemplateZip repo.fullName stream
+      FileSystem.ExtractTemplateZip (UMX.tag<SystemPath> repo.fullName) stream
     }
 
 
@@ -132,7 +135,11 @@ module Scaffolding =
       match Templates.FindOne(NameKind.FullName fullName) with
       | Some template ->
         templatesdb.Value.BeginTrans() |> ignore
-        FileSystem.RemoveTemplateDirectory template.fullName
+
+        FileSystem.RemoveTemplateDirectory(
+          UMX.tag<SystemPath> template.fullName
+        )
+
         repositories.Value.Delete(template._id) |> ignore
         templatesdb.Value.Commit()
       | None -> false
