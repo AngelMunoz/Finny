@@ -1,4 +1,4 @@
-﻿namespace Perla
+﻿namespace Perla.Build
 
 open System
 open System.IO
@@ -10,27 +10,31 @@ open AngleSharp.Html.Parser
 
 open Perla
 open Perla.Types
+open Perla.Units
 open Perla.Json
 open Perla.FileSystem
-open Perla.Fable
-open Perla.Esbuild
+open Perla.VirtualFs
 open Perla.Logger
-open Perla.PackageManager.Types
+open Perla.Esbuild
+open Fake.IO.Globbing
+open FSharp.UMX
 
+[<RequireQualifiedAccess>]
+type ResourceType =
+  | JS
+  | CSS
+
+  member this.AsString() =
+    match this with
+    | JS -> "JS"
+    | CSS -> "CSS"
+
+
+[<RequireQualifiedAccess>]
 module Build =
 
   [<RequireQualifiedAccess>]
-  type private ResourceType =
-    | JS
-    | CSS
-
-    member this.AsString() =
-      match this with
-      | JS -> "JS"
-      | CSS -> "CSS"
-
-  [<RequireQualifiedAccess>]
-  type private EntryPoint =
+  type EntryPoint =
     | Physical of physicalRelativePath: string
     | VirtualPath of virtualRelativePath: string * physicalRelativePath: string
 
@@ -39,7 +43,7 @@ module Build =
       | Physical p
       | VirtualPath (_, p) -> p
 
-  let private resolveVirtualFile (config: PerlaConfig) entryPath : EntryPoint =
+  let resolveVirtualFile (config: PerlaConfig) entryPath : EntryPoint =
     let resolveFor entryPath physicalFolder virtualFolder =
       let split (v: string) =
         v.Split(
@@ -84,37 +88,28 @@ module Build =
           [| yield! physicalParts; yield! inputParts; yield entryFileName |]
         )
 
-    let mountDir =
-      config.devServer
-      |> Option.bind (fun devServer -> devServer.mountDirectories)
-      |> Option.map Map.toList
+    let mounts =
+      config.mountDirectories |> Map.toList
 
-    match mountDir with
+    let result =
+      mounts
+      |> List.map (fun (p, v) -> resolveFor entryPath $"{p}" $"{v}")
+      |> List.tryFind File.Exists
+
+    match result with
     | None ->
       failwith
-        $"The entry path {entryPath} could not be resolved on disk and the configuration doesn't contain mountDirectories."
-    | Some mounts ->
-      let result =
-        mounts
-        |> List.map (fun (p, v) -> resolveFor entryPath p v)
-        |> List.tryFind File.Exists
+        $"The entry path {entryPath} could not be resolved on disk, nor could it be found in one of the mountDirectories."
+    | Some p -> EntryPoint.VirtualPath(entryPath, p)
 
-      match result with
-      | None ->
-        failwith
-          $"The entry path {entryPath} could not be resolved on disk, nor could it be found in one of the mountDirectories."
-      | Some p -> EntryPoint.VirtualPath(entryPath, p)
-
-  let private getEntryPoints
-    (workingDirectory: string)
+  let getEntryPoints
+    (workingDirectory: string<SystemPath>)
     (type': ResourceType)
     (config: PerlaConfig)
     : EntryPoint list =
     let context = BrowsingContext.New(Configuration.Default)
 
-    let indexFile = defaultArg config.index "index.html"
-
-    let content = File.ReadAllText(Path.GetFullPath(indexFile))
+    let content = UMX.untag config.index |> Path.GetFullPath |> File.ReadAllText
 
     let parser = context.GetService<IHtmlParser>()
     let doc = parser.ParseDocument content
@@ -142,7 +137,7 @@ module Build =
     els
     |> Seq.map (fun element ->
       let value = getPathFromAttribute element
-      let fullPath = Path.Combine(workingDirectory, value)
+      let fullPath = Path.Combine(UMX.untag workingDirectory, value)
 
       if File.Exists fullPath then
         // The found entryPoint is pointing to a file on disk
@@ -152,18 +147,10 @@ module Build =
         resolveVirtualFile config value)
     |> Seq.toList
 
-  let private insertMapAndCopy jsFiles cssFiles config =
-    let indexFile = defaultArg config.index "index.html"
-
-    let outDir =
-      config.build
-      |> Option.map (fun build -> build.outDir)
-      |> Option.flatten
-      |> Option.defaultValue "./dist"
-
-    let content = File.ReadAllText(Path.GetFullPath(indexFile))
-
+  let insertMapAndCopy jsFiles cssFiles config =
     let context = BrowsingContext.New(Configuration.Default)
+
+    let content = UMX.untag config.index |> Path.GetFullPath |> File.ReadAllText
 
     let parser = context.GetService<IHtmlParser>()
     let doc = parser.ParseDocument content
@@ -208,182 +195,91 @@ module Build =
     doc.Head.AppendChild script |> ignore
     let content = doc.ToHtml()
 
-    File.WriteAllText($"{outDir}/{indexFile}", content)
+    File.WriteAllText($"{config.build.outDir}/{config.index}", content)
 
-  let private buildFiles
-    (workingDirectory: string)
+  let buildFiles
+    (workingDirectory: string<SystemPath>)
     (type': ResourceType)
     (files: EntryPoint seq)
-    (config: BuildConfig)
+    (externals: string seq)
+    (config: PerlaConfig)
     =
     task {
       if files |> Seq.length > 0 then
         let entrypoints =
           files
-          |> Seq.map (fun e -> Path.Combine(workingDirectory, e.RelativePath))
+          |> Seq.map (fun e -> Path.Combine(UMX.untag workingDirectory, e.RelativePath))
           |> String.concat " "
 
         let cmd =
           match type' with
           | ResourceType.JS ->
-            let tsk = config |> esbuildJsCmd entrypoints
+            let tsk = Esbuild.ProcessJS(entrypoints, config.esbuild, config.build.outDir, externals)
             tsk.ExecuteAsync()
           | ResourceType.CSS ->
-            let tsk = config |> esbuildCssCmd entrypoints
+            let tsk = Esbuild.ProcessCss(entrypoints, config.esbuild, config.build.outDir)
             tsk.ExecuteAsync()
 
-        Logger.build $"Starting esbuild with pid: [{cmd.ProcessId}]"
+        Logger.log($"Starting esbuild with pid: [{cmd.ProcessId}]", target=Build)
 
         return! cmd.Task :> Task
       else
-        Logger.build
-          $"No Entrypoints for {type'.AsString()} found in index.html"
+        Logger.log($"No Entrypoints for {type'.AsString()} found in index.html", target=Build)
     }
 
-  let getExcludes config =
-    let map = FileSystem.ImportMap()
-    let excludes = map.imports |> Map.toSeq |> Seq.map (fun (key, _) -> key)
+  let getExternals (config: PerlaConfig) =
+    let dependencies =
+      match config.runConfiguration with
+      | RunConfiguration.Production ->
+          config.dependencies
+      | RunConfiguration.Development ->
+          config.devDependencies
+    seq {
+      for dependency in dependencies do
+        dependency.name
+        if dependency.alias.IsSome then
+          dependency.alias.Value
+      if config.enableEnv && config.build.emitEnvFile then
+        UMX.untag config.envPath
+      yield! config.esbuild.externals
+    }
 
-    config.externals
-    |> Option.map (fun ex ->
-      seq {
-        yield! ex
-        yield! excludes
-      })
-    |> Option.defaultValue excludes
-
-  let execBuild (config: PerlaConfig) =
-    let buildConfig = defaultArg config.build (BuildConfig.DefaultConfig())
-
-    let devServer =
-      defaultArg config.devServer (DevServerConfig.DefaultConfig())
-
-    let outDir = defaultArg buildConfig.outDir "./dist"
-
-    let esbuildVersion =
-      defaultArg buildConfig.esbuildVersion Constants.Esbuild_Version
-
-    let copyExcludes =
-      match buildConfig.copyPaths with
-      | None -> BuildConfig.DefaultExcludes()
-      | Some paths ->
-        paths.excludes
-        |> Option.map List.ofSeq
-        |> Option.defaultValue (BuildConfig.DefaultExcludes())
-
-    let copyIncludes =
-      match buildConfig.copyPaths with
-      | None -> Seq.empty
-      | Some paths -> paths.includes |> Option.defaultValue Seq.empty
-
-    let emitEnvFile = defaultArg buildConfig.emitEnvFile true
-
-    task {
-      match config.fable with
-      | Some fable ->
-        let cmdResult = (fableCmd (Some false) fable).ExecuteAsync()
-
-        Logger.build $"Starting Fable with pid: [{cmdResult.ProcessId}]"
-
-        do! cmdResult.Task :> Task
-      | None -> Logger.build "No Fable configuration provided, skipping fable"
-
-      if not <| File.Exists(esbuildExec) then
-        do! setupEsbuild esbuildVersion
-
+  let copyGlobs (config: BuildConfig) =
+    let cwd = FileSystem.CurrentWorkingDirectory() |> UMX.untag
+    let outDir = UMX.untag config.outDir
+    let filesToCopy: LazyGlobbingPattern =
+      { BaseDirectory = UMX.untag cwd; Includes = config.includes |> Seq.toList; Excludes = config.excludes |> Seq.toList; }
+    Logger.log $"Copying Files to out directory"
+    filesToCopy
+    |> Seq.toArray
+    |> Array.iter (fun file ->
       try
-        Directory.Delete(outDir, true)
-      with ex ->
+        Path.GetDirectoryName file |> Directory.CreateDirectory |> ignore
+      with _ ->
         ()
+      File.Copy(file, file.Replace(cwd, outDir)))
 
-      Directory.CreateDirectory(outDir) |> ignore
+type Build =
 
-      let pwd = Directory.GetCurrentDirectory()
-      let jsFiles = getEntryPoints pwd ResourceType.JS config
-      let cssFiles = getEntryPoints pwd ResourceType.CSS config
-      let excludes = getExcludes buildConfig
+  static member Execute (config: PerlaConfig) =
+    task {
+      Logger.log("Mounting Virtual File System", target=PrefixKind.Build)
+      do! VirtualFileSystem.Mount config
+      let pwd =  VirtualFileSystem.CopyToDisk() |> UMX.tag<SystemPath>
+      Logger.log($"Copying Processed files to {pwd}", target=PrefixKind.Build)
 
-      let excludes =
-        if emitEnvFile then
-          let envPath =
-            config.devServer
-            |> Option.map (fun c -> c.envPath)
-            |> Option.flatten
-            |> Option.defaultValue "/env.js"
+      Logger.log("Resolving JS and CSS files", target=PrefixKind.Build)
+      let jsFiles = Build.getEntryPoints pwd ResourceType.JS config
+      let cssFiles = Build.getEntryPoints pwd ResourceType.CSS config
+      let externals = Build.getExternals config
 
-          excludes |> Seq.append (seq { envPath })
-        else
-          excludes
-
-      let buildConfig = { buildConfig with externals = excludes |> Some }
-
+      Logger.log("Running Esbuild on finalized files", target=PrefixKind.Build)
       do!
         Task.WhenAll(
-          buildFiles pwd ResourceType.JS jsFiles buildConfig,
-          buildFiles pwd ResourceType.CSS cssFiles buildConfig
+          Build.buildFiles pwd ResourceType.JS jsFiles externals config,
+          Build.buildFiles pwd ResourceType.CSS cssFiles externals config
         )
         :> Task
-
-      let opts = EnumerationOptions()
-      opts.RecurseSubdirectories <- true
-
-      let getDirectories (map: Map<string, string>) =
-        let root = Environment.CurrentDirectory
-
-        let totalPaths =
-          [| for key in map.Keys do
-               yield!
-                 Directory.EnumerateFiles(Path.GetFullPath(key), "*.*", opts)
-                 |> Seq.map (fun s -> s, s) |]
-        // FIXME: This thing is not funny to use, but at least in the meantime will work
-        // Once the new build pipeline is in, this should disappear
-        let includedFiles =
-          [| for (path, target) in totalPaths do
-               for copy in copyIncludes do
-                 let copy, target =
-                   match copy.Split("->") with
-                   | [| origin; target |] -> origin.Trim(), target.Trim()
-                   | [| origin |] -> origin.Trim(), target.Trim()
-                   | _ -> copy.Trim(), copy.Trim()
-
-                 let ext =
-                   let copy = copy.Replace('/', Path.DirectorySeparatorChar)
-
-                   if copy.StartsWith "." then copy.Substring(2) else copy
-
-                 if path.Contains(ext) then
-                   yield path, target |]
-
-
-        let excludedFiles =
-          totalPaths
-          |> Array.filter (fun ((path, _)) ->
-            copyExcludes |> List.exists (fun ext -> path.Contains(ext)) |> not)
-
-        [| yield! excludedFiles; yield! includedFiles |]
-        |> Array.Parallel.iter (fun (origin, target) ->
-          let target = Path.GetFullPath target
-          let posPath = target.Replace(root, $"{outDir}")
-
-          let print =
-            if origin <> target then
-              $"[blue]{origin}[/] -> [yellow]{target}[/]"
-            else
-              $"[blue]{origin}[/]"
-
-          Logger.log ($"{print} -> [green]{posPath}[/]", escape = false)
-
-          try
-            Path.GetDirectoryName posPath |> Directory.CreateDirectory |> ignore
-          with _ ->
-            ()
-
-          File.Copy(origin, posPath))
-
-      Logger.log $"Copying Files to out directory"
-
-      devServer.mountDirectories |> Option.map getDirectories |> ignore
-
       let cssFiles =
         [ for jsFile in jsFiles do
             let name =
@@ -397,21 +293,15 @@ module Build =
             $"./{dirName}/{name}".Replace("\\", "/") ]
 
       Logger.log "Adding CSS Files to index.html"
-      do insertMapAndCopy jsFiles cssFiles config
+      Build.insertMapAndCopy jsFiles cssFiles config
 
-      let envPath =
-        config.devServer
-        |> Option.map (fun c -> c.envPath)
-        |> Option.flatten
-        |> Option.defaultValue "/env.js"
+      let envPath = (UMX.untag config.envPath).Substring(1)
 
-      let envPath = envPath.Substring(1)
-
-      match emitEnvFile, Env.GetEnvContent() with
+      match config.enableEnv && config.build.emitEnvFile, Env.GetEnvContent() with
       | true, Some content ->
         Logger.log $"Generating perla env file "
 
-        let envPath = Path.Combine(outDir, envPath)
+        let envPath = Path.Combine(UMX.untag config.build.outDir, envPath)
 
         try
           Directory.CreateDirectory(Path.GetDirectoryName(envPath)) |> ignore
@@ -432,5 +322,7 @@ module Build =
       | false, _
       | _, None -> ()
 
-      Logger.log "Build finished."
+      Build.copyGlobs config.build
+
+      Logger.log("Build finished.", target=PrefixKind.Build)
     }
