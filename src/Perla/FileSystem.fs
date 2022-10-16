@@ -1,7 +1,6 @@
 ﻿namespace Perla.FileSystem
 
 open System
-open System.Diagnostics
 open System.IO
 open System.IO.Compression
 open System.Threading.Tasks
@@ -23,23 +22,32 @@ open ICSharpCode.SharpZipLib.GZip
 open ICSharpCode.SharpZipLib.Tar
 open FsToolkit.ErrorHandling
 
+open Fake.IO.Globbing
+open Fake.IO.GlobbingPatternExtensions
+open Fake.IO.Globbing.Operators
 
 [<RequireQualifiedAccess>]
 module FileSystem =
+
   module Operators =
     let inline (/) a b = Path.Combine(a, b)
 
   open Operators
+  open Units
 
-  let AssemblyRoot = AppContext.BaseDirectory
+  let AssemblyRoot: string<SystemPath> =
+    UMX.tag<SystemPath> AppContext.BaseDirectory
 
-  let CurrentWorkingDirectory () = Environment.CurrentDirectory
+  let CurrentWorkingDirectory () : string<SystemPath> =
+    UMX.tag<SystemPath> Environment.CurrentDirectory
 
-  let Database = Path.Combine(AssemblyRoot, Constants.TemplatesDatabase)
+  let Database: string<SystemPath> =
+    (UMX.untag AssemblyRoot) / Constants.TemplatesDatabase |> UMX.tag
 
-  let Templates = Path.Combine(AssemblyRoot, Constants.TemplatesDirectory)
+  let Templates: string<SystemPath> =
+    (UMX.untag AssemblyRoot) / Constants.TemplatesDirectory |> UMX.tag
 
-  let rec FindConfigFile (directory: string, fileName: string) =
+  let rec findConfigFile (directory: string, fileName: string) =
     let config = directory / fileName
 
     if File.Exists config then
@@ -49,31 +57,37 @@ module FileSystem =
         let parent = Path.GetDirectoryName(config) |> Path.GetFullPath
 
         if parent <> directory then
-          FindConfigFile(parent, fileName)
+          findConfigFile (parent, fileName)
         else
           None
       with :? ArgumentNullException ->
         None
 
-  let GetConfigPath (fileName: string) (fromDirectory: string option) =
+  let GetConfigPath
+    (fileName: string)
+    (fromDirectory: string<SystemPath> option)
+    : string<SystemPath> =
     let workDir =
       match fromDirectory with
-      | Some dir -> dir |> Path.GetFullPath
-      | None -> CurrentWorkingDirectory()
+      | Some dir -> UMX.untag dir |> Path.GetFullPath |> UMX.tag
+      | None -> CurrentWorkingDirectory() |> UMX.untag
 
-    FindConfigFile(workDir, Constants.PerlaConfigName)
-    |> Option.defaultValue (CurrentWorkingDirectory() / fileName)
+    findConfigFile (workDir, Constants.PerlaConfigName)
+    |> Option.defaultValue ((CurrentWorkingDirectory() |> UMX.untag) / fileName)
+    |> UMX.tag<SystemPath>
 
-  let PerlaConfigPath = GetConfigPath Constants.PerlaConfigName None
+  let PerlaConfigPath: string<SystemPath> =
+    GetConfigPath Constants.PerlaConfigName None
 
   let LiveReloadScript =
-    lazy (File.ReadAllText(AssemblyRoot / "./livereload.js"))
+    lazy (File.ReadAllText((UMX.untag AssemblyRoot) / "./livereload.js"))
 
-  let WorkerScript = lazy (File.ReadAllText(AssemblyRoot / "./worker.js"))
+  let WorkerScript =
+    lazy (File.ReadAllText((UMX.untag AssemblyRoot) / "./worker.js"))
 
-  let ensureFileContent<'T> (path: string) (content: 'T) =
+  let ensureFileContent<'T> (path: string<SystemPath>) (content: 'T) =
     try
-      File.WriteAllBytes(path, content |> Json.ToBytes)
+      File.WriteAllBytes(UMX.untag path, content |> Json.ToBytes)
     with ex ->
       Logger.log (
         $"[bold red]Unable to write file at[/][bold yellow]{path}[/]",
@@ -85,8 +99,8 @@ module FileSystem =
 
     content
 
-  let ExtractTemplateZip name stream =
-    let path = Path.Combine(Templates, name)
+  let ExtractTemplateZip (name: string<SystemPath>) stream =
+    let path = Path.Combine(UMX.untag Templates, UMX.untag name)
 
     try
       Directory.Delete(path)
@@ -97,19 +111,21 @@ module FileSystem =
     use zip = new ZipArchive(stream)
     zip.ExtractToDirectory path
 
-  let RemoveTemplateDirectory name =
-    let path = Path.Combine(Templates, name)
+  let RemoveTemplateDirectory (name: string<SystemPath>) =
+    let path = Path.Combine(UMX.untag Templates, UMX.untag name)
 
     try
       Directory.Delete(path)
     with _ ->
       ()
 
-  let EsbuildBinaryPath () =
+  let EsbuildBinaryPath () : string<SystemPath> =
     let bin = if Env.IsWindows then "" else "bin"
     let exec = if Env.IsWindows then ".exe" else ""
 
-    AssemblyRoot / "package" / bin / $"esbuild{exec}" |> Path.GetFullPath
+    (UMX.untag AssemblyRoot) / "package" / bin / $"esbuild{exec}"
+    |> Path.GetFullPath
+    |> UMX.tag
 
   let chmodBinCmd () =
     Cli
@@ -120,7 +136,7 @@ module FileSystem =
 
   let tryDownloadEsBuild (esbuildVersion: string) : Task<string option> =
     let binString = $"esbuild-{Env.PlatformString}-{Env.ArchString}"
-    let compressedFile = AssemblyRoot / "esbuild.tgz"
+    let compressedFile = (UMX.untag AssemblyRoot) / "esbuild.tgz"
 
     let url =
       $"https://registry.npmjs.org/{binString}/-/{binString}-{esbuildVersion}.tgz"
@@ -176,7 +192,7 @@ module FileSystem =
   let SetupEsbuild (esbuildVersion: string<Semver>) =
     Logger.log "Checking whether esbuild is present..."
 
-    if File.Exists(EsbuildBinaryPath()) then
+    if File.Exists(EsbuildBinaryPath() |> UMX.untag) then
       Logger.log "esbuild is present."
       Task.FromResult(())
     else
@@ -197,17 +213,29 @@ module FileSystem =
             path)
       )
 
+  let TryReadTsConfig () =
+    let path = Path.Combine($"{CurrentWorkingDirectory()}", "tsconfig.json")
 
-  let TplRepositoryChildTemplates path =
     try
-      Directory.EnumerateDirectories path |> Seq.map (Path.GetDirectoryName)
+      File.ReadAllText path |> Some
+    with _ ->
+      None
+
+
+  let TplRepositoryChildTemplates
+    (path: string<SystemPath>)
+    : string<SystemPath> seq =
+    try
+      UMX.untag path
+      |> Directory.EnumerateDirectories
+      |> Seq.map (Path.GetDirectoryName >> UMX.tag<SystemPath>)
     with :? DirectoryNotFoundException ->
       Logger.log
         $"Directories not found at {path}, this might be a bad template or a possible bug"
 
       Seq.empty
 
-  let collectRepositoryFiles (path: string) =
+  let collectRepositoryFiles (path: string<SystemPath>) =
     let foldFilesAndTemplates (files, templates) (next: FileInfo) =
       if next.FullName.Contains(".tpl.") then
         (files, next :: templates)
@@ -217,44 +245,51 @@ module FileSystem =
     let opts = EnumerationOptions()
     opts.RecurseSubdirectories <- true
 
-    DirectoryInfo(path).EnumerateFiles("*.*", SearchOption.AllDirectories)
+    DirectoryInfo(UMX.untag path)
+      .EnumerateFiles("*.*", SearchOption.AllDirectories)
     |> Seq.filter (fun file -> file.Extension <> ".fsx")
     |> Seq.fold
          foldFilesAndTemplates
          (List.empty<FileInfo>, List.empty<FileInfo>)
 
 type FileSystem =
-  static member PerlaConfigText(?fromDirectory: string) =
+  static member PerlaConfigText(?fromDirectory: string<SystemPath>) =
 
     let path = FileSystem.GetConfigPath Constants.PerlaConfigName fromDirectory
 
     try
-      File.ReadAllText(path) |> Some
+      File.ReadAllText(UMX.untag path) |> Some
     with :? FileNotFoundException ->
       None
 
   static member SetCwdToPerlaRoot(?fromPath) =
     FileSystem.GetConfigPath Constants.PerlaConfigName fromPath
+    |> UMX.untag
     |> Path.GetDirectoryName
     |> Path.GetFullPath
     |> Directory.SetCurrentDirectory
 
-  static member ImportMap(?fromDirectory: string) =
+  static member ImportMap(?fromDirectory: string<SystemPath>) =
     let path = FileSystem.GetConfigPath Constants.ImportMapName fromDirectory
 
     try
-      File.ReadAllBytes(path) |> Json.FromBytes
+      File.ReadAllBytes(UMX.untag path) |> Json.FromBytes
     with :? FileNotFoundException ->
       { imports = Map.empty; scopes = None }
       |> FileSystem.ensureFileContent path
 
-  static member ProxyConfig(?fromDirectory: string) =
-    let path = FileSystem.GetConfigPath Constants.ProxyConfigName fromDirectory
+  static member PluginFiles() =
+    let path =
+      Path.Combine(
+        UMX.untag (FileSystem.CurrentWorkingDirectory()),
+        ".perla",
+        "plugins"
+      )
 
-    try
-      File.ReadAllBytes(path) |> Json.FromBytes |> Some
-    with :? FileNotFoundException ->
-      None
+    !! $"{path}/**/*.fsx"
+    |> Seq.toArray
+    |> Array.Parallel.map (fun path -> path, File.ReadAllText(path))
+
 
   static member WriteImportMap(map: ImportMap, ?fromDirectory) =
     let path = FileSystem.GetConfigPath Constants.ImportMapName fromDirectory
@@ -263,7 +298,7 @@ type FileSystem =
   static member PathForTemplate(name, branch, ?tplName) =
     let tplName = defaultArg tplName ""
 
-    Path.Combine(FileSystem.Templates, $"{name}-{branch}", tplName)
+    Path.Combine(UMX.untag FileSystem.Templates, $"{name}-{branch}", tplName)
 
   static member GetTemplateScriptContent(name, branch, tplname) =
     let readTemplateScript =
@@ -290,9 +325,14 @@ type FileSystem =
 
     readTemplateScript |> Option.orElseWith (fun () -> readRepoScript ())
 
-  static member WriteTplRepositoryToDisk(origin, target, ?payload: obj) =
-    let originDirectory = Path.GetFullPath origin
-    let targetDirectory = Path.GetFullPath target
+  static member WriteTplRepositoryToDisk
+    (
+      origin: string<SystemPath>,
+      target: string<UserPath>,
+      ?payload: obj
+    ) =
+    let originDirectory = UMX.cast origin |> Path.GetFullPath
+    let targetDirectory = UMX.cast target |> Path.GetFullPath
 
     let (files, templates) = FileSystem.collectRepositoryFiles origin
 
@@ -324,11 +364,11 @@ type FileSystem =
 
         File.WriteAllText(target, content))
 
-    DirectoryInfo(target).Create()
+    DirectoryInfo(UMX.untag target).Create()
     copyFiles ()
     copyTemplates ()
 
-  static member GenerateSimpleFable(path: string) =
+  static member GenerateSimpleFable(path: string<SystemPath>) =
     let getDotnet () =
       let ext = if Env.IsWindows then ".exe" else ""
       Cli.Wrap($"dotnet{ext}")
