@@ -18,11 +18,11 @@
     <Compile Include="Esbuild.fs" />
     <Compile Include="Extensibility.fs" />
     <Compile Include="VirtualFs.fs" />
+    <Compile Include="Fable.fs" />
+    <Compile Include="Build.fs" />
     <Compile Include="Scaffolding.fs" />
     <Compile Include="Library.fs" />
-    <Compile Include="Fable.fs" />
     <Compile Include="Server.fs" />
-    <Compile Include="Build.fs" />
     <Compile Include="PackageManagement.fs" />
     <Compile Include="Configuration.fs" />
     <Compile Include="Commands.fs" />
