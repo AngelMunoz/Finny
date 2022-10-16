@@ -5,7 +5,9 @@ open CliWrap
 open System
 open Perla
 open Perla.Types
+open Perla.Units
 open Perla.Logger
+open FSharp.UMX
 
 module Fable =
   let mutable private activeFable: int option = None
@@ -19,14 +21,13 @@ module Fable =
       Logger.log ($"Failed to kill process with PID: [{pid}]", ex)
 
   let private addProject
-    (project: string option)
+    (project: string<SystemPath>)
     (args: Builders.ArgumentsBuilder)
     =
-    let project = defaultArg project "./src/App.fsproj"
-    args.Add project
+    args.Add $"{project}"
 
   let private addOutDir
-    (outdir: string option)
+    (outdir: string<SystemPath> option)
     (args: Builders.ArgumentsBuilder)
     =
     match outdir with
@@ -34,20 +35,15 @@ module Fable =
     | None -> args
 
   let private addExtension
-    (extension: string option)
+    (extension: string<FileExtension>)
     (args: Builders.ArgumentsBuilder)
     =
-    match extension with
-    | Some extension -> args.Add([ "-e"; $"{extension}" ])
-    | None -> args
+    args.Add([ "-e"; $"{extension}" ])
 
-  let private addWatch (watch: bool option) (args: Builders.ArgumentsBuilder) =
-    match watch with
-    | Some true -> args.Add $"watch"
-    | Some false
-    | None -> args
+  let private addWatch (watch: bool) (args: Builders.ArgumentsBuilder) =
+    args.Add $"watch"
 
-  let fableCmd (isWatch: bool option) =
+  let fableCmd (isWatch: bool) =
 
     fun (config: FableConfig) ->
       let execBinName = if Env.IsWindows then "dotnet.exe" else "dotnet"
