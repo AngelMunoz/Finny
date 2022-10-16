@@ -221,6 +221,11 @@ module FileSystem =
     with _ ->
       None
 
+  let GetTempDir() =
+    let tmp = Path.GetTempPath()
+    let path = Path.Combine(tmp, Guid.NewGuid().ToString())
+    Directory.CreateDirectory(path) |> ignore
+    path |> Path.GetFullPath
 
   let TplRepositoryChildTemplates
     (path: string<SystemPath>)
