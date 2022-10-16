@@ -3,6 +3,7 @@
 open System
 open System.Collections.Concurrent
 open System.IO
+open System.Runtime.InteropServices
 
 open FSharp.Compiler.Interactive.Shell
 open FSharp.Control
@@ -11,9 +12,15 @@ open FsToolkit.ErrorHandling
 
 open Perla.Plugins
 open Perla.Logger
+open System.Collections.Generic
 
 type Fsi =
-  static member getSession(?argv, ?stdout, ?stderr) =
+  static member GetSession
+    (
+      [<Optional>] ?argv,
+      [<Optional>] ?stdout,
+      [<Optional>] ?stderr
+    ) =
     let defaultArgv =
       [| "fsi.exe"; "--optinize+"; "--nologo"; "--gui-"; "--readline-" |]
 
@@ -38,25 +45,25 @@ type Fsi =
 
 type Plugin =
 
+  static member FsiSessions =
+    lazy(Dictionary<string, FsiEvaluationSession option>())
+
   static member PluginCache =
-    lazy (ConcurrentDictionary<PluginInfo, FsiEvaluationSession>())
+    lazy (Dictionary<string, PluginInfo>())
 
-  static member getCachedPlugins() =
-    Plugin.PluginCache.Value |> Seq.map (fun entry -> entry.Key)
+  static member CachedPlugins() =
+    Plugin.PluginCache.Value |> Seq.map (fun entry -> entry.Value)
 
-  static member fromCache(pluginName: string, path: string) =
-    Logger.log $"Attempting to extracting plugin'{pluginName}' from cache"
-
-    Plugin.PluginCache.Value
-    |> Seq.tryFind (fun entry ->
-      entry.Key.name = pluginName && entry.Key.path = path)
-    |> Option.map (fun entry -> entry.Key)
-
-  static member fromText(name: string, content: string, ?skipCache) =
+  static member FromText
+    (
+      path: string,
+      content: string,
+      [<Optional>] ?skipCache
+    ) =
     let skipCache = defaultArg skipCache false
-    Logger.log $"Extracting plugin '{name}' from text"
+    Logger.log $"Extracting plugin '{path}' from text"
 
-    let Fsi = Fsi.getSession ()
+    let Fsi = Fsi.GetSession()
 
     let evaluation, _ = Fsi.EvalInteractionNonThrowing(content)
 
@@ -67,7 +74,7 @@ type Plugin =
       | None, None -> None
 
     let logError ex =
-      Logger.log ($"An error ocurrer while processing {name}", ex)
+      Logger.log ($"An error ocurrer while processing {path}", ex)
 
     let evaluation =
       evaluation
@@ -81,26 +88,28 @@ type Plugin =
       let plugin = unbox plugin
 
       if not skipCache then
-        if not (Plugin.PluginCache.Value.TryAdd(plugin, Fsi)) then
-          Logger.log $"Couldn't add %s{plugin.name}"
-        else
+        match Plugin.PluginCache.Value.TryAdd(plugin.name, plugin) with 
+        | true -> 
+          Plugin.FsiSessions.Value.Add(plugin.name, Some Fsi)
           Logger.log $"Added %s{plugin.name} to plugin cache"
-
+        | false -> 
+          Logger.log $"Couldn't add %s{plugin.name}"
       Some plugin
     | _ -> None
 
-  static member loadTextBatch
-    (plugins: {| name: string; content: string |} seq)
-    =
-    seq {
-      for entry in plugins do
-        match Plugin.fromText (entry.name, entry.content) with
-        | Some plugin -> plugin
-        | None -> ()
-    }
+  static member FromTextBatch(plugins: (string * string) seq) =
+    for (path, content) in plugins do
+      Plugin.FromText(path, content) |> ignore
+  
+  static member AddPlugin(plugin: PluginInfo) =
+    match Plugin.PluginCache.Value.TryAdd(plugin.name, plugin) with
+    | true ->
+      Plugin.FsiSessions.Value.Add(plugin.name, None)
+      Logger.log $"Added %s{plugin.name} to plugin cache"
+    | false -> Logger.log $"Couldn't add %s{plugin.name}"
 
-  static member getSupportedPlugins(?plugins: PluginInfo seq) =
-    let plugins = defaultArg plugins (Plugin.getCachedPlugins ())
+  static member SupportedPlugins([<Optional>] ?plugins: PluginInfo seq) =
+    let plugins = defaultArg plugins (Plugin.CachedPlugins())
 
     let chooser (plugin: PluginInfo) =
       match plugin.shouldProcessFile, plugin.transform with
@@ -113,12 +122,12 @@ type Plugin =
 
     plugins |> Seq.choose chooser
 
-  static member applyPluginsToFile
+  static member ApplyPluginsToFile
     (
       fileInput: FileTransform,
       ?plugins: RunnablePlugin seq
     ) =
-    let plugins = defaultArg plugins (Plugin.getSupportedPlugins ())
+    let plugins = defaultArg plugins (Plugin.SupportedPlugins())
 
     let folder result next =
       async {
@@ -134,7 +143,7 @@ module Scaffolding =
   let ScaffoldConfiguration = "TemplateConfiguration"
 
   let getConfigurationFromScript content =
-    use session = Fsi.getSession ()
+    use session = Fsi.GetSession()
 
     session.EvalInteractionNonThrowing(content) |> ignore
 

@@ -2,23 +2,8 @@
 
 open System.Threading.Tasks
 
-
-/// This type handles the file extensions for bessed types
-/// like HTML, CSS, JS, any other extension is considered a
-/// "Custom" extension
-[<RequireQualifiedAccess; Struct>]
-type FileExtension =
-  | JS
-  | CSS
-  | HTML
-  | Custom of string
-
 type FileTransform =
   {
-    /// The path where the file changed event was activated
-    /// This value should not be modified between plugin transformations
-    /// because it could break further processing of the sfile
-    originalPath: string
     /// The text of the file, this will change between plugin
     /// transformations
     content: string
@@ -26,7 +11,7 @@ type FileTransform =
     /// this will change between plugin transformations
     /// It also serves for plugin authors to determine
     /// if their plugin should act on this particular file
-    extension: FileExtension
+    extension: string
   }
 
 ///<summary>
@@ -87,7 +72,6 @@ type PluginFunctions =
 [<Struct>]
 type PluginInfo =
   { name: string
-    path: string
     shouldProcessFile: FilePredicate voption
     transform: TransformAction voption }
 
@@ -97,7 +81,7 @@ type RunnablePlugin =
     shouldTransform: FilePredicate
     transform: TransformAction }
 
-type PerlaPluginBuilder(name) =
+type PerlaPluginBuilder(name: string) =
   member _.Yield _ = []
 
   [<CustomOperation "should_process_file">]
@@ -173,27 +157,8 @@ type PerlaPluginBuilder(name) =
         | None -> ValueNone
 
     { name = name
-      path = ""
       shouldProcessFile = shouldTransform
       transform = transform }
-
-type FileExtension with
-
-  member this.AsString =
-    match this with
-    | JS -> ".js"
-    | CSS -> ".css"
-    | HTML -> ".html"
-    | Custom ext -> ext
-
-  /// The extensions provided must start with a dot.
-  /// Example: ".scss"
-  static member FromString ext =
-    match ext with
-    | ".js" -> JS
-    | ".css" -> CSS
-    | ".html" -> HTML
-    | other -> Custom other
 
 [<AutoOpen>]
 module Plugin =

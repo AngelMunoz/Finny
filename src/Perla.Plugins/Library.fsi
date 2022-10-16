@@ -2,22 +2,8 @@ namespace Perla.Plugins
 
 open System.Threading.Tasks
 
-/// This type handles the file extensions for bessed types
-/// like HTML, CSS, JS, any other extension is considered a
-/// "Custom" extension
-[<RequireQualifiedAccess; Struct>]
-type FileExtension =
-    | JS
-    | CSS
-    | HTML
-    | Custom of string
-
 type FileTransform =
     {
-        /// The path where the file changed event was activated
-        /// This value should not be modified between plugin transformations
-        /// because it could break further processing of the sfile
-        originalPath: string
         /// The text of the file, this will change between plugin
         /// transformations
         content: string
@@ -25,7 +11,7 @@ type FileTransform =
         /// this will change between plugin transformations
         /// It also serves for plugin authors to determine
         /// if their plugin should act on this particular file
-        extension: FileExtension
+        extension: string
     }
 
 ///<summary>
@@ -84,7 +70,6 @@ type PluginFunctions =
 [<Struct>]
 type PluginInfo =
     { name: string
-      path: string
       shouldProcessFile: FilePredicate voption
       transform: TransformAction voption }
 
@@ -99,7 +84,7 @@ type PerlaPluginBuilder =
     member Yield: 'a -> 'b list
     [<CustomOperation "should_process_file">]
     member inline WithTransformProcess:
-        state: PluginFunctions list * [<InlineIfLambda>] st: FileTransform -> bool -> PluginFunctions list
+        state: PluginFunctions list * [<InlineIfLambda>] st: (FileTransform -> bool) -> PluginFunctions list
     [<CustomOperation "with_transform">]
     member inline WithTransform:
         state: PluginFunctions list * [<InlineIfLambda>] transform: TransformAction -> PluginFunctions list
@@ -113,13 +98,6 @@ type PerlaPluginBuilder =
     member inline WithTransform:
         state: PluginFunctions list * [<InlineIfLambda>] transform: TransformAsync -> PluginFunctions list
     member Run: state: PluginFunctions list -> PluginInfo
-
-type FileExtension with
-
-    member AsString: string
-    /// The extensions provided must start with a dot.
-    /// Example: ".scss"
-    static member FromString: ext: string -> FileExtension
 
 [<AutoOpen>]
 module Plugin =
