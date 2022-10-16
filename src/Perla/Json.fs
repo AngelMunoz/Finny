@@ -10,7 +10,7 @@ open Perla.Types
 type PerlaConfigSection =
   | Index of index: string option
   | Fable of fable: FableConfig option
-  | Devserver of devServer: DevServerConfig option
+  | DevServer of devServer: DevServerConfig option
   | Build of build: BuildConfig option
   | Dependencies of dependencies: Dependency seq option
   | DevDependencies of devDependencies: Dependency seq option
