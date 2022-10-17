@@ -17,6 +17,7 @@ let fsSources =
     |> Glob.toPaths
     |> Seq.append (
         Glob.createWithRootDir "src" "**/*.fs"
+        |> Glob.add "**/*.fsi"
         |> Glob.exclude "**/fable_modules/*.fs"
         |> Glob.exclude "**/fable_modules/**/*.fs"
         |> Glob.exclude "**/obj/*.fs"
