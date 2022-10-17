@@ -41,7 +41,7 @@ module Operations =
                 ctx.Console.WriteLine(Console.warn $"We tried to delete '{outDir}' but '{ex.Message}' happened")
         }
 
-    let fantomas command =
+    let fantomas (command: string) =
         make {
             let! result =
                 Cmd.createWithArgs "dotnet" [ "fantomas"; command; yield! fsSources ]
@@ -60,7 +60,7 @@ module Operations =
 
     let buildBinaries (project: string) (runtime: string) =
         let cmd =
-            let framework = "net7.0"
+            let framework = "net6.0"
             let singleFile = "-p:PublishSingleFile=true"
             let readyToRun = "-p:PublishReadyToRun=true"
             let outdir = $"{outDir}/{runtime}"
@@ -126,7 +126,11 @@ module Steps =
             do! Operations.dotnet "build src/Perla/Perla.fsproj"
         }
 
+    let format = Step.create "format" { do! Operations.fantomas "format" }
+
 module Pipelines =
+
+    let format = Pipeline.create "format" { run Steps.format }
 
     let packNuget = Pipeline.create "build:nuget" { run Steps.packNugets }
 
@@ -143,6 +147,7 @@ module Pipelines =
     let build = Pipeline.create "build" { run Steps.build }
 
 Pipelines.create {
+    add Pipelines.format
     add Pipelines.packNuget
     add Pipelines.buildRelease
     add Pipelines.buildRuntime
