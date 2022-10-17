@@ -38,7 +38,7 @@ type IFileWatcher =
   abstract member FileChanged: IObservable<FileChangedEvent>
 
 [<RequireQualifiedAccess>]
-module VirtualFs =
+module VirtualFileSystem =
   let serverPaths = lazy (new MountFileSystem(new MemoryFileSystem(), true))
 
   let getGlobbedFiles path =
@@ -55,31 +55,30 @@ module VirtualFs =
       for KeyValue (url, path) in directories do
         let memFs = new MemoryFileSystem()
 
-        let! transforms =
+        do!
           IO.Path.Combine(UMX.untag cwd, UMX.untag path)
           |> IO.Path.GetFullPath
           |> getGlobbedFiles
-          |> Seq.map (fun path ->
+          |> Seq.map (fun globPath ->
             async {
-              let! content = IO.File.ReadAllTextAsync path |> Async.AwaitTask
-              let extension = IO.Path.GetExtension path
+              let! content =
+                IO.File.ReadAllTextAsync globPath |> Async.AwaitTask
 
-              return! Plugins.ApplyPlugins(content, extension)
+              let extension = IO.Path.GetExtension globPath
+
+              let! transform = Plugins.ApplyPlugins(content, extension)
+              let path = (UMX.untag path)[1..]
+
+              let path =
+                IO.Path.ChangeExtension(path, transform.extension)
+                |> memFs.ConvertPathFromInternal
+
+              memFs.WriteAllText(path, transform.content)
             })
           |> Async.Parallel
-
-        let path = (UMX.untag path)[1..]
-
-        transforms
-        |> Array.Parallel.iter (fun transform ->
-          let path =
-            IO.Path.ChangeExtension(path, transform.extension)
-            |> memFs.ConvertPathFromInternal
-
-          memFs.WriteAllText(path, transform.content))
+          |> Async.Ignore
 
         serverPaths.Value.Mount(UPath.op_Implicit (UMX.untag url), memFs)
-
     }
 
   let observablesForPath serverPath userPath path =
@@ -181,7 +180,7 @@ module VirtualFs =
       | None -> return (event, None)
     }
 
-  let copyToDisk() =
+  let copyToDisk () =
     let dir = FileSystem.GetTempDir()
     let fs = new PhysicalFileSystem()
     let path = fs.ConvertPathFromInternal dir
@@ -209,19 +208,18 @@ module VirtualFs =
         IO.Path.ChangeExtension(serverFullPath, transform.extension)
 
       serverPaths.Value.WriteAllText(updatadPath, transform.content)
-      event
     | Renamed, Some transform
     | Changed, Some transform ->
       let updatadPath =
         IO.Path.ChangeExtension(serverFullPath, transform.extension)
 
       serverPaths.Value.WriteAllText(updatadPath, transform.content)
-      event
-
-    | Deleted, _ -> event
+    | Deleted, _
     | Renamed, None
     | Created, None
-    | Changed, None -> event
+    | Changed, None -> ()
+
+    event, transform
 
   let ApplyVirtualOperations (stream: IObservable<FileChangedEvent>) =
     stream
@@ -231,7 +229,6 @@ module VirtualFs =
 
 type VirtualFileSystem =
   static member Mount(config: PerlaConfig) =
-    VirtualFs.MountDirectories(config.mountDirectories)
+    VirtualFileSystem.MountDirectories(config.mountDirectories)
 
-  static member CopyToDisk() =
-    VirtualFs.copyToDisk()
+  static member CopyToDisk() = VirtualFileSystem.copyToDisk ()
