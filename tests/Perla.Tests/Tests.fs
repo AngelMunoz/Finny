@@ -22,9 +22,14 @@ type Env() =
 
     match actual with
     | Some actual ->
-      let expected = "export const IAmSet = \"yes\";"
+      let expected =
+        "export const IAmSet = \"yes\";"
+
       Assert.True(actual.Contains(expected))
-      let expected = "export const currentEnv = \"tests\";"
+
+      let expected =
+        "export const currentEnv = \"tests\";"
+
       Assert.True(actual.Contains(expected))
     | None ->
       raise (XunitException("Content is Empty when It should have data"))
@@ -35,13 +40,30 @@ type Env() =
 
     match actual with
     | Some actual ->
-      let expected = "export const NotAvailable = \"not-available\";"
+      let expected =
+        "export const NotAvailable = \"not-available\";"
+
       Assert.False(actual.Contains(expected))
-      let expected = "export const OtherNotAvailable = \"not-available\";"
+
+      let expected =
+        "export const OtherNotAvailable = \"not-available\";"
+
       Assert.False(actual.Contains(expected))
     | None ->
       raise (XunitException("Content is Empty when It should have data"))
 
+  [<Fact>]
+  member _.``getPerlaEnvVars provides a correct (varName, varValue) list``() =
+    let values = Perla.Env.getPerlaEnvVars ()
+
+
+    values
+    |> List.contains ("IAmSet", "yes")
+    |> Assert.True
+
+    values
+    |> List.contains ("currentEnv", "tests")
+    |> Assert.True
 
 
 [<Fact>]
