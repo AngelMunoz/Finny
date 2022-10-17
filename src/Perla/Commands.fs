@@ -3,7 +3,9 @@
 open System
 open System.IO
 
+open System.Threading
 open System.Threading.Tasks
+open Perla.VirtualFs
 open Spectre.Console
 
 open FSharp.Control
@@ -17,15 +19,16 @@ open Perla.Server
 open Perla.Build
 open Perla.Logger
 open Perla.FileSystem
-open Perla.Build
 open Perla.Fable
 open Perla.Json
 open Perla.Scaffolding
 open Perla.Plugins.Extensibility
-open Perla.PackageManager
-open Perla.PackageManager.Types
 open Perla.Configuration.Types
 open Perla.Configuration
+
+open Perla.PackageManager
+open Perla.PackageManager.Types
+
 open FSharp.UMX
 
 module CliOptions =
@@ -376,7 +379,7 @@ module Handlers =
 
   let runSearch (options: SearchOptions) =
     task {
-      do! PackageSearch.searchPackage (options.package, options.page)
+      do! Dependencies.Search(options.package, options.page)
       return 0
     }
 
@@ -384,7 +387,7 @@ module Handlers =
 
   let runShow (options: ShowPackageOptions) =
     task {
-      do! PackageSearch.showPackage (options.package)
+      do! Dependencies.Show(options.package)
       return 0
     }
 
@@ -545,7 +548,7 @@ module Handlers =
       option {
         let! repo = Templates.FindOne(NameKind.FullName name)
         UMX.tag<SystemPath> repo.fullName |> FileSystem.RemoveTemplateDirectory
-        return! Templates.Delete repo.fullName
+        return Templates.Delete repo.fullName
       }
 
     match deleteOperation with
@@ -673,25 +676,70 @@ module Handlers =
 
     0
 
-  let runServe (configuration: ServeOptions) =
-    let configuration = Configuration.CurrentConfig
+  let runServe (options: ServeOptions) =
+    task {
+      let cliArgs =
+        [ match options.port with
+          | Some port -> DevServerField.Port port
+          | None -> ()
+          match options.host with
+          | Some host -> DevServerField.Host host
+          | None -> ()
+          match options.ssl with
+          | Some ssl -> DevServerField.UseSSl ssl
+          | None -> () ]
+
+      Configuration.UpdateFromCliArgs(
+        ?runConfig = options.mode,
+        serverOptions = cliArgs
+      )
+
+      let config = Configuration.CurrentConfig
+
+      use cts = new CancellationTokenSource()
+
+      do! backgroundTask { do! FileSystem.SetupEsbuild config.esbuild.version }
+      do! VirtualFileSystem.Mount(config)
+
+      let fileChangeEvents =
+        VirtualFileSystem.GetFileChangeStream config.mountDirectories
+        |> VirtualFileSystem.ApplyVirtualOperations
+
+      let compilerErrors = Observable.empty
+
+      let app = Server.GetServerApp(config, fileChangeEvents, compilerErrors)
+
+      match config.fable with
+      | Some fable ->
+        async {
+          let logger msg =
+            Logger.log msg
+
+            if msg.ToLowerInvariant().Contains("watching") then
+              let protocol = if config.devServer.useSSL then "https" else "http"
+
+              Logger.log
+                $"Server Ready at {protocol}://{config.devServer.host}:{config.devServer.port}"
+
+              app.StartAsync(cts.Token) |> Async.AwaitTask |> Async.Start
+
+          do!
+            Fable.Start(fable, true, logger) |> Async.AwaitTask |> Async.Ignore
+        }
+        |> Async.StartImmediate
+      | None -> do! app.StartAsync(cts.Token)
 
 
+      Console.CancelKeyPress.Add(fun _ ->
+        Logger.log "Got it, see you around!..."
+        cts.Cancel()
+        app.StopAsync() |> Async.AwaitTask |> Async.RunSynchronously)
 
+      while not cts.IsCancellationRequested do
+        do! Async.Sleep(TimeSpan.FromSeconds(1.))
 
-    FileSystem.SetupEsbuild configuration.esbuild.version
-    |> Async.AwaitTask
-    |> Async.StartImmediate
-
-    let startServer () = failwith ""
-    let startFable () = failwith ""
-
-    let watchForChanges () = failwith ""
-
-    Console.CancelKeyPress.Add(fun _ ->
-      Logger.log "Got it, see you around!..."
-
-      exit 0)
+      return 0
+    }
 
 
 module Commands =
@@ -761,41 +809,6 @@ module Commands =
       [ "development"; "dev"; "prod"; "production" ],
       "Use Dev or Production dependencies when running, defaults to development"
     )
-
-  let serveCmd =
-
-    let port =
-      Input.OptionMaybe<int>(
-        [ "--port"; "-p" ],
-        "Port where the application starts"
-      )
-
-    let host =
-      Input.OptionMaybe<string>(
-        [ "--host" ],
-        "network ip address where the application will run"
-      )
-
-    let ssl = Input.OptionMaybe<bool>([ "--ssl" ], "Run dev server with SSL")
-
-
-    let buildArgs
-      (
-        mode: string option,
-        port: int option,
-        host: string option,
-        ssl: bool option
-      ) : ServeOptions =
-      { mode = mode |> Option.map RunConfiguration.FromString
-        port = port
-        host = host
-        ssl = ssl }
-
-    command "serve" {
-      description "Starts a development server for single page applications"
-      inputs (modeArg, port, host, ssl)
-      setHandler (buildArgs >> Handlers.runServe)
-    }
 
   let buildCmd =
 

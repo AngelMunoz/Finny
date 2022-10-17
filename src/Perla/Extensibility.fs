@@ -1,15 +1,11 @@
 namespace Perla.Extensibility
 
-open FSharp.Control
-
 open Perla
 open Perla.Types
 open Perla.FileSystem
 open Perla.Plugins
 open Perla.Plugins.Extensibility
 open Perla.Esbuild
-
-
 
 module Plugins =
 

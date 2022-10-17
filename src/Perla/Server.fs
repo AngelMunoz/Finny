@@ -29,10 +29,10 @@ open FSharp.Control.Reactive
 open FsToolkit.ErrorHandling
 
 open Perla
-open Perla.Logger
 open Perla.Types
 open Perla.Units
 open Perla.Json
+open Perla.Logger
 open Perla.Plugins
 open Perla.FileSystem
 open Perla.VirtualFs

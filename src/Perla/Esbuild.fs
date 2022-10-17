@@ -2,14 +2,7 @@
 
 open System
 open System.IO
-open System.Net.Http
 open System.Runtime.InteropServices
-open System.Text
-open System.Threading.Tasks
-
-open ICSharpCode.SharpZipLib.Tar
-open ICSharpCode.SharpZipLib.GZip
-
 open CliWrap
 
 open FsToolkit.ErrorHandling
@@ -30,9 +23,6 @@ type LoaderType =
 
 [<RequireQualifiedAccess>]
 module Esbuild =
-
-
-
 
   let addEsExternals
     (externals: (string seq))
@@ -139,7 +129,7 @@ type Esbuild =
       .WithStandardOutputPipe(PipeTarget.ToStream(Console.OpenStandardOutput()))
       .WithArguments(fun args ->
         args.Add(entryPoint)
-        |> Esbuild.addEsExternals config.externals
+        |> Esbuild.addEsExternals (defaultArg externals config.externals)
         |> Esbuild.addIsBundle true
         |> Esbuild.addTarget config.ecmaVersion
         |> Esbuild.addDefaultFileLoaders fileLoaders

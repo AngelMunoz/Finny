@@ -14,7 +14,6 @@ open FSharp.UMX
 open FSharp.Control
 open FSharp.Control.Reactive
 
-open Fake.IO.Globbing
 open Fake.IO.Globbing.Operators
 
 [<Struct>]
@@ -48,7 +47,7 @@ module VirtualFileSystem =
     -- $"{path}/**/*.fs"
     -- $"{path}/**/*.fsproj"
 
-  let MountDirectories (directories: Map<string<ServerUrl>, string<UserPath>>) =
+  let mountDirectories (directories: Map<string<ServerUrl>, string<UserPath>>) =
     let cwd = FileSystem.CurrentWorkingDirectory()
 
     async {
@@ -221,14 +220,13 @@ module VirtualFileSystem =
 
     event, transform
 
-  let ApplyVirtualOperations (stream: IObservable<FileChangedEvent>) =
+  let ApplyVirtualOperations stream =
     stream
     |> Observable.map tryCompileFile
     |> Observable.switchAsync
     |> Observable.map updateInVirtualFs
 
-type VirtualFileSystem =
-  static member Mount(config: PerlaConfig) =
-    VirtualFileSystem.MountDirectories(config.mountDirectories)
+  let Mount config =
+    mountDirectories (config.mountDirectories)
 
-  static member CopyToDisk() = VirtualFileSystem.copyToDisk ()
+  let CopyToDisk () = copyToDisk ()

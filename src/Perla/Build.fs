@@ -16,7 +16,9 @@ open Perla.FileSystem
 open Perla.VirtualFs
 open Perla.Logger
 open Perla.Esbuild
+
 open Fake.IO.Globbing
+
 open FSharp.UMX
 
 [<RequireQualifiedAccess>]
@@ -219,7 +221,7 @@ module Build =
                 entrypoints,
                 config.esbuild,
                 config.build.outDir,
-                externals
+                externals = externals
               )
 
             tsk.ExecuteAsync()

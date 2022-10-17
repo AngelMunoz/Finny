@@ -3,7 +3,7 @@
     "Serve App": {
       "commandName": "Project",
       "commandLineArgs": "serve",
-      "workingDirectory": "$(ProjectDir)/../App",
+      "workingDirectory": "$(ProjectDir)/../../sample",
       "environmentVariables": {
         "PERLA_envValue": "this is my value",
         "PERLA_SOME_TOKEN": "much secret, so wow :3"
@@ -12,7 +12,7 @@
     "Build App": {
       "commandName": "Project",
       "commandLineArgs": "build",
-      "workingDirectory": "$(ProjectDir)/../App",
+      "workingDirectory": "$(ProjectDir)/../../sample",
       "environmentVariables": {
         "PERLA_envValue": "this is my value",
         "PERLA_SOME_TOKEN": "much secret, so wow :3"
@@ -21,32 +21,32 @@
     "Serve Docs": {
       "commandName": "Project",
       "commandLineArgs": "serve",
-      "workingDirectory": "$(ProjectDir)/../docs"
+      "workingDirectory": "$(ProjectDir)/../../docs"
     },
     "Build Docs": {
       "commandName": "Project",
       "commandLineArgs": "build",
-      "workingDirectory": "$(ProjectDir)/../docs"
+      "workingDirectory": "$(ProjectDir)/../../docs"
     },
     "Add Template": {
       "commandName": "Project",
       "commandLineArgs": "add-template -n AngelMunoz/perla-templates -b clam-poc",
-      "workingDirectory": "$(ProjectDir)/../App"
+      "workingDirectory": "$(ProjectDir)/../../App"
     },
     "Create Project": {
       "commandName": "Project",
       "commandLineArgs": "new -t perla-templates/lit-js -n clam-poc",
-      "workingDirectory": "$(ProjectDir)/../App"
+      "workingDirectory": "$(ProjectDir)/../../App"
     },
     "Add Lit JSPM ": {
       "commandName": "Project",
       "commandLineArgs": "add -p lit -s jspm",
-      "workingDirectory": "$(ProjectDir)/../App"
+      "workingDirectory": "$(ProjectDir)/../../App"
     },
     "Add RxJS JSPM ": {
       "commandName": "Project",
       "commandLineArgs": "add -p rxjs -s jspm",
-      "workingDirectory": "$(ProjectDir)/../App"
+      "workingDirectory": "$(ProjectDir)/../../App"
     }
   }
 }

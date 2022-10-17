@@ -8,7 +8,6 @@ open System.Threading.Tasks
 open FSharp.UMX
 
 open Perla
-open Perla.Types
 open Perla.Units
 open Perla.Json
 open Perla.Logger
@@ -23,7 +22,6 @@ open ICSharpCode.SharpZipLib.Tar
 open FsToolkit.ErrorHandling
 
 open Fake.IO.Globbing
-open Fake.IO.GlobbingPatternExtensions
 open Fake.IO.Globbing.Operators
 
 [<RequireQualifiedAccess>]
@@ -303,12 +301,22 @@ type FileSystem =
     let path = FileSystem.GetConfigPath Constants.ImportMapName fromDirectory
     FileSystem.ensureFileContent path map
 
-  static member PathForTemplate(name, branch, ?tplName) =
+  static member PathForTemplate
+    (
+      name: string,
+      branch: string,
+      ?tplName: string
+    ) =
     let tplName = defaultArg tplName ""
 
     Path.Combine(UMX.untag FileSystem.Templates, $"{name}-{branch}", tplName)
 
-  static member GetTemplateScriptContent(name, branch, tplname) =
+  static member GetTemplateScriptContent
+    (
+      name: string,
+      branch: string,
+      tplname: string
+    ) =
     let readTemplateScript =
       let templateScriptPath = FileSystem.PathForTemplate(name, branch, tplname)
 

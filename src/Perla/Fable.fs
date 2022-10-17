@@ -2,13 +2,12 @@
 
 open CliWrap
 
-open System
 open Perla
 open Perla.Types
 open Perla.Units
 open Perla.Logger
-open FSharp.UMX
 
+open FSharp.UMX
 
 module Fable =
   let mutable activeFable: int option = None
@@ -44,7 +43,13 @@ module Fable =
   let addWatch (watch: bool) (args: Builders.ArgumentsBuilder) =
     if watch then args.Add $"watch" else args
 
-  let fableCmd (config: FableConfig, isWatch: bool) =
+  let fableCmd
+    (
+      config: FableConfig,
+      isWatch: bool,
+      stdout: (string -> unit),
+      stderr: (string -> unit)
+    ) =
     let execBinName = if Env.IsWindows then "dotnet.exe" else "dotnet"
 
     Cli
@@ -57,8 +62,8 @@ module Fable =
         |> addOutDir config.outDir
         |> addExtension config.extension
         |> ignore)
-      .WithStandardErrorPipe(PipeTarget.ToStream(Console.OpenStandardError()))
-      .WithStandardOutputPipe(PipeTarget.ToStream(Console.OpenStandardOutput()))
+      .WithStandardErrorPipe(PipeTarget.ToDelegate(stdout))
+      .WithStandardOutputPipe(PipeTarget.ToDelegate(stderr))
 
 type Fable =
   static member FablePid = Fable.activeFable
@@ -68,15 +73,23 @@ type Fable =
     | Some pid -> Fable.killActiveProcess pid
     | None -> Logger.log "No active Fable found"
 
-  static member Start(config: FableConfig, isWatch: bool) =
+  static member Start
+    (
+      config: FableConfig,
+      isWatch: bool,
+      ?stdout: string -> unit,
+      ?stderr: string -> unit
+    ) =
     task {
-      let cmdResult = Fable.fableCmd(config, isWatch).ExecuteAsync()
+      let stdout = defaultArg stdout (printfn "Fable: %s")
+      let stderr = defaultArg stderr (eprintfn "Fable: %s")
+
+      let cmdResult =
+        Fable.fableCmd(config, isWatch, stdout, stderr).ExecuteAsync()
+
       Fable.activeFable <- Some cmdResult.ProcessId
 
-      Logger.log (
-        $"Starting Fable with pid: [{cmdResult.ProcessId}]",
-        target = PrefixKind.Build
-      )
+      Logger.log $"Starting Fable with pid: [{cmdResult.ProcessId}]"
 
       return! cmdResult.Task
     }

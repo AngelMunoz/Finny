@@ -10,20 +10,35 @@
     <PackageProjectUrl>https://github.com/AngelMunoz/Perla</PackageProjectUrl>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="Constants.fsi" />
     <Compile Include="Constants.fs" />
+    <Compile Include="Types.fsi" />
     <Compile Include="Types.fs" />
+    <Compile Include="Env.fsi" />
     <Compile Include="Env.fs" />
+    <Compile Include="Json.fsi" />
     <Compile Include="Json.fs" />
+    <Compile Include="FileSystem.fsi" />
     <Compile Include="FileSystem.fs" />
+    <Compile Include="Esbuild.fsi" />
     <Compile Include="Esbuild.fs" />
+    <Compile Include="Extensibility.fsi" />
     <Compile Include="Extensibility.fs" />
+    <Compile Include="VirtualFileSystem.fsi" />
     <Compile Include="VirtualFileSystem.fs" />
+    <Compile Include="Fable.fsi" />
     <Compile Include="Fable.fs" />
+    <Compile Include="Build.fsi" />
     <Compile Include="Build.fs" />
+    <Compile Include="Scaffolding.fsi" />
     <Compile Include="Scaffolding.fs" />
+    <Compile Include="Library.fsi" />
     <Compile Include="Library.fs" />
+    <Compile Include="Server.fsi" />
     <Compile Include="Server.fs" />
+    <Compile Include="PackageManagement.fsi" />
     <Compile Include="PackageManagement.fs" />
+    <Compile Include="Configuration.fsi" />
     <Compile Include="Configuration.fs" />
     <Compile Include="Commands.fs" />
     <Compile Include="Program.fs" />

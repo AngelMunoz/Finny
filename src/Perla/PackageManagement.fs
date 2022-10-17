@@ -3,16 +3,17 @@
 open System
 open Spectre.Console
 
+open Perla.Logger
 open Perla.PackageManager
 open Perla.PackageManager.Types
 open Perla.PackageManager.Skypack
-open Perla.Logger
+
 open FsToolkit.ErrorHandling
 
 
-module PackageSearch =
+module Dependencies =
 
-  let private printSearchTable (searchData: PackageSearchResult seq) =
+  let printSearchTable (searchData: PackageSearchResult seq) =
     let table =
       Table()
         .AddColumn(TableColumn("Name"))
@@ -39,7 +40,7 @@ module PackageSearch =
 
     AnsiConsole.Write table
 
-  let private printShowTable (package: PackageInfo) =
+  let printShowTable (package: PackageInfo) =
     let table =
       Table()
         .AddColumn(TableColumn("Description"))
@@ -91,7 +92,7 @@ module PackageSearch =
 
     AnsiConsole.Write table
 
-  let searchPackage (name: string, page: int) =
+  let Search (name: string, page: int) =
     task {
       let! results =
         Logger.spinner (
@@ -112,7 +113,7 @@ module PackageSearch =
       )
     }
 
-  let showPackage (name: string) =
+  let Show (name: string) =
     task {
       let! package =
         Logger.spinner (

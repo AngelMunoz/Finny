@@ -5,7 +5,6 @@ open Perla.Types
 open Perla.Units
 open Perla.PackageManager.Types
 
-
 module Types =
 
   type DevServerField =
@@ -395,9 +394,9 @@ module Json =
           devDependencies = devDependencies }
 
 // will enable in the future
-let FromEnv (config: PerlaConfig) : PerlaConfig = config
+let fromEnv (config: PerlaConfig) : PerlaConfig = config
 
-let FromCli
+let fromCli
   (runConfig: RunConfiguration option)
   (provider: Provider option)
   (serverOptions: DevServerField seq option)
@@ -435,7 +434,7 @@ let FromCli
       runConfiguration = configuration
       provider = provider }
 
-let FromFile (fileContent: JsonNode option) (config: PerlaConfig) =
+let fromFile (fileContent: JsonNode option) (config: PerlaConfig) =
   match fileContent with
   | Some fileContent ->
     (fileContent, config)
@@ -457,17 +456,17 @@ type Configuration() =
 
   let mutable _configContents =
     Defaults.PerlaConfig
-    |> FromEnv
-    |> FromFile _fileConfig
-    |> FromCli _runConfig _provider _serverOptions
+    |> fromEnv
+    |> fromFile _fileConfig
+    |> fromCli _runConfig _provider _serverOptions
 
 
   let runPipeline () =
     _configContents <-
       Defaults.PerlaConfig
-      |> FromEnv
-      |> FromFile _fileConfig
-      |> FromCli _runConfig _provider _serverOptions
+      |> fromEnv
+      |> fromFile _fileConfig
+      |> fromCli _runConfig _provider _serverOptions
 
   member val CurrentConfig = _configContents
 
