@@ -36,29 +36,6 @@ module Defaults =
     val BuildConfig: BuildConfig
     val PerlaConfig: PerlaConfig
 
-module Json =
-    open Perla.FileSystem
-    open Perla.Json
-
-    val getConfigDocument: unit -> JsonNode option
-    val updateFileFields: jsonContents: byref<JsonNode option> -> fields: PerlaWritableField seq -> unit
-    val fromFable: jsonNode: JsonNode -> config: PerlaConfig -> JsonNode * PerlaConfig
-    val fromDevServer: jsonNode: JsonNode -> config: PerlaConfig -> JsonNode * PerlaConfig
-    val fromEsbuildConfig: jsonNode: JsonNode -> config: PerlaConfig -> JsonNode * PerlaConfig
-    val fromBuildConfig: jsonNode: JsonNode -> config: PerlaConfig -> JsonNode * PerlaConfig
-    val fromPerla: jsonNode: JsonNode -> config: PerlaConfig -> PerlaConfig
-
-val fromEnv: config: PerlaConfig -> PerlaConfig
-
-val fromCli:
-    runConfig: RunConfiguration option ->
-    provider: Provider option ->
-    serverOptions: DevServerField seq option ->
-    config: PerlaConfig ->
-        PerlaConfig
-
-val fromFile: fileContent: JsonNode option -> config: PerlaConfig -> PerlaConfig
-
 /// <summary>
 /// </summary>
 type Configuration =

@@ -4,6 +4,7 @@ open FSharp.UMX
 open Perla.Types
 open Perla.Units
 open Perla.PackageManager.Types
+open Perla.Logger
 
 module Types =
 
@@ -90,19 +91,21 @@ module Json =
   open Perla.FileSystem
   open Perla.Json
 
-  let getConfigDocument () : JsonNode option =
+  let getConfigDocument () : JsonObject option =
     match FileSystem.PerlaConfigText() with
     | Some content ->
-      JsonNode.Parse(
-        content,
-        nodeOptions = Json.DefaultJsonNodeOptions(),
-        documentOptions = Json.DefaultJsonDocumentOptions()
-      )
+      JsonObject
+        .Parse(
+          content,
+          nodeOptions = Json.DefaultJsonNodeOptions(),
+          documentOptions = Json.DefaultJsonDocumentOptions()
+        )
+        .AsObject()
       |> Some
     | None -> None
 
   let updateFileFields
-    (jsonContents: byref<JsonNode option>)
+    (jsonContents: byref<JsonObject option>)
     (fields: PerlaWritableField seq)
     : unit =
     let configuration =
@@ -159,35 +162,35 @@ module Json =
           Some f
         | _ -> None)
 
-    let addConfig (content: JsonNode) =
+    let addConfig (content: JsonObject) =
       match configuration with
       | Some config -> content["runConfiguration"] <- Json.ToNode(config)
       | None -> ()
 
       content
 
-    let addProvider (content: JsonNode) =
+    let addProvider (content: JsonObject) =
       match provider with
       | Some config -> content["provider"] <- Json.ToNode(config)
       | None -> ()
 
       content
 
-    let addDeps (content: JsonNode) =
+    let addDeps (content: JsonObject) =
       match dependencies with
       | Some deps -> content["dependencies"] <- Json.ToNode(deps)
       | None -> ()
 
       content
 
-    let addDevDeps (content: JsonNode) =
+    let addDevDeps (content: JsonObject) =
       match devDependencies with
       | Some deps -> content["devDependencies"] <- Json.ToNode(deps)
       | None -> ()
 
       content
 
-    let addFable (content: JsonNode) =
+    let addFable (content: JsonObject) =
       match fable with
       | Some fable -> content["fable"] <- Json.ToNode(fable)
       | None -> ()
@@ -198,7 +201,9 @@ module Json =
       match jsonContents with
       | Some content -> content
       | None ->
-        JsonNode.Parse($"""{{ "$schema": "{Constants.JsonSchemaUrl}" }}""")
+        JsonObject
+          .Parse($"""{{ "$schema": "{Constants.JsonSchemaUrl}" }}""")
+          .AsObject()
 
     match content[ "$schema" ].GetValue<string>() |> Option.ofObj with
     | Some _ -> ()
@@ -212,186 +217,6 @@ module Json =
       |> addDevDeps
       |> addFable
       |> Some
-
-  let fromFable (jsonNode: JsonNode) (config: PerlaConfig) =
-    match jsonNode[ "fable" ].AsObject() |> Option.ofObj, config.fable with
-    | None, None
-    | None, _ -> jsonNode, config
-    | Some content, fable ->
-      let fable = defaultArg fable Defaults.FableConfig
-
-      let project =
-        match content.TryGetPropertyValue("project") with
-        | true, value -> value.GetValue()
-        | false, _ -> UMX.untag fable.project
-
-      let extension =
-        match content.TryGetPropertyValue("extension") with
-        | true, value -> value.GetValue()
-        | false, _ -> UMX.untag fable.extension
-
-      let sourceMaps =
-        match content.TryGetPropertyValue("sourceMaps") with
-        | true, value -> value.GetValue()
-        | false, _ -> fable.sourceMaps
-
-      let outDir =
-        match content.TryGetPropertyValue("outDir") with
-        | true, value -> value.GetValue()
-        | false, _ -> fable.outDir |> Option.map UMX.untag
-        |> Option.map UMX.tag
-
-      let fable =
-        { fable with
-            project = UMX.tag project
-            extension = UMX.tag extension
-            sourceMaps = sourceMaps
-            outDir = outDir }
-
-      jsonNode, { config with fable = Some fable }
-
-  let fromDevServer (jsonNode: JsonNode) (config: PerlaConfig) =
-    match jsonNode[ "devServer" ].AsObject() |> Option.ofObj with
-    | None -> jsonNode, config
-    | Some jsonContent ->
-      let content =
-        jsonContent.GetValue<{| port: int option
-                                host: string option
-                                liveReload: bool option
-                                useSSL: bool option |}>
-          ()
-
-      let devServer =
-        let devServer = config.devServer
-
-        { devServer with
-            port = defaultArg content.port devServer.port
-            host = defaultArg content.host devServer.host
-            liveReload = defaultArg content.liveReload devServer.liveReload
-            useSSL = defaultArg content.useSSL devServer.useSSL }
-
-      jsonNode, { config with devServer = devServer }
-
-  let fromEsbuildConfig (jsonNode: JsonNode) (config: PerlaConfig) =
-    match jsonNode[ "esbuild" ].AsObject() |> Option.ofObj with
-    | None -> jsonNode, config
-    | Some content ->
-      let content =
-        content.GetValue<{| esBuildPath: string option
-                            version: string option
-                            includes: string seq option
-                            excludes: string seq option
-                            ecmaVersion: string option
-                            outDir: string option
-                            minify: bool option
-                            injects: string seq option
-                            externals: string seq option
-                            fileLoaders: Map<string, string> option
-                            emitEnvFile: bool option
-                            jsxFactory: string option
-                            jsxFragment: string option |}>
-          ()
-
-      let esbuild =
-        let esbuild = config.esbuild
-
-        { esbuild with
-            esBuildPath =
-              (defaultArg content.esBuildPath (UMX.untag esbuild.esBuildPath))
-              |> UMX.tag
-            version =
-              (defaultArg content.version (UMX.untag esbuild.version))
-              |> UMX.tag
-            ecmaVersion =
-              (defaultArg content.ecmaVersion (UMX.untag esbuild.ecmaVersion))
-              |> UMX.tag
-            minify =
-              (defaultArg content.minify (UMX.untag esbuild.minify)) |> UMX.tag
-            injects = (defaultArg content.injects esbuild.injects)
-            externals = (defaultArg content.externals esbuild.externals)
-            fileLoaders = defaultArg content.fileLoaders esbuild.fileLoaders
-            jsxFactory = content.jsxFactory |> Option.orElse esbuild.jsxFactory
-            jsxFragment =
-              content.jsxFragment |> Option.orElse esbuild.jsxFragment }
-
-      jsonNode, { config with esbuild = esbuild }
-
-  let fromBuildConfig (jsonNode: JsonNode) (config: PerlaConfig) =
-    match jsonNode[ "build" ].AsObject() |> Option.ofObj with
-    | None -> jsonNode, config
-    | Some content ->
-      let content =
-        content.GetValue<{| includes: string seq option
-                            excludes: string seq option
-                            outDir: string option
-                            emitEnvFile: bool option |}>
-          ()
-
-      let build =
-        let build = config.build
-
-        { build with
-            includes = defaultArg content.includes build.includes
-            excludes = defaultArg content.excludes build.excludes
-            outDir =
-              (defaultArg content.outDir (UMX.untag build.outDir)) |> UMX.tag
-            emitEnvFile = defaultArg content.emitEnvFile build.emitEnvFile }
-
-      jsonNode, { config with build = build }
-
-  let fromPerla (jsonNode: JsonNode) (config: PerlaConfig) =
-    match jsonNode.AsObject() |> Option.ofObj with
-    | None -> config
-    | Some root ->
-      let index =
-        match root.TryGetPropertyValue("index") with
-        | true, value -> value.GetValue()
-        | false, _ -> UMX.untag config.index
-
-      let provider =
-        match root.TryGetPropertyValue("provider") with
-        | true, value -> value.GetValue()
-        | false, _ -> config.provider.AsString
-
-      let runConfiguration =
-        match root.TryGetPropertyValue("runConfiguration") with
-        | true, value -> value.GetValue()
-        | false, _ -> config.runConfiguration.AsString
-
-      let mountDirectories =
-        match root.TryGetPropertyValue("mountDirectories") with
-        | true, value -> value.GetValue()
-        | false, _ -> config.mountDirectories
-
-      let enableEnv =
-        match root.TryGetPropertyValue("enableEnv") with
-        | true, value -> value.GetValue()
-        | false, _ -> config.enableEnv
-
-      let envPath =
-        match root.TryGetPropertyValue("envPath") with
-        | true, value -> value.GetValue()
-        | false, _ -> config.envPath
-
-      let dependencies =
-        match root.TryGetPropertyValue("dependencies") with
-        | true, value -> value.GetValue()
-        | false, _ -> config.dependencies
-
-      let devDependencies =
-        match root.TryGetPropertyValue("devDependencies") with
-        | true, value -> value.GetValue()
-        | false, _ -> config.devDependencies
-
-      { config with
-          index = UMX.tag index
-          provider = provider |> Provider.FromString
-          runConfiguration = runConfiguration |> RunConfiguration.FromString
-          mountDirectories = mountDirectories
-          enableEnv = enableEnv
-          envPath = envPath
-          dependencies = dependencies
-          devDependencies = devDependencies }
 
 // will enable in the future
 let fromEnv (config: PerlaConfig) : PerlaConfig = config
@@ -434,15 +259,78 @@ let fromCli
       runConfiguration = configuration
       provider = provider }
 
-let fromFile (fileContent: JsonNode option) (config: PerlaConfig) =
+let fromFile (fileContent: JsonObject option) (config: PerlaConfig) =
   match fileContent with
   | Some fileContent ->
-    (fileContent, config)
-    ||> Json.fromFable
-    ||> Json.fromDevServer
-    ||> Json.fromBuildConfig
-    ||> Json.fromEsbuildConfig
-    ||> Json.fromPerla
+    match fileContent.ToJsonString() |> Json.Json.FromConfigFile with
+    | Ok decoded ->
+      let fable =
+        match config.fable, decoded.fable with
+        | Some fable, Some decoded ->
+          Some
+            { fable with
+                project = defaultArg decoded.project fable.project
+                extension = defaultArg decoded.extension fable.extension
+                sourceMaps = defaultArg decoded.sourceMaps fable.sourceMaps
+                outDir = decoded.outDir }
+        | _, _ -> config.fable
+
+      let devServer =
+        match decoded.devServer with
+        | Some decoded ->
+          { config.devServer with
+              port = defaultArg decoded.port config.devServer.port
+              host = defaultArg decoded.host config.devServer.host
+              liveReload =
+                defaultArg decoded.liveReload config.devServer.liveReload
+              useSSL = defaultArg decoded.useSSL config.devServer.useSSL
+              proxy = defaultArg decoded.proxy config.devServer.proxy }
+        | None -> config.devServer
+      let build =
+        match decoded.build with
+        | Some build ->
+          { config.build with
+              includes = defaultArg build.includes config.build.includes
+              excludes = defaultArg build.excludes config.build.excludes
+              outDir = defaultArg build.outDir config.build.outDir
+              emitEnvFile = defaultArg build.emitEnvFile config.build.emitEnvFile }
+        | None ->
+          config.build
+      let esbuild =
+        match decoded.esbuild with
+        | Some esbuild ->
+          { config.esbuild with
+              esBuildPath = defaultArg esbuild.esBuildPath config.esbuild.esBuildPath
+              version = defaultArg esbuild.version config.esbuild.version
+              ecmaVersion = defaultArg esbuild.ecmaVersion config.esbuild.ecmaVersion
+              minify = defaultArg esbuild.minify config.esbuild.minify
+              injects = defaultArg esbuild.injects config.esbuild.injects
+              externals = defaultArg esbuild.externals config.esbuild.externals
+              fileLoaders = defaultArg esbuild.fileLoaders config.esbuild.fileLoaders
+              jsxFactory = esbuild.jsxFactory
+              jsxFragment = esbuild.jsxFragment }
+        | None ->
+          config.esbuild
+      { config with
+          fable = fable
+          devServer = devServer
+          build = build
+          esbuild = esbuild
+          index = defaultArg decoded.index config.index
+          runConfiguration = defaultArg decoded.runConfiguration config.runConfiguration
+          provider = defaultArg decoded.provider config.provider
+          mountDirectories = defaultArg decoded.mountDirectories config.mountDirectories
+          enableEnv = defaultArg decoded.enableEnv config.enableEnv
+          envPath = defaultArg decoded.envPath config.envPath
+          dependencies = defaultArg decoded.dependencies config.dependencies
+          devDependencies = defaultArg decoded.devDependencies config.devDependencies
+           }
+    | Error err ->
+      Logger.log (
+        $"[bold red] Filed to deserialize perla.jsonc with error {err}"
+      )
+
+      config
   | None -> config
 
 /// <summary>
