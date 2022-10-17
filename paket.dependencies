@@ -15,6 +15,7 @@ nuget CliWrap 3.5.0
 nuget Spectre.Console 0.45.0
 nuget LiteDB 5.0.12
 nuget Scriban 5.5.0
+nuget Thoth.Json.Net 8.0.0
 nuget Zio 0.15.0
 nuget SharpZipLib 1.4.0
 nuget Hellang.Middleware.SpaFallback 2.0.0
