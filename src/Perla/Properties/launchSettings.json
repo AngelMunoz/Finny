@@ -2,7 +2,7 @@
   "profiles": {
     "Serve App": {
       "commandName": "Project",
-      "commandLineArgs": "serve",
+      "commandLineArgs": "",
       "workingDirectory": "$(ProjectDir)/../../sample",
       "environmentVariables": {
         "PERLA_envValue": "this is my value",
@@ -20,7 +20,7 @@
     },
     "Serve Docs": {
       "commandName": "Project",
-      "commandLineArgs": "serve",
+      "commandLineArgs": "dev",
       "workingDirectory": "$(ProjectDir)/../../docs"
     },
     "Build Docs": {
