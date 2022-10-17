@@ -1,18 +1,13 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
-
-    <PropertyGroup>
-        <OutputType>Exe</OutputType>
-        <RootNamespace>Flan</RootNamespace>
-        <TargetFramework>net6.0</TargetFramework>
-    </PropertyGroup>
-
-    <ItemGroup>
-      <ProjectReference Include="..\Perla.Logger\Perla.Logger.fsproj" />
-      <ProjectReference Include="..\Perla.PackageManager\Perla.PackageManager.fsproj" />
-    </ItemGroup>
-
-    <ItemGroup>
-      <PackageReference Include="System.CommandLine" Version="2.0.0-beta4.22272.1" />
-    </ItemGroup>
-
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>Flan</RootNamespace>
+    <TargetFramework>net6.0</TargetFramework>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Perla.Logger\Perla.Logger.fsproj" />
+    <ProjectReference Include="..\Perla.PackageManager\Perla.PackageManager.fsproj" />
+  </ItemGroup>
+  <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

@@ -1,0 +1,17 @@
+FSharp.Core
+AngleSharp
+CliWrap
+Flurl.Http
+FSharp.Control.AsyncSeq
+FSharp.Control.Reactive
+FSharp.SystemCommandLine
+FSharp.UMX
+Hellang.Middleware.SpaFallback
+SharpZipLib
+FsToolkit.ErrorHandling
+FsToolkit.ErrorHandling.TaskResult
+Yarp.ReverseProxy
+LiteDB
+Scriban
+Zio
+Fake.IO.FileSystem

@@ -1,5 +1,7 @@
 ﻿module Perla.PackageManager.Skypack
 
+#nowarn "3391"
+
 open System
 open System.Runtime.InteropServices
 open System.Text.Json

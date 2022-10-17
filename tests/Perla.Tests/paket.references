@@ -1,0 +1,7 @@
+FSharp.Core
+
+group Tests
+    Microsoft.NET.Test.Sdk
+    xunit
+    xunit.runner.visualstudio
+    coverlet.collector

@@ -70,6 +70,13 @@ module Operations =
         dotnet cmd
 
 module Steps =
+    let installTools =
+        Step.create "Install Tools" { do! Operations.dotnet "tool restore" }
+
+    let restore = Step.create "Restore" { do! Operations.dotnet "paket restore" }
+
+    let clean = Step.create "Clean" { do! Operations.cleanDist }
+
     let packNugets =
         Step.create "Pack Nugets" {
             let! ctx = Step.context
@@ -122,18 +129,24 @@ module Steps =
         }
 
     let build =
-        Step.create "build" {
-            do! Operations.cleanDist
-            do! Operations.dotnet "build src/Perla/Perla.fsproj"
-        }
+        Step.create "build" { do! Operations.dotnet "build src/Perla/Perla.fsproj --no-restore" }
 
     let format = Step.create "format" { do! Operations.fantomas "format" }
 
+    let test =
+        Step.create "tests" { do! Operations.dotnet "test --no-build --no-restore" }
+
 module Pipelines =
 
-    let format = Pipeline.create "format" { run Steps.format }
+    let restore =
+        Pipeline.create "restore" {
+            run Steps.installTools
+            run Steps.restore
+        }
 
-    let packNuget = Pipeline.create "build:nuget" { run Steps.packNugets }
+    let format = Pipeline.createFrom restore "format" { run Steps.format }
+
+    let packNuget = Pipeline.createFrom restore "build:nuget" { run Steps.clean; run Steps.packNugets }
 
     let buildRelease =
         Pipeline.createFrom packNuget "build:release" {
@@ -145,14 +158,18 @@ module Pipelines =
     let buildRuntime =
         Pipeline.createFrom packNuget "build:runtime" { run Steps.buildForRuntime }
 
-    let build = Pipeline.create "build" { run Steps.build }
+    let build = Pipeline.createFrom restore "build" { run Steps.build }
+
+    let test = Pipeline.createFrom build "test" { run Steps.test }
 
 Pipelines.create {
+    add Pipelines.restore
     add Pipelines.format
     add Pipelines.packNuget
     add Pipelines.buildRelease
     add Pipelines.buildRuntime
     add Pipelines.build
+    add Pipelines.test
     default_pipeline Pipelines.build
 }
 |> Pipelines.runWithArgsAndExit fsi.CommandLineArgs
