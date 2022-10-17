@@ -18,6 +18,7 @@ open Perla.Build
 open Perla.Logger
 open Perla.FileSystem
 open Perla.Build
+open Perla.Fable
 open Perla.Json
 open Perla.Scaffolding
 open Perla.Plugins.Extensibility
@@ -102,24 +103,29 @@ module Handlers =
 
     Configuration.UpdateFromCliArgs(?runConfig = args.mode)
     let config = Configuration.CurrentConfig
+
     task {
       match config.fable with
-        | Some fable ->
-          let cmdResult = (Fable.fableCmd false fable).ExecuteAsync()
-
-          Logger.log($"Starting Fable with pid: [{cmdResult.ProcessId}]", target=PrefixKind.Build)
-          do! cmdResult.Task :> Task
-        | None -> Logger.log("No Fable configuration provided, skipping fable", target=PrefixKind.Build)
+      | Some fable ->
+        do!
+          Logger.spinner ("Running Fable...", Fable.Start(fable, false)) :> Task
+      | None ->
+        Logger.log (
+          "No Fable configuration provided, skipping fable",
+          target = PrefixKind.Build
+        )
 
       if not <| File.Exists($"{FileSystem.EsbuildBinaryPath}") then
         do! FileSystem.SetupEsbuild(config.esbuild.version)
 
       let outDir = UMX.untag config.build.outDir
+
       try
         Directory.Delete(outDir, true)
         Directory.CreateDirectory(outDir) |> ignore
       with ex ->
         ()
+
       do! Build.Execute config
       return 0
     }
@@ -669,8 +675,8 @@ module Handlers =
 
   let runServe (configuration: ServeOptions) =
     let configuration = Configuration.CurrentConfig
-    let withFable = configuration.fable.IsSome
-    // let perlaWatcher = Fs.getPerlaConfigWatcher ()
+
+
 
 
     FileSystem.SetupEsbuild configuration.esbuild.version
@@ -812,7 +818,7 @@ module Commands =
       )
 
     let path =
-      Input.ArgumentMaybe<System.IO.DirectoryInfo>(
+      Input.ArgumentMaybe<DirectoryInfo>(
         "path",
         "Choose what directory to initialize"
       )
