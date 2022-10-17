@@ -38,6 +38,7 @@ module Constants =
   let ServePrefix = "Serve:"
 
 type PrefixKind with
+
   member this.AsString =
     match this with
     | PrefixKind.Log -> Constants.LogPrefix
@@ -46,25 +47,30 @@ type PrefixKind with
     | PrefixKind.Serve -> Constants.ServePrefix
     | PrefixKind.Esbuild -> Constants.EsbuildPrefix
 
-type Logger =
-  static member private format
-    (prefix: PrefixKind list)
-    (message: string)
-    : FormattableString =
+module Internals =
+  let format (prefix: PrefixKind list) (message: string) : FormattableString =
     let prefix =
-      prefix
-      |> List.fold  (fun cur next -> $"{cur}{next.AsString}") ""
+      prefix |> List.fold (fun cur next -> $"{cur}{next.AsString}") ""
 
     $"[yellow]{prefix}[/] {message}"
 
-  static member logCustom(message, [<Optional>] ?ex: exn, [<Optional>]?prefixes: PrefixKind list, [<Optional>]?ending: LogEnding, [<Optional>]?escape: bool) =
+type Logger =
+
+  static member logCustom
+    (
+      message,
+      [<Optional>] ?ex: exn,
+      [<Optional>] ?prefixes: PrefixKind list,
+      [<Optional>] ?ending: LogEnding,
+      [<Optional>] ?escape: bool
+    ) =
     let prefixes =
       let prefixes = defaultArg prefixes [ Log ]
 
       if prefixes.Length = 0 then [ Log ] else prefixes
 
     let escape = defaultArg escape true
-    let formatted = Logger.format prefixes message
+    let formatted = Internals.format prefixes message
 
     match (defaultArg ending NewLine) with
     | NewLine ->
@@ -93,21 +99,23 @@ type Logger =
 #endif
     | None -> ()
 
-  static member log(message, [<Optional>] ?ex: exn, [<Optional>] ?target: PrefixKind, [<Optional>] ?escape: bool) =
+  static member log
+    (
+      message,
+      [<Optional>] ?ex: exn,
+      [<Optional>] ?target: PrefixKind,
+      [<Optional>] ?escape: bool
+    ) =
     let target =
       defaultArg target Log
       |> function
-      | PrefixKind.Log -> [Log]
-      | PrefixKind.Scaffold -> [Log; Scaffold]
-      | PrefixKind.Build -> [Log; Build]
-      | PrefixKind.Serve -> [Log; Serve]
-      | PrefixKind.Esbuild -> [Log; Esbuild]
-    Logger.logCustom (
-      message,
-      prefixes = target,
-      ?ex = ex,
-      ?escape = escape
-    )
+        | PrefixKind.Log -> [ Log ]
+        | PrefixKind.Scaffold -> [ Log; Scaffold ]
+        | PrefixKind.Build -> [ Log; Build ]
+        | PrefixKind.Serve -> [ Log; Serve ]
+        | PrefixKind.Esbuild -> [ Log; Esbuild ]
+
+    Logger.logCustom (message, prefixes = target, ?ex = ex, ?escape = escape)
 
   static member spinner<'Operation>
     (
@@ -137,12 +145,13 @@ type Logger =
     let prefix =
       defaultArg target Log
       |> function
-      | PrefixKind.Log -> [Log]
-      | PrefixKind.Scaffold -> [Log; Scaffold]
-      | PrefixKind.Build -> [Log; Build]
-      | PrefixKind.Serve -> [Log; Serve]
-      | PrefixKind.Esbuild -> [Log; Esbuild]
-    let title = Logger.format prefix title
+        | PrefixKind.Log -> [ Log ]
+        | PrefixKind.Scaffold -> [ Log; Scaffold ]
+        | PrefixKind.Build -> [ Log; Build ]
+        | PrefixKind.Serve -> [ Log; Serve ]
+        | PrefixKind.Esbuild -> [ Log; Esbuild ]
+
+    let title = Internals.format prefix title
     let status = AnsiConsole.Status()
     status.Spinner <- Spinner.Known.Dots
     status.StartAsync(title.ToString(), operation)
@@ -156,15 +165,20 @@ type Logger =
     let prefix =
       defaultArg target Log
       |> function
-      | PrefixKind.Log -> [Log]
-      | PrefixKind.Scaffold -> [Log; Scaffold]
-      | PrefixKind.Build -> [Log; Build]
-      | PrefixKind.Serve -> [Log; Serve]
-      | PrefixKind.Esbuild -> [Log; Esbuild]
-    let title = Logger.format prefix title
+        | PrefixKind.Log -> [ Log ]
+        | PrefixKind.Scaffold -> [ Log; Scaffold ]
+        | PrefixKind.Build -> [ Log; Build ]
+        | PrefixKind.Serve -> [ Log; Serve ]
+        | PrefixKind.Esbuild -> [ Log; Esbuild ]
+
+    let title = Internals.format prefix title
     let status = AnsiConsole.Status()
     status.Spinner <- Spinner.Known.Dots
-    status.StartAsync(title.ToString(), (fun ctx -> operation ctx |> Async.StartAsTask))
+
+    status.StartAsync(
+      title.ToString(),
+      (fun ctx -> operation ctx |> Async.StartAsTask)
+    )
 
 module Logger =
 
