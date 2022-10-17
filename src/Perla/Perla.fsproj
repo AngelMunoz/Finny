@@ -17,7 +17,7 @@
     <Compile Include="FileSystem.fs" />
     <Compile Include="Esbuild.fs" />
     <Compile Include="Extensibility.fs" />
-    <Compile Include="VirtualFs.fs" />
+    <Compile Include="VirtualFileSystem.fs" />
     <Compile Include="Fable.fs" />
     <Compile Include="Build.fs" />
     <Compile Include="Scaffolding.fs" />
@@ -44,7 +44,7 @@
     <PackageReference Include="FSharp.Control.Reactive" Version="5.0.5" />
     <PackageReference Include="FSharp.SystemCommandLine" Version="0.13.0-beta4" />
     <PackageReference Include="FSharp.UMX" Version="1.1.0" />
-    <PackageReference Include=" " Version="2.0.0" />
+    <PackageReference Include="Hellang.Middleware.SpaFallback" Version="2.0.0" />
     <PackageReference Include="SharpZipLib" Version="1.4.0" />
     <PackageReference Include="FsToolkit.ErrorHandling" Version="3.0.0" />
     <PackageReference Include="FsToolkit.ErrorHandling.TaskResult" Version="3.0.0" />
