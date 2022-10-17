@@ -221,17 +221,17 @@ module LiveReload =
 [<RequireQualifiedAccess>]
 module Middleware =
 
-  let ResolveFile (config: PerlaConfig) : HttpContext -> RequestDelegate -> Task =
+  let ResolveFile
+    (config: PerlaConfig)
+    : HttpContext -> RequestDelegate -> Task =
     fun ctx next ->
       task {
         let file =
           VirtualFileSystem.TryResolveFile(UMX.tag<ServerUrl> ctx.Request.Path)
 
         match file with
-        | Some file ->
-          do! ctx.WriteStringAsync(file) :> Task
-        | None ->
-          return! next.Invoke(ctx)
+        | Some file -> do! ctx.WriteStringAsync(file) :> Task
+        | None -> return! next.Invoke(ctx)
       }
       :> Task
 
@@ -503,4 +503,5 @@ type Server =
       Func<HttpContext, RequestDelegate, Task>(Middleware.ResolveFile config)
     )
     |> ignore
+
     app

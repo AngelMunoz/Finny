@@ -13,20 +13,20 @@ open FSharp.UMX
 
 module ConfigDecoders =
 
-  type DecodedFableConfig =
-    { project: string<SystemPath> option
-      extension: string<FileExtension> option
-      sourceMaps: bool option
-      outDir: string<SystemPath> option }
+    type DecodedFableConfig =
+        { project: string<SystemPath> option
+          extension: string<FileExtension> option
+          sourceMaps: bool option
+          outDir: string<SystemPath> option }
 
-      type DecodedDevServer =
+    type DecodedDevServer =
         { port: int option
           host: string option
           liveReload: bool option
           useSSL: bool option
           proxy: Map<string, string> option }
 
-      type DecodedEsbuild =
+    type DecodedEsbuild =
         { esBuildPath: string<SystemPath> option
           version: string<Semver> option
           ecmaVersion: string option
@@ -36,11 +36,13 @@ module ConfigDecoders =
           fileLoaders: Map<string, string> option
           jsxFactory: string option
           jsxFragment: string option }
-      type DecodedBuild =
+
+    type DecodedBuild =
         { includes: string seq option
           excludes: string seq option
           outDir: string<SystemPath> option
           emitEnvFile: bool option }
+
     type DecodedPerlaConfig =
         { index: string<SystemPath> option
           runConfiguration: RunConfiguration option
@@ -78,4 +80,4 @@ type Json =
     static member FromBytes<'T> : value: byte array -> 'T
     static member ToText: value: 'a * ?minify: bool -> string
     static member ToNode: value: 'a -> JsonNode
-    static member FromConfigFile: string -> Result<DecodedPerlaConfig,string>
+    static member FromConfigFile: string -> Result<DecodedPerlaConfig, string>

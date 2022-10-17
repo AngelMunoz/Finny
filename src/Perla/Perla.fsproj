@@ -11,6 +11,9 @@
     <PackageProjectUrl>https://github.com/AngelMunoz/Perla</PackageProjectUrl>
   </PropertyGroup>
   <ItemGroup>
+    <InternalsVisibleTo Include="$(AssemblyName).Tests" />
+  </ItemGroup>
+  <ItemGroup>
     <Compile Include="Constants.fsi" />
     <Compile Include="Constants.fs" />
     <Compile Include="Types.fsi" />

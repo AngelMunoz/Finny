@@ -67,10 +67,18 @@ module VirtualFileSystem =
 
               let! transform = Plugins.ApplyPlugins(content, extension)
               let localPath = UMX.untag path |> IO.Path.GetFullPath
+
               let path =
-                IO.Path.ChangeExtension(globPath, transform.extension).Replace(localPath, UMX.untag url)
+                IO
+                  .Path
+                  .ChangeExtension(globPath, transform.extension)
+                  .Replace(localPath, UMX.untag url)
                 |> memFs.ConvertPathFromInternal
-              memFs.CreateDirectory ($"{path.FullName |> IO.Path.GetDirectoryName}")
+
+              memFs.CreateDirectory(
+                $"{path.FullName |> IO.Path.GetDirectoryName}"
+              )
+
               memFs.WriteAllText(path, transform.content)
             })
           |> Async.Parallel

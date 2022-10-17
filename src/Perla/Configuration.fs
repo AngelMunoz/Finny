@@ -286,6 +286,7 @@ let fromFile (fileContent: JsonObject option) (config: PerlaConfig) =
               useSSL = defaultArg decoded.useSSL config.devServer.useSSL
               proxy = defaultArg decoded.proxy config.devServer.proxy }
         | None -> config.devServer
+
       let build =
         match decoded.build with
         | Some build ->
@@ -293,38 +294,44 @@ let fromFile (fileContent: JsonObject option) (config: PerlaConfig) =
               includes = defaultArg build.includes config.build.includes
               excludes = defaultArg build.excludes config.build.excludes
               outDir = defaultArg build.outDir config.build.outDir
-              emitEnvFile = defaultArg build.emitEnvFile config.build.emitEnvFile }
-        | None ->
-          config.build
+              emitEnvFile =
+                defaultArg build.emitEnvFile config.build.emitEnvFile }
+        | None -> config.build
+
       let esbuild =
         match decoded.esbuild with
         | Some esbuild ->
           { config.esbuild with
-              esBuildPath = defaultArg esbuild.esBuildPath config.esbuild.esBuildPath
+              esBuildPath =
+                defaultArg esbuild.esBuildPath config.esbuild.esBuildPath
               version = defaultArg esbuild.version config.esbuild.version
-              ecmaVersion = defaultArg esbuild.ecmaVersion config.esbuild.ecmaVersion
+              ecmaVersion =
+                defaultArg esbuild.ecmaVersion config.esbuild.ecmaVersion
               minify = defaultArg esbuild.minify config.esbuild.minify
               injects = defaultArg esbuild.injects config.esbuild.injects
               externals = defaultArg esbuild.externals config.esbuild.externals
-              fileLoaders = defaultArg esbuild.fileLoaders config.esbuild.fileLoaders
+              fileLoaders =
+                defaultArg esbuild.fileLoaders config.esbuild.fileLoaders
               jsxFactory = esbuild.jsxFactory
               jsxFragment = esbuild.jsxFragment }
-        | None ->
-          config.esbuild
+        | None -> config.esbuild
+
       { config with
           fable = fable
           devServer = devServer
           build = build
           esbuild = esbuild
           index = defaultArg decoded.index config.index
-          runConfiguration = defaultArg decoded.runConfiguration config.runConfiguration
+          runConfiguration =
+            defaultArg decoded.runConfiguration config.runConfiguration
           provider = defaultArg decoded.provider config.provider
-          mountDirectories = defaultArg decoded.mountDirectories config.mountDirectories
+          mountDirectories =
+            defaultArg decoded.mountDirectories config.mountDirectories
           enableEnv = defaultArg decoded.enableEnv config.enableEnv
           envPath = defaultArg decoded.envPath config.envPath
           dependencies = defaultArg decoded.dependencies config.dependencies
-          devDependencies = defaultArg decoded.devDependencies config.devDependencies
-           }
+          devDependencies =
+            defaultArg decoded.devDependencies config.devDependencies }
     | Error err ->
       Logger.log (
         $"[bold red] Filed to deserialize perla.jsonc with error {err}"
