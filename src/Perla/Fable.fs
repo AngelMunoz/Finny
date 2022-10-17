@@ -1,4 +1,4 @@
-﻿namespace Perla
+﻿namespace Perla.Fable
 
 open CliWrap
 
@@ -9,10 +9,11 @@ open Perla.Units
 open Perla.Logger
 open FSharp.UMX
 
-module Fable =
-  let mutable private activeFable: int option = None
 
-  let private killActiveProcess pid =
+module Fable =
+  let mutable activeFable: int option = None
+
+  let killActiveProcess pid =
     try
       let activeProcess = System.Diagnostics.Process.GetProcessById pid
 
@@ -20,13 +21,13 @@ module Fable =
     with ex ->
       Logger.log ($"Failed to kill process with PID: [{pid}]", ex)
 
-  let private addProject
+  let addProject
     (project: string<SystemPath>)
     (args: Builders.ArgumentsBuilder)
     =
     args.Add $"{project}"
 
-  let private addOutDir
+  let addOutDir
     (outdir: string<SystemPath> option)
     (args: Builders.ArgumentsBuilder)
     =
@@ -34,47 +35,48 @@ module Fable =
     | Some outdir -> args.Add([ "-o"; $"{outdir}" ])
     | None -> args
 
-  let private addExtension
+  let addExtension
     (extension: string<FileExtension>)
     (args: Builders.ArgumentsBuilder)
     =
     args.Add([ "-e"; $"{extension}" ])
 
-  let private addWatch (watch: bool) (args: Builders.ArgumentsBuilder) =
-    args.Add $"watch"
+  let addWatch (watch: bool) (args: Builders.ArgumentsBuilder) =
+    if watch then args.Add $"watch" else args
 
-  let fableCmd (isWatch: bool) =
+  let fableCmd (config: FableConfig, isWatch: bool) =
+    let execBinName = if Env.IsWindows then "dotnet.exe" else "dotnet"
 
-    fun (config: FableConfig) ->
-      let execBinName = if Env.IsWindows then "dotnet.exe" else "dotnet"
+    Cli
+      .Wrap(execBinName)
+      .WithEnvironmentVariables(fun env -> env.Set("CI", "1") |> ignore)
+      .WithArguments(fun args ->
+        args.Add("fable")
+        |> addWatch isWatch
+        |> addProject config.project
+        |> addOutDir config.outDir
+        |> addExtension config.extension
+        |> ignore)
+      .WithStandardErrorPipe(PipeTarget.ToStream(Console.OpenStandardError()))
+      .WithStandardOutputPipe(PipeTarget.ToStream(Console.OpenStandardOutput()))
 
-      Cli
-        .Wrap(execBinName)
-        .WithEnvironmentVariables(fun env -> env.Set("CI", "1") |> ignore)
-        .WithArguments(fun args ->
-          args.Add("fable")
-          |> addWatch isWatch
-          |> addProject config.project
-          |> addOutDir config.outDir
-          |> addExtension config.extension
-          |> ignore)
-        .WithStandardErrorPipe(PipeTarget.ToStream(Console.OpenStandardError()))
-        .WithStandardOutputPipe(
-          PipeTarget.ToStream(Console.OpenStandardOutput())
-        )
+type Fable =
+  static member FablePid = Fable.activeFable
 
-  let stopFable () =
-    match activeFable with
-    | Some pid -> killActiveProcess pid
+  static member Stop() =
+    match Fable.activeFable with
+    | Some pid -> Fable.killActiveProcess pid
     | None -> Logger.log "No active Fable found"
 
-  let startFable
-    (getCommand: FableConfig option -> Command)
-    (config: FableConfig option)
-    =
+  static member Start(config: FableConfig, isWatch: bool) =
     task {
-      let cmdResult = getCommand(config).ExecuteAsync()
-      activeFable <- Some cmdResult.ProcessId
+      let cmdResult = Fable.fableCmd(config, isWatch).ExecuteAsync()
+      Fable.activeFable <- Some cmdResult.ProcessId
+
+      Logger.log (
+        $"Starting Fable with pid: [{cmdResult.ProcessId}]",
+        target = PrefixKind.Build
+      )
 
       return! cmdResult.Task
     }
