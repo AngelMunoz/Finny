@@ -185,6 +185,7 @@ module FileSystem =
         Logger.log "This setup should happen once per machine"
         Logger.log "If you see it often please report a bug."
       | None -> ()
+      return ()
     }
 
   let SetupEsbuild (esbuildVersion: string<Semver>) =
