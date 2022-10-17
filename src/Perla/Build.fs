@@ -88,8 +88,7 @@ module Build =
           [| yield! physicalParts; yield! inputParts; yield entryFileName |]
         )
 
-    let mounts =
-      config.mountDirectories |> Map.toList
+    let mounts = config.mountDirectories |> Map.toList
 
     let result =
       mounts
@@ -208,48 +207,75 @@ module Build =
       if files |> Seq.length > 0 then
         let entrypoints =
           files
-          |> Seq.map (fun e -> Path.Combine(UMX.untag workingDirectory, e.RelativePath))
+          |> Seq.map (fun e ->
+            Path.Combine(UMX.untag workingDirectory, e.RelativePath))
           |> String.concat " "
 
         let cmd =
           match type' with
           | ResourceType.JS ->
-            let tsk = Esbuild.ProcessJS(entrypoints, config.esbuild, config.build.outDir, externals)
+            let tsk =
+              Esbuild.ProcessJS(
+                entrypoints,
+                config.esbuild,
+                config.build.outDir,
+                externals
+              )
+
             tsk.ExecuteAsync()
           | ResourceType.CSS ->
-            let tsk = Esbuild.ProcessCss(entrypoints, config.esbuild, config.build.outDir)
+            let tsk =
+              Esbuild.ProcessCss(
+                entrypoints,
+                config.esbuild,
+                config.build.outDir
+              )
+
             tsk.ExecuteAsync()
 
-        Logger.log($"Starting esbuild with pid: [{cmd.ProcessId}]", target=Build)
+        Logger.log (
+          $"Starting esbuild with pid: [{cmd.ProcessId}]",
+          target = Build
+        )
 
         return! cmd.Task :> Task
       else
-        Logger.log($"No Entrypoints for {type'.AsString()} found in index.html", target=Build)
+        Logger.log (
+          $"No Entrypoints for {type'.AsString()} found in index.html",
+          target = Build
+        )
     }
 
   let getExternals (config: PerlaConfig) =
     let dependencies =
       match config.runConfiguration with
-      | RunConfiguration.Production ->
-          config.dependencies
-      | RunConfiguration.Development ->
-          config.devDependencies
+      | RunConfiguration.Production -> config.dependencies
+      | RunConfiguration.Development -> config.devDependencies
+
     seq {
       for dependency in dependencies do
         dependency.name
+
         if dependency.alias.IsSome then
           dependency.alias.Value
+
       if config.enableEnv && config.build.emitEnvFile then
         UMX.untag config.envPath
+
       yield! config.esbuild.externals
     }
 
   let copyGlobs (config: BuildConfig) =
     let cwd = FileSystem.CurrentWorkingDirectory() |> UMX.untag
     let outDir = UMX.untag config.outDir
+
     let filesToCopy: LazyGlobbingPattern =
-      { BaseDirectory = UMX.untag cwd; Includes = config.includes |> Seq.toList; Excludes = config.excludes |> Seq.toList; }
+      { BaseDirectory = UMX.untag cwd
+        Includes = config.includes |> Seq.toList
+        Excludes = config.excludes |> Seq.toList }
+
     Logger.log $"Copying Files to out directory"
+
     filesToCopy
     |> Seq.toArray
     |> Array.iter (fun file ->
@@ -257,29 +283,39 @@ module Build =
         Path.GetDirectoryName file |> Directory.CreateDirectory |> ignore
       with _ ->
         ()
+
       File.Copy(file, file.Replace(cwd, outDir)))
 
 type Build =
 
-  static member Execute (config: PerlaConfig) =
+  static member Execute(config: PerlaConfig) =
     task {
-      Logger.log("Mounting Virtual File System", target=PrefixKind.Build)
+      Logger.log ("Mounting Virtual File System", target = PrefixKind.Build)
       do! VirtualFileSystem.Mount config
-      let pwd =  VirtualFileSystem.CopyToDisk() |> UMX.tag<SystemPath>
-      Logger.log($"Copying Processed files to {pwd}", target=PrefixKind.Build)
+      let pwd = VirtualFileSystem.CopyToDisk() |> UMX.tag<SystemPath>
 
-      Logger.log("Resolving JS and CSS files", target=PrefixKind.Build)
+      Logger.log (
+        $"Copying Processed files to {pwd}",
+        target = PrefixKind.Build
+      )
+
+      Logger.log ("Resolving JS and CSS files", target = PrefixKind.Build)
       let jsFiles = Build.getEntryPoints pwd ResourceType.JS config
       let cssFiles = Build.getEntryPoints pwd ResourceType.CSS config
       let externals = Build.getExternals config
 
-      Logger.log("Running Esbuild on finalized files", target=PrefixKind.Build)
+      Logger.log (
+        "Running Esbuild on finalized files",
+        target = PrefixKind.Build
+      )
+
       do!
         Task.WhenAll(
           Build.buildFiles pwd ResourceType.JS jsFiles externals config,
           Build.buildFiles pwd ResourceType.CSS cssFiles externals config
         )
         :> Task
+
       let cssFiles =
         [ for jsFile in jsFiles do
             let name =
@@ -297,7 +333,9 @@ type Build =
 
       let envPath = (UMX.untag config.envPath).Substring(1)
 
-      match config.enableEnv && config.build.emitEnvFile, Env.GetEnvContent() with
+      match
+        config.enableEnv && config.build.emitEnvFile, Env.GetEnvContent()
+      with
       | true, Some content ->
         Logger.log $"Generating perla env file "
 
@@ -324,5 +362,5 @@ type Build =
 
       Build.copyGlobs config.build
 
-      Logger.log("Build finished.", target=PrefixKind.Build)
+      Logger.log ("Build finished.", target = PrefixKind.Build)
     }

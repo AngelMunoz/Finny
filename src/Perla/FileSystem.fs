@@ -72,7 +72,7 @@ module FileSystem =
       | Some dir -> UMX.untag dir |> Path.GetFullPath |> UMX.tag
       | None -> CurrentWorkingDirectory() |> UMX.untag
 
-    findConfigFile (workDir, Constants.PerlaConfigName)
+    findConfigFile (workDir, UMX.tag fileName)
     |> Option.defaultValue ((CurrentWorkingDirectory() |> UMX.untag) / fileName)
     |> UMX.tag<SystemPath>
 
@@ -221,7 +221,7 @@ module FileSystem =
     with _ ->
       None
 
-  let GetTempDir() =
+  let GetTempDir () =
     let tmp = Path.GetTempPath()
     let path = Path.Combine(tmp, Guid.NewGuid().ToString())
     Directory.CreateDirectory(path) |> ignore
@@ -282,6 +282,9 @@ type FileSystem =
     with :? FileNotFoundException ->
       { imports = Map.empty; scopes = None }
       |> FileSystem.ensureFileContent path
+
+  static member IndexFile(fromConfig: string<SystemPath>) =
+    File.ReadAllText(UMX.untag fromConfig)
 
   static member PluginFiles() =
     let path =

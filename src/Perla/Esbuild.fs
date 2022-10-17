@@ -122,7 +122,13 @@ module Esbuild =
 
 type Esbuild =
 
-  static member ProcessJS(entryPoint: string,config: EsbuildConfig, outDir: string<SystemPath>, [<Optional>] ?externals: string seq) : Command =
+  static member ProcessJS
+    (
+      entryPoint: string,
+      config: EsbuildConfig,
+      outDir: string<SystemPath>,
+      [<Optional>] ?externals: string seq
+    ) : Command =
 
     let execBin = config.esBuildPath |> UMX.untag
     let fileLoaders = config.fileLoaders
@@ -146,8 +152,11 @@ type Esbuild =
         |> ignore)
 
   static member ProcessCss
-    (entryPoint: string, config: EsbuildConfig, outDir: string<SystemPath>)
-    =
+    (
+      entryPoint: string,
+      config: EsbuildConfig,
+      outDir: string<SystemPath>
+    ) =
     let execBin = config.esBuildPath |> UMX.untag
     let fileLoaders = config.fileLoaders
 
@@ -163,8 +172,13 @@ type Esbuild =
         |> Esbuild.addDefaultFileLoaders fileLoaders
         |> ignore)
 
-  static member  BuildSingleFile(config: EsbuildConfig, content: string, resultsContainer: Stream, [<Optional>] ?loader: LoaderType)
-    : Command =
+  static member BuildSingleFile
+    (
+      config: EsbuildConfig,
+      content: string,
+      resultsContainer: Stream,
+      [<Optional>] ?loader: LoaderType
+    ) : Command =
     let execBin = config.esBuildPath |> UMX.untag
     let tsconfig = FileSystem.TryReadTsConfig()
 
@@ -173,7 +187,8 @@ type Esbuild =
       .WithStandardInputPipe(PipeSource.FromString(content))
       .WithStandardOutputPipe(PipeTarget.ToStream(resultsContainer))
       .WithStandardErrorPipe(
-        PipeTarget.ToDelegate(fun msg -> Logger.log($"[bold red]{msg}[/]", target = PrefixKind.Esbuild))
+        PipeTarget.ToDelegate(fun msg ->
+          Logger.log ($"[bold red]{msg}[/]", target = PrefixKind.Esbuild))
       )
       .WithArguments(fun args ->
         args
@@ -205,7 +220,15 @@ type Esbuild =
             | _ -> None
 
           use resultsContainer = new MemoryStream()
-          let result = Esbuild.BuildSingleFile(config, args.content, resultsContainer, ?loader = loader)
+
+          let result =
+            Esbuild.BuildSingleFile(
+              config,
+              args.content,
+              resultsContainer,
+              ?loader = loader
+            )
+
           let! _ = result.ExecuteAsync()
           use transformContent = new StreamReader(resultsContainer)
           let! result = transformContent.ReadToEndAsync()

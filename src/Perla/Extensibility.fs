@@ -7,6 +7,7 @@ open Perla.Types
 open Perla.FileSystem
 open Perla.Plugins
 open Perla.Plugins.Extensibility
+open Perla.Esbuild
 
 
 

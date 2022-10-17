@@ -46,10 +46,9 @@ type Fsi =
 type Plugin =
 
   static member FsiSessions =
-    lazy(Dictionary<string, FsiEvaluationSession option>())
+    lazy (Dictionary<string, FsiEvaluationSession option>())
 
-  static member PluginCache =
-    lazy (Dictionary<string, PluginInfo>())
+  static member PluginCache = lazy (Dictionary<string, PluginInfo>())
 
   static member CachedPlugins() =
     Plugin.PluginCache.Value |> Seq.map (fun entry -> entry.Value)
@@ -92,8 +91,8 @@ type Plugin =
         | true ->
           Plugin.FsiSessions.Value.Add(plugin.name, Some Fsi)
           Logger.log $"Added %s{plugin.name} to plugin cache"
-        | false ->
-          Logger.log $"Couldn't add %s{plugin.name}"
+        | false -> Logger.log $"Couldn't add %s{plugin.name}"
+
       Some plugin
     | _ -> None
 
@@ -108,7 +107,9 @@ type Plugin =
       Logger.log $"Added %s{plugin.name} to plugin cache"
     | false -> Logger.log $"Couldn't add %s{plugin.name}"
 
-  static member SupportedPlugins([<Optional>] ?plugins: PluginInfo seq): RunnablePlugin seq =
+  static member SupportedPlugins
+    ([<Optional>] ?plugins: PluginInfo seq)
+    : RunnablePlugin seq =
     let plugins = defaultArg plugins (Plugin.CachedPlugins())
 
     let chooser (plugin: PluginInfo) =

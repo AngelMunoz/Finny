@@ -301,9 +301,7 @@ module Json =
               (defaultArg content.esBuildPath (UMX.untag esbuild.esBuildPath))
               |> UMX.tag
             version =
-              (defaultArg
-                content.version
-                (UMX.untag esbuild.version))
+              (defaultArg content.version (UMX.untag esbuild.version))
               |> UMX.tag
             ecmaVersion =
               (defaultArg content.ecmaVersion (UMX.untag esbuild.ecmaVersion))

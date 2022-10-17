@@ -14,9 +14,8 @@ open System.Collections.Generic
 [<Class>]
 type Fsi =
     static member GetSession:
-        [<Optional>] ?argv: string seq *
-        [<Optional>] ?stdout: TextWriter *
-        [<Optional>] ?stderr: TextWriter -> FsiEvaluationSession
+        [<Optional>] ?argv: string seq * [<Optional>] ?stdout: TextWriter * [<Optional>] ?stderr: TextWriter ->
+            FsiEvaluationSession
 
 [<Class>]
 type Plugin =
