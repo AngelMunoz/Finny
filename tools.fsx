@@ -146,7 +146,11 @@ module Pipelines =
 
     let format = Pipeline.createFrom restore "format" { run Steps.format }
 
-    let packNuget = Pipeline.createFrom restore "build:nuget" { run Steps.clean; run Steps.packNugets }
+    let packNuget =
+        Pipeline.createFrom restore "build:nuget" {
+            run Steps.clean
+            run Steps.packNugets
+        }
 
     let buildRelease =
         Pipeline.createFrom packNuget "build:release" {
