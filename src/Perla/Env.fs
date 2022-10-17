@@ -30,7 +30,7 @@ let ArchString =
   | Architecture.X86 -> "32"
   | _ -> failwith "Unsupported Architecture"
 
-let getPerlaEnvVars () =
+let internal getPerlaEnvVars () =
   let env = Environment.GetEnvironmentVariables()
   let prefix = "PERLA_"
 
