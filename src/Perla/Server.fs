@@ -221,21 +221,17 @@ module LiveReload =
 [<RequireQualifiedAccess>]
 module Middleware =
 
-  let ResolveFile (config: PerlaConfig) : HttpContext -> 'a -> Task =
-    let serverConfig = config.devServer
-
+  let ResolveFile (config: PerlaConfig) : HttpContext -> RequestDelegate -> Task =
     fun ctx next ->
       task {
         let file =
           VirtualFileSystem.TryResolveFile(UMX.tag<ServerUrl> ctx.Request.Path)
 
         match file with
-        | Some file -> do! ctx.WriteStringAsync(file) :> Task
+        | Some file ->
+          do! ctx.WriteStringAsync(file) :> Task
         | None ->
-          ctx.SetStatusCode(404)
-          do! ctx.WriteStringAsync("") :> Task
-
-        return ()
+          return! next.Invoke(ctx)
       }
       :> Task
 
@@ -435,7 +431,7 @@ type Server =
 
         $"http://{host}:{0}", $"https://{host}:{0}"
 
-    if proxy |> Map.count > 0 then
+    if proxy |> Map.isEmpty |> not then
       builder.Services.AddHttpForwarder() |> ignore
 
     builder.Services.AddSpaFallback() |> ignore
@@ -443,6 +439,13 @@ type Server =
 
     app.Urls.Add(http)
     app.Urls.Add(https)
+
+    if enableEnv then
+      app.MapGet(
+        UMX.untag envPath,
+        Func<HttpContext, Task<IResult>>(Middleware.SendScript PerlaScript.Env)
+      )
+      |> ignore
 
     app.MapGet("/", Func<HttpContext, IResult>(Middleware.IndexHandler config))
     |> ignore
@@ -483,19 +486,6 @@ type Server =
 
     app.UseSpaFallback() |> ignore
 
-
-    app.Use(
-      Func<HttpContext, RequestDelegate, Task>(Middleware.ResolveFile config)
-    )
-    |> ignore
-
-    if enableEnv then
-      app.MapGet(
-        UMX.untag envPath,
-        Func<HttpContext, Task<IResult>>(Middleware.SendScript PerlaScript.Env)
-      )
-      |> ignore
-
     match proxy |> Map.isEmpty with
     | false ->
       app
@@ -509,4 +499,8 @@ type Server =
       |> ignore
     | true -> ()
 
+    app.Use(
+      Func<HttpContext, RequestDelegate, Task>(Middleware.ResolveFile config)
+    )
+    |> ignore
     app
