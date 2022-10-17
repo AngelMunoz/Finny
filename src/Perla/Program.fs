@@ -53,8 +53,7 @@ let main argv =
         updateTemplateCmd
         listTemplatesCmd
         removeTemplateCmd
-        newProjectCmd
-        versionCmd ]
+        newProjectCmd ]
   }
   |> Async.AwaitTask
   |> Async.RunSynchronously
