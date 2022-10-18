@@ -1,4 +1,21 @@
 FSharp.Core
+FSharp.Control.AsyncSeq
+FSharp.Control.Reactive
+FSharp.SystemCommandLine
+FsToolkit.ErrorHandling
+FsToolkit.ErrorHandling.TaskResult
+FSharp.UMX
+Thoth.Json.Net
+Fake.IO.FileSystem
+AngleSharp
+CliWrap
+Flurl.Http
+SharpZipLib
+LiteDB
+Scriban
+Zio
+Yarp.ReverseProxy
+Hellang.Middleware.SpaFallback
 
 group Tests
     Microsoft.NET.Test.Sdk
