@@ -78,10 +78,10 @@ module FileSystem =
     GetConfigPath Constants.PerlaConfigName None
 
   let LiveReloadScript =
-    lazy (File.ReadAllText((UMX.untag AssemblyRoot) / "./livereload.js"))
+    lazy (File.ReadAllText((UMX.untag AssemblyRoot) / "livereload.js"))
 
   let WorkerScript =
-    lazy (File.ReadAllText((UMX.untag AssemblyRoot) / "./worker.js"))
+    lazy (File.ReadAllText((UMX.untag AssemblyRoot) / "worker.js"))
 
   let ensureFileContent<'T> (path: string<SystemPath>) (content: 'T) =
     try

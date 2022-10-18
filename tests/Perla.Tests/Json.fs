@@ -1,4 +1,4 @@
-﻿module Json
+﻿module Perla.Tests.Json
 
 open System
 open Xunit
@@ -13,6 +13,27 @@ open Perla.PackageManager.Types
 [<Fact>]
 let ``PerlaDecoder Should Decode from an empty object`` () =
   match Decode.fromString ConfigDecoders.PerlaDecoder "{}" with
+  | Ok decoded ->
+
+    Assert.True decoded.index.IsNone
+    Assert.True decoded.runConfiguration.IsNone
+    Assert.True decoded.provider.IsNone
+    Assert.True decoded.build.IsNone
+    Assert.True decoded.devServer.IsNone
+    Assert.True decoded.fable.IsNone
+    Assert.True decoded.esbuild.IsNone
+    Assert.True decoded.mountDirectories.IsNone
+    Assert.True decoded.enableEnv.IsNone
+    Assert.True decoded.envPath.IsNone
+    Assert.True decoded.dependencies.IsNone
+    Assert.True decoded.devDependencies.IsNone
+
+  | Error err -> Assert.Fail $"Decoder couldn't decode due: {err}"
+
+
+[<Fact>]
+let ``Json.FromConfig Should Decode from an empty object`` () =
+  match Json.FromConfigFile "{}" with
   | Ok decoded ->
 
     Assert.True decoded.index.IsNone
