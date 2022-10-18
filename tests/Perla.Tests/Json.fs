@@ -43,7 +43,7 @@ let ``PerlaDecoder Should Decode from a complete object`` () =
   },
   "enableEnv": true,
   "envPath": "/my-path/env.js",
-  "dependencies": [],
+  "dependencies": [{ "name": "lit", "version": "2.4.0" }],
   "devDependencies": []
 }
 """
@@ -66,7 +66,7 @@ let ``PerlaDecoder Should Decode from a complete object`` () =
     match decoded.mountDirectories with
     | None -> Assert.Fail "mountDirectories should have a value"
     | Some mountDirectories ->
-      Assert.False(mountDirectories |> Map.isEmpty)
+      Assert.NotEmpty(mountDirectories)
 
       mountDirectories
       |> Map.tryFindKey (fun k _ -> k = (UMX.tag "/src"))
@@ -87,11 +87,19 @@ let ``PerlaDecoder Should Decode from a complete object`` () =
 
     match decoded.dependencies with
     | None -> Assert.Fail "dependencies should have a value"
-    | Some dependencies -> Assert.True(dependencies |> Seq.isEmpty)
+    | Some dependencies ->
+      let actual = Assert.Single(dependencies)
+
+      let expected: Dependency =
+        { name = "lit"
+          version = "2.4.0"
+          alias = None }
+
+      Assert.Equivalent(expected, actual)
 
     match decoded.devDependencies with
     | None -> Assert.Fail "devDependencies should have a value"
-    | Some devDependencies -> Assert.True(devDependencies |> Seq.isEmpty)
+    | Some devDependencies -> Assert.Empty(devDependencies)
 
   | Error err -> Assert.Fail $"Decoder couldn't decode due: {err}"
 
@@ -174,7 +182,6 @@ let ``PerlaDecoder Should Decode DevServer options`` () =
     Assert.Fail $"DevServer is empty when it must have a value"
   | Error err -> Assert.Fail $"Decoder couldn't decode due: {err}"
 
-
 [<Fact>]
 let ``PerlaDecoder Should Decode Build options`` () =
   let json =
@@ -198,7 +205,7 @@ let ``PerlaDecoder Should Decode Build options`` () =
 
     match build.excludes with
     | None -> Assert.Fail "dependencies should have a value"
-    | Some excludes -> Assert.True(excludes |> Seq.isEmpty)
+    | Some excludes -> Assert.Empty(excludes)
 
     Assert.Equal(
       "../dist",
@@ -207,5 +214,72 @@ let ``PerlaDecoder Should Decode Build options`` () =
 
     Assert.True(build.emitEnvFile |> Option.defaultValue false)
   | Ok { build = None } ->
+    Assert.Fail $"DevServer is empty when it must have a value"
+  | Error err -> Assert.Fail $"Decoder couldn't decode due: {err}"
+
+
+[<Fact>]
+let ``PerlaDecoder Should Decode Esbuild options`` () =
+  let json =
+    """
+{ "esbuild": {
+    "esBuildPath": "/mnt/c/esbuild",
+    "version": "0.15.7",
+    "ecmaVersion": "es2017",
+    "minify": true,
+    "injects": [],
+    "externals": ["react"],
+    "fileLoaders": {},
+    "jsxFactory": "h",
+    "jsxFragment": "Fragment"
+  }
+}
+"""
+
+  match Decode.fromString ConfigDecoders.PerlaDecoder json with
+  | Ok { esbuild = Some esbuild } ->
+    Assert.Equal(
+      "/mnt/c/esbuild",
+      esbuild.esBuildPath
+      |> Option.map UMX.untag
+      |> Option.defaultValue "bad-value"
+    )
+
+    Assert.Equal(
+      "0.15.7",
+      esbuild.version |> Option.map UMX.untag |> Option.defaultValue "bad-value"
+    )
+
+    Assert.Equal(
+      "es2017",
+      esbuild.ecmaVersion
+      |> Option.map UMX.untag
+      |> Option.defaultValue "bad-value"
+    )
+
+    Assert.True(esbuild.minify |> Option.defaultValue false)
+
+    match esbuild.injects with
+    | None -> Assert.Fail "Includes should have a value"
+    | Some injects -> Assert.Empty injects
+
+    match esbuild.fileLoaders with
+    | None -> Assert.Fail "Includes should have a value"
+    | Some fileLoaders -> Assert.Empty fileLoaders
+
+    match esbuild.externals with
+    | None -> Assert.Fail "Includes should have a value"
+    | Some externals ->
+      let react = Assert.Single externals
+      Assert.Equal("react", react)
+
+    Assert.Equal("h", esbuild.jsxFactory |> Option.defaultValue "bad value")
+
+    Assert.Equal(
+      "Fragment",
+      esbuild.jsxFragment |> Option.defaultValue "bad value"
+    )
+
+  | Ok { esbuild = None } ->
     Assert.Fail $"DevServer is empty when it must have a value"
   | Error err -> Assert.Fail $"Decoder couldn't decode due: {err}"
