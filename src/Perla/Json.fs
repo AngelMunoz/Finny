@@ -190,10 +190,10 @@ module ConfigDecoders =
           get.Optional.Field "envPath" Decode.string
           |> Option.map UMX.tag<ServerUrl>
         dependencies =
-          get.Optional.Field "" (Decode.list DependencyDecoder)
+          get.Optional.Field "dependencies" (Decode.list DependencyDecoder)
           |> Option.map Seq.ofList
         devDependencies =
-          get.Optional.Field "" (Decode.list DependencyDecoder)
+          get.Optional.Field "devDependencies" (Decode.list DependencyDecoder)
           |> Option.map Seq.ofList })
 
 type Json =
