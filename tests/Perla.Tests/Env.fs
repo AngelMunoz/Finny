@@ -1,4 +1,4 @@
-module Tests
+module Env
 
 open System
 open Xunit
