@@ -3,14 +3,12 @@
 open System
 open Xunit
 open Xunit.Sdk
+
 open Perla.Json
 open Thoth.Json.Net
 open FSharp.UMX
 open Perla.Types
-open Perla.Units
 open Perla.PackageManager.Types
-open System.Collections.Generic
-open System.Diagnostics
 
 [<Fact>]
 let ``PerlaDecoder Should Decode from an empty object`` () =

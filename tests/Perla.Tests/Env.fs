@@ -22,13 +22,11 @@ type Env() =
 
     match actual with
     | Some actual ->
-      let expected =
-        "export const IAmSet = \"yes\";"
+      let expected = "export const IAmSet = \"yes\";"
 
       Assert.True(actual.Contains(expected))
 
-      let expected =
-        "export const currentEnv = \"tests\";"
+      let expected = "export const currentEnv = \"tests\";"
 
       Assert.True(actual.Contains(expected))
     | None ->
@@ -40,13 +38,11 @@ type Env() =
 
     match actual with
     | Some actual ->
-      let expected =
-        "export const NotAvailable = \"not-available\";"
+      let expected = "export const NotAvailable = \"not-available\";"
 
       Assert.False(actual.Contains(expected))
 
-      let expected =
-        "export const OtherNotAvailable = \"not-available\";"
+      let expected = "export const OtherNotAvailable = \"not-available\";"
 
       Assert.False(actual.Contains(expected))
     | None ->
@@ -57,14 +53,6 @@ type Env() =
     let values = Perla.Env.getPerlaEnvVars ()
 
 
-    values
-    |> List.contains ("IAmSet", "yes")
-    |> Assert.True
+    values |> List.contains ("IAmSet", "yes") |> Assert.True
 
-    values
-    |> List.contains ("currentEnv", "tests")
-    |> Assert.True
-
-
-[<Fact>]
-let ``My test`` () = Assert.True(true)
+    values |> List.contains ("currentEnv", "tests") |> Assert.True
