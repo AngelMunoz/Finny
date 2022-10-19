@@ -8,6 +8,7 @@ open Perla.Units
 open Perla.Logger
 
 open FSharp.UMX
+open System.Threading
 
 module Fable =
   let mutable activeFable: int option = None
@@ -78,14 +79,17 @@ type Fable =
       config: FableConfig,
       isWatch: bool,
       ?stdout: string -> unit,
-      ?stderr: string -> unit
+      ?stderr: string -> unit,
+      ?cancellationToken: CancellationToken
     ) =
     task {
       let stdout = defaultArg stdout (printfn "Fable: %s")
       let stderr = defaultArg stderr (eprintfn "Fable: %s")
 
       let cmdResult =
-        Fable.fableCmd(config, isWatch, stdout, stderr).ExecuteAsync()
+        Fable
+          .fableCmd(config, isWatch, stdout, stderr)
+          .ExecuteAsync(?cancellationToken = cancellationToken)
 
       Fable.activeFable <- Some cmdResult.ProcessId
 
