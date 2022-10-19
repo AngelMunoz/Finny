@@ -52,7 +52,7 @@ module FileSystem =
       Some config
     else
       try
-        let parent = Path.GetDirectoryName(config) |> Path.GetFullPath
+        let parent = Path.GetDirectoryName(directory) |> Path.GetFullPath
 
         if parent <> directory then
           findConfigFile (parent, fileName)
