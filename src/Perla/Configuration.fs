@@ -1,4 +1,4 @@
-module Perla.Configuration
+﻿module Perla.Configuration
 
 open FSharp.UMX
 open Perla.Types
