@@ -18,7 +18,7 @@ type FileTransform =
 /// A function predicate that allows the plugin author
 /// to signal if the file should be processed by the plugin or not
 /// </summary>
-type FilePredicate = FileTransform -> bool
+type FilePredicate = string -> bool
 /// <summary>
 /// A Synchronous function that takes the content of the file and its extension
 /// and returns the processed content and the new extension after processing the file
@@ -88,9 +88,9 @@ type PerlaPluginBuilder(name: string) =
   member inline _.WithTransformProcess
     (
       state: PluginFunctions list,
-      [<InlineIfLambda>] st: FileTransform -> bool
+      [<InlineIfLambda>] extension: string -> bool
     ) =
-    PluginFunctions.ShouldProcessFile st :: state
+    PluginFunctions.ShouldProcessFile extension :: state
 
 
   [<CustomOperation "with_transform">]

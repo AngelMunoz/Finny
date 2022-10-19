@@ -1,4 +1,4 @@
-namespace Perla.Plugins
+﻿namespace Perla.Plugins
 
 open System.Threading.Tasks
 
@@ -18,7 +18,7 @@ type FileTransform =
 /// A function predicate that allows the plugin author
 /// to signal if the file should be processed by the plugin or not
 /// </summary>
-type FilePredicate = FileTransform -> bool
+type FilePredicate = string -> bool
 /// <summary>
 /// A Synchronous function that takes the content of the file and its extension
 /// and returns the processed content and the new extension after processing the file
@@ -84,7 +84,7 @@ type PerlaPluginBuilder =
     member Yield: 'a -> 'b list
     [<CustomOperation "should_process_file">]
     member inline WithTransformProcess:
-        state: PluginFunctions list * [<InlineIfLambda>] st: (FileTransform -> bool) -> PluginFunctions list
+        state: PluginFunctions list * [<InlineIfLambda>] extension: (string -> bool) -> PluginFunctions list
     [<CustomOperation "with_transform">]
     member inline WithTransform:
         state: PluginFunctions list * [<InlineIfLambda>] transform: TransformAction -> PluginFunctions list

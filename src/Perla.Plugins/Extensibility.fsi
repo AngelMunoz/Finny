@@ -1,4 +1,4 @@
-namespace Perla.Plugins.Extensibility
+﻿namespace Perla.Plugins.Extensibility
 
 open System
 open System.Collections.Concurrent
@@ -17,11 +17,15 @@ type Fsi =
         [<Optional>] ?argv: string seq * [<Optional>] ?stdout: TextWriter * [<Optional>] ?stderr: TextWriter ->
             FsiEvaluationSession
 
+module Plugin =
+    val CachedPlugins: unit -> seq<PluginInfo>
+
 [<Class>]
 type Plugin =
-    static member CachedPlugins: unit -> seq<PluginInfo>
     static member FromTextBatch: plugins: seq<string * string> -> unit
     static member AddPlugin: plugin: PluginInfo -> unit
+    static member HasPluginsForExtension: extension: string -> bool
+
     static member SupportedPlugins: [<Optional>] ?plugins: seq<PluginInfo> -> seq<RunnablePlugin>
     static member ApplyPluginsToFile: fileInput: FileTransform * ?plugins: seq<RunnablePlugin> -> Async<FileTransform>
 

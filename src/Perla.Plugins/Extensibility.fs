@@ -43,15 +43,16 @@ type Fsi =
       true
     )
 
+module Plugin =
+  let FsiSessions =
+    lazy (ConcurrentDictionary<string, FsiEvaluationSession option>())
+
+  let PluginCache = ConcurrentDictionary<string, PluginInfo>()
+
+  let CachedPlugins () =
+    PluginCache |> Seq.map (fun entry -> entry.Value)
+
 type Plugin =
-
-  static member FsiSessions =
-    lazy (Dictionary<string, FsiEvaluationSession option>())
-
-  static member PluginCache = lazy (Dictionary<string, PluginInfo>())
-
-  static member CachedPlugins() =
-    Plugin.PluginCache.Value |> Seq.map (fun entry -> entry.Value)
 
   static member FromText
     (
@@ -87,10 +88,8 @@ type Plugin =
       let plugin = unbox plugin
 
       if not skipCache then
-        match Plugin.PluginCache.Value.TryAdd(plugin.name, plugin) with
-        | true ->
-          Plugin.FsiSessions.Value.Add(plugin.name, Some Fsi)
-          Logger.log $"Added %s{plugin.name} to plugin cache"
+        match Plugin.PluginCache.TryAdd(plugin.name, plugin) with
+        | true -> Logger.log $"Added %s{plugin.name} to plugin cache"
         | false -> Logger.log $"Couldn't add %s{plugin.name}"
 
       Some plugin
@@ -101,9 +100,9 @@ type Plugin =
       Plugin.FromText(path, content) |> ignore
 
   static member AddPlugin(plugin: PluginInfo) =
-    match Plugin.PluginCache.Value.TryAdd(plugin.name, plugin) with
+    match Plugin.PluginCache.TryAdd(plugin.name, plugin) with
     | true ->
-      Plugin.FsiSessions.Value.Add(plugin.name, None)
+      Plugin.FsiSessions.Value.TryAdd(plugin.name, None) |> ignore
       Logger.log $"Added %s{plugin.name} to plugin cache"
     | false -> Logger.log $"Couldn't add %s{plugin.name}"
 
@@ -123,16 +122,20 @@ type Plugin =
 
     plugins |> Seq.choose chooser
 
+  static member HasPluginsForExtension(extension: string) =
+    Plugin.SupportedPlugins()
+    |> Seq.exists (fun runnable -> runnable.shouldTransform extension)
+
   static member ApplyPluginsToFile
     (
       fileInput: FileTransform,
       ?plugins: RunnablePlugin seq
-    ) =
+    ) : Async<FileTransform> =
     let plugins = defaultArg plugins (Plugin.SupportedPlugins())
 
     let folder result next =
       async {
-        match next.shouldTransform result with
+        match next.shouldTransform result.extension with
         | true -> return! (next.transform result).AsTask() |> Async.AwaitTask
         | false -> return result
       }

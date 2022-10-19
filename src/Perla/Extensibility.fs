@@ -1,4 +1,4 @@
-namespace Perla.Extensibility
+﻿namespace Perla.Extensibility
 
 open Perla
 open Perla.Types
@@ -14,6 +14,8 @@ module Plugins =
   let LoadPlugins (config: EsbuildConfig) =
     Esbuild.GetPlugin(config) |> Plugin.AddPlugin
     FileSystem.PluginFiles() |> Plugin.FromTextBatch
+
+  let HasPluginsForExtension = Plugin.HasPluginsForExtension
 
   let ApplyPlugins (content, extension) =
     Plugin.ApplyPluginsToFile(
