@@ -18,6 +18,7 @@ open Microsoft.AspNetCore.Http
 open Microsoft.Extensions.DependencyInjection
 open Microsoft.Extensions.Logging
 open Microsoft.Extensions.Primitives
+open Microsoft.AspNetCore.StaticFiles
 open Microsoft.Net.Http.Headers
 
 open Yarp.ReverseProxy
@@ -202,9 +203,9 @@ module LiveReload =
             if transform.extension = ".css" then event.oldName else None
            name =
             if Env.IsWindows then
-              event.path.Replace(Path.DirectorySeparatorChar, '/')
+              (UMX.untag event.path).Replace(Path.DirectorySeparatorChar, '/')
             else
-              event.path
+              UMX.untag event.path
            content = transform.content |},
         true
       )
@@ -221,6 +222,47 @@ module LiveReload =
 [<RequireQualifiedAccess>]
 module Middleware =
 
+  [<Struct>]
+  type RequestedAs =
+    | ModuleAssertion
+    | JS
+    | Normal
+
+  let processCssAsJs (content, url) =
+    $"""const css = `{content}`,style = document.createElement('style');
+  style.innerHTML = css;style.setAttribute("filename", "{url}");
+  document.head.appendChild(style)"""
+
+  let processJsonAsJs (content) = $"""export default {content};"""
+
+  let processFile
+    (
+      ctx: HttpContext,
+      mimeType: string,
+      requestedAs: RequestedAs,
+      content: string
+    ) : Task =
+    match mimeType, requestedAs with
+    | "application/json", RequestedAs.JS ->
+      ctx.SetContentType MimeTypeNames.DefaultJavaScript
+      ctx.WriteStringAsync(processJsonAsJs content)
+    | "text/css", Normal ->
+      ctx.SetContentType MimeTypeNames.DefaultJavaScript
+      ctx.WriteStringAsync(processCssAsJs (content, ctx.Request.Path))
+    | mimeType, ModuleAssertion
+    | mimeType, Normal ->
+      ctx.SetContentType mimeType
+      ctx.WriteStringAsync content
+    | mimeType, value ->
+      Logger.log (
+        $"Requested %A{value} - {mimeType} - {ctx.Request.Path} as JS, this file type is not supported as JS, sending default content"
+      )
+
+      ctx.SetContentType mimeType
+      ctx.WriteStringAsync content
+
+
+
   let ResolveFile
     (config: PerlaConfig)
     : HttpContext -> RequestDelegate -> Task =
@@ -230,7 +272,25 @@ module Middleware =
           VirtualFileSystem.TryResolveFile(UMX.tag<ServerUrl> ctx.Request.Path)
 
         match file with
-        | Some file -> do! ctx.WriteStringAsync(file) :> Task
+        | Some file ->
+          let fileExtProvider =
+            ctx.GetService<FileExtensionContentTypeProvider>()
+
+          match fileExtProvider.TryGetContentType(ctx.Request.Path) with
+          | true, mime ->
+            let requestedAs =
+              let query = ctx.Request.Query
+
+              let isModule =
+                ctx.Request.Path.HasValue
+                && ctx.Request.Path.Value.Contains(".module.")
+
+              if query.ContainsKey("module") || isModule then JS
+              elif query.ContainsKey("assertion") then ModuleAssertion
+              else Normal
+
+            return! processFile (ctx, mime, requestedAs, file)
+          | false, _ -> return! next.Invoke(ctx)
         | None -> return! next.Invoke(ctx)
       }
       :> Task
@@ -271,7 +331,7 @@ module Middleware =
     }
 
   let SseHandler
-    (eventStream: IObservable<FileChangedEvent * FileTransform option>)
+    (eventStream: IObservable<FileChangedEvent * FileTransform>)
     (compileErrors: IObservable<string option>)
     (ctx: HttpContext)
     =
@@ -290,11 +350,9 @@ module Middleware =
         eventStream
         |> Observable.map (fun (event, fileTransform) ->
           task {
-            match event.changeType, fileTransform with
-            | Changed, Some transform when
-              transform.extension.ToLowerInvariant() = ".css"
-              ->
-              do! LiveReload.WriteHmrChange(event, transform, res)
+            match event.changeType with
+            | Changed when fileTransform.extension.ToLowerInvariant() = ".css" ->
+              do! LiveReload.WriteHmrChange(event, fileTransform, res)
             | _ -> do! LiveReload.WriteReloadChange(event, res)
 
             do! res.Body.FlushAsync()
@@ -401,7 +459,7 @@ type Server =
   static member GetServerApp
     (
       config: PerlaConfig,
-      fileChangedEvents: IObservable<FileChangedEvent * FileTransform option>,
+      fileChangedEvents: IObservable<FileChangedEvent * FileTransform>,
       compileErrorEvents: IObservable<string option>
     ) =
 
@@ -435,6 +493,11 @@ type Server =
       builder.Services.AddHttpForwarder() |> ignore
 
     builder.Services.AddSpaFallback() |> ignore
+
+    builder.Services.AddSingleton<FileExtensionContentTypeProvider>(fun _ ->
+      new FileExtensionContentTypeProvider())
+    |> ignore
+
     let app = builder.Build()
 
     app.Urls.Add(http)

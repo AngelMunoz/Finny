@@ -1,4 +1,4 @@
-namespace Perla.Server
+﻿namespace Perla.Server
 
 open System
 open Microsoft.AspNetCore.Builder
@@ -10,6 +10,6 @@ open Perla.VirtualFs
 type Server =
     static member GetServerApp:
         config: PerlaConfig *
-        fileChangedEvents: IObservable<FileChangedEvent * FileTransform option> *
+        fileChangedEvents: IObservable<FileChangedEvent * FileTransform> *
         compileErrorEvents: IObservable<string option> ->
             WebApplication
