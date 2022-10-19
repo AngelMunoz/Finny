@@ -7,14 +7,18 @@ open Zio.FileSystems
 open Perla
 open Perla.Types
 open Perla.Units
+open Perla.Logger
+open Perla.Plugins
 open Perla.FileSystem
 open Perla.Extensibility
 
 open FSharp.UMX
 open FSharp.Control
 open FSharp.Control.Reactive
+open FsToolkit.ErrorHandling
 
 open Fake.IO.Globbing.Operators
+open System.Threading.Tasks
 
 [<Struct>]
 type ChangeKind =
@@ -26,68 +30,35 @@ type ChangeKind =
 type FileChangedEvent =
   { serverPath: string<ServerUrl>
     userPath: string<UserPath>
-    oldPath: string option
-    oldName: string option
+    oldPath: string<SystemPath> option
+    oldName: string<SystemPath> option
     changeType: ChangeKind
-    path: string
-    name: string }
+    path: string<SystemPath>
+    name: string<SystemPath> }
 
-type IFileWatcher =
-  inherit IDisposable
-  abstract member FileChanged: IObservable<FileChangedEvent>
+[<Struct>]
+type internal PathInfo =
+  { globPath: string<SystemPath>
+    localPath: string<UserPath>
+    url: string<ServerUrl> }
+
+type internal ApplyPluginsFn = string * string -> Async<FileTransform>
 
 [<RequireQualifiedAccess>]
 module VirtualFileSystem =
-  let serverPaths = lazy (new MountFileSystem(new MemoryFileSystem(), true))
 
-  let getGlobbedFiles path =
+  let internal getGlobbedFiles path =
     !! $"{path}/**/*"
     -- $"{path}/**/bin/**"
     -- $"{path}/**/obj/**"
     -- $"{path}/**/*.fs"
     -- $"{path}/**/*.fsproj"
 
-  let mountDirectories (directories: Map<string<ServerUrl>, string<UserPath>>) =
-    let cwd = FileSystem.CurrentWorkingDirectory()
-
-    async {
-      for KeyValue (url, path) in directories do
-        let memFs = new MemoryFileSystem()
-
-        do!
-          IO.Path.Combine(UMX.untag cwd, UMX.untag path)
-          |> IO.Path.GetFullPath
-          |> getGlobbedFiles
-          |> Seq.map (fun globPath ->
-            async {
-              let! content =
-                IO.File.ReadAllTextAsync globPath |> Async.AwaitTask
-
-              let extension = IO.Path.GetExtension globPath
-
-              let! transform = Plugins.ApplyPlugins(content, extension)
-              let localPath = UMX.untag path |> IO.Path.GetFullPath
-
-              let path =
-                IO
-                  .Path
-                  .ChangeExtension(globPath, transform.extension)
-                  .Replace(localPath, UMX.untag url)
-                |> memFs.ConvertPathFromInternal
-
-              memFs.CreateDirectory(
-                $"{path.FullName |> IO.Path.GetDirectoryName}"
-              )
-
-              memFs.WriteAllText(path, transform.content)
-            })
-          |> Async.Parallel
-          |> Async.Ignore
-
-        serverPaths.Value.Mount(UPath.op_Implicit (UMX.untag url), memFs)
-    }
-
-  let observablesForPath serverPath userPath path =
+  let observablesForPath
+    serverPath
+    userPath
+    path
+    : IObservable<FileChangedEvent> =
     let watcher =
       new IO.FileSystemWatcher(
         path,
@@ -104,8 +75,8 @@ module VirtualFileSystem =
           oldPath = None
           oldName = None
           changeType = Changed
-          path = m.FullPath
-          name = m.Name })
+          path = UMX.tag m.FullPath
+          name = UMX.tag m.Name })
 
     let created =
       watcher.Created
@@ -115,8 +86,8 @@ module VirtualFileSystem =
           oldPath = None
           oldName = None
           changeType = Created
-          path = m.FullPath
-          name = m.Name })
+          path = UMX.tag m.FullPath
+          name = UMX.tag m.Name })
 
     let deleted =
       watcher.Deleted
@@ -126,21 +97,211 @@ module VirtualFileSystem =
           oldPath = None
           oldName = None
           changeType = Created
-          path = m.FullPath
-          name = m.Name })
+          path = UMX.tag m.FullPath
+          name = UMX.tag m.Name })
 
     let renamed =
       watcher.Renamed
       |> Observable.map (fun m ->
         { serverPath = serverPath
           userPath = userPath
-          oldPath = Some(m.OldFullPath)
-          oldName = Some(m.OldName)
+          oldPath = Some(UMX.tag m.OldFullPath)
+          oldName = Some(UMX.tag m.OldName)
           changeType = Renamed
-          path = m.FullPath
-          name = m.Name })
+          path = UMX.tag m.FullPath
+          name = UMX.tag m.Name })
 
     [ changed; created; deleted; renamed ] |> Observable.mergeSeq
+
+  let copyFileWithoutPlugins
+    (pathInfo: PathInfo)
+    (memoryFileSystem: IFileSystem)
+    (physicalFileSystem: IFileSystem)
+    =
+    let globPath = UMX.untag pathInfo.globPath
+    let localPath = UMX.untag pathInfo.localPath
+    let url = UMX.untag pathInfo.url
+
+    let targetPath =
+
+      globPath.Replace(localPath, url)
+      |> memoryFileSystem.ConvertPathFromInternal
+
+    let targetDir = targetPath.GetDirectory()
+    memoryFileSystem.CreateDirectory(targetDir)
+
+    physicalFileSystem.CopyFileCross(
+      globPath,
+      memoryFileSystem,
+      targetPath,
+      true
+    )
+
+  let internal processFiles
+    (url: string<ServerUrl>)
+    (userPath: string<UserPath>)
+    (physicalFileSystem: IFileSystem)
+    (memoryFileSystem: IFileSystem)
+    (applyPlugins: string * string -> Async<FileTransform>)
+    (globPath: string)
+    =
+    async {
+      let globPath = globPath |> physicalFileSystem.ConvertPathFromInternal
+
+      let localPath =
+        UMX.untag userPath
+        |> IO.Path.GetFullPath
+        |> physicalFileSystem.ConvertPathFromInternal
+
+      let pathInfo =
+        { globPath = UMX.tag<SystemPath> globPath.FullName
+          localPath = UMX.tag<UserPath> localPath.FullName
+          url = url }
+
+      let extension = globPath.GetExtensionWithDot()
+
+      if not (Plugins.HasPluginsForExtension extension) then
+        return
+          copyFileWithoutPlugins pathInfo memoryFileSystem physicalFileSystem
+      else
+        let url = UMX.untag pathInfo.url
+        let content = physicalFileSystem.ReadAllText globPath
+        let! transform = applyPlugins (content, extension)
+        let parentDir = UMX.untag url |> UPath
+
+        let path =
+          globPath
+            .ChangeExtension(transform.extension)
+            .FullName.Replace(localPath.FullName, parentDir.FullName)
+          |> UPath
+
+        memoryFileSystem.CreateDirectory(path.GetDirectory())
+
+        return memoryFileSystem.WriteAllText(path, transform.content)
+    }
+
+  let internal mountDirectories
+    (applyPlugins: ApplyPluginsFn)
+    (directories: Map<string<ServerUrl>, string<UserPath>>)
+    (serverPaths: IFileSystem)
+    (fs: IFileSystem)
+    =
+    async {
+      let cwd = FileSystem.CurrentWorkingDirectory()
+
+      for KeyValue (url, path) in directories do
+        do!
+          IO.Path.Combine(UMX.untag cwd, UMX.untag path)
+          |> IO.Path.GetFullPath
+          |> getGlobbedFiles
+          |> Seq.map (processFiles url path fs serverPaths applyPlugins)
+          |> Async.Parallel
+          |> Async.Ignore
+
+      return ()
+    }
+
+  let internal tryCompileFile
+    (readFile: string -> Task<string>)
+    (event: FileChangedEvent)
+    : Async<(FileChangedEvent * FileTransform) option> =
+    asyncOption {
+      let! file =
+        task {
+          try
+            let! content = readFile (UMX.untag event.path)
+            return Some content
+          with ex ->
+            Logger.log (
+              $"[bold yellow]Could not process file {event.path}",
+              ex = ex
+            )
+
+            return None
+        }
+        |> Async.AwaitTask
+
+      let! transform =
+        Plugins.ApplyPlugins(file, IO.Path.GetExtension(UMX.untag event.path))
+
+      return (event, transform)
+    }
+
+  let internal copyToDisk
+    (
+      tempDir: string<SystemPath>,
+      mountedFileSystem: IFileSystem,
+      physicalFileSystem: IFileSystem
+    ) =
+    let dir = UMX.untag tempDir
+    let path = physicalFileSystem.ConvertPathFromInternal dir
+    mountedFileSystem.CopyDirectory("/", physicalFileSystem, path, true, false)
+    dir
+
+  let internal updateInVirtualFs
+    (serverFs: IFileSystem)
+    (event: FileChangedEvent, transform: Plugins.FileTransform)
+    =
+    let fullUserPath = UMX.untag event.userPath |> IO.Path.GetFullPath
+
+    let serverFullPath =
+      let filePath = (UMX.untag event.path) |> IO.Path.GetFullPath
+
+      filePath.Replace(fullUserPath, UMX.untag event.serverPath)
+      |> IO.Path.GetDirectoryName
+      |> serverFs.ConvertPathFromInternal
+
+    serverFs.CreateDirectory(serverFullPath.GetDirectory())
+    let updatadPath = serverFullPath.ChangeExtension(transform.extension)
+
+    match event.changeType with
+    | Created
+    | Renamed
+    | Changed -> serverFs.WriteAllText(updatadPath, transform.content)
+    | Deleted -> ()
+
+    event, transform
+
+
+  let internal normalizeEventStream (stream, withFilter, withReadFile) =
+    stream
+    |> Observable.filter withFilter
+    |> Observable.map (tryCompileFile withReadFile)
+    |> Observable.switchAsync
+    |> Observable.choose id
+
+  let serverPaths = lazy (new MemoryFileSystem())
+
+  let ApplyVirtualOperations stream =
+    let withReadFile path = IO.File.ReadAllTextAsync path
+    let withFs = serverPaths.Value
+
+    let withFilter event =
+      event.path
+      |> UMX.untag
+      |> IO.Path.GetExtension
+      |> Plugins.HasPluginsForExtension
+
+    normalizeEventStream (stream, withFilter, withReadFile)
+    |> Observable.map (updateInVirtualFs withFs)
+
+  let Mount config =
+    async {
+      use fs = new PhysicalFileSystem()
+
+      do!
+        mountDirectories
+          Plugins.ApplyPlugins
+          (config.mountDirectories)
+          serverPaths.Value
+          fs
+    }
+
+  let CopyToDisk () =
+    let tempDir = FileSystem.GetTempDir() |> UMX.tag<SystemPath>
+    let withMount = serverPaths.Value
+    use withFs = new PhysicalFileSystem()
+    copyToDisk (tempDir, withMount, withFs)
 
   let GetFileChangeStream
     (mountedDirectories: Map<string<ServerUrl>, string<UserPath>>)
@@ -151,89 +312,20 @@ module VirtualFileSystem =
         IO.Path.Combine(cwd, UMX.untag path) |> observablesForPath url path ]
     |> Observable.mergeSeq
     |> Observable.filter (fun event ->
-      event.path.Contains(".fsproj")
-      || event.path.Contains("/bin/")
-      || event.path.Contains(".gitignore")
-      || event.path.Contains("/obj/")
-      || event.path.Contains(".fs")
-      || event.path.Contains(".fsx") |> not)
+      (UMX.untag event.path).Contains(".fsproj")
+      || (UMX.untag event.path).Contains("/bin/")
+      || (UMX.untag event.path).Contains(".gitignore")
+      || (UMX.untag event.path).Contains("/obj/")
+      || (UMX.untag event.path).Contains(".fs")
+      || (UMX.untag event.path).Contains(".fsx") |> not)
     |> Observable.throttle (TimeSpan.FromMilliseconds(450))
 
   let TryResolveFile (url: string<ServerUrl>) =
+    serverPaths.Value.EnumeratePaths("/", "*.*", IO.SearchOption.AllDirectories)
+    |> Seq.toList
+    |> printfn "%A"
+
     try
       serverPaths.Value.ReadAllText $"{url}" |> Some
     with _ ->
       None
-
-  let tryCompileFile (event: FileChangedEvent) =
-    async {
-      let! file =
-        task {
-          try
-            let! content = IO.File.ReadAllTextAsync event.path
-            return Some content
-          with _ ->
-            return None
-        }
-        |> Async.AwaitTask
-
-      match file with
-      | Some file ->
-        let! transform =
-          Plugins.ApplyPlugins(file, IO.Path.GetExtension event.path)
-
-        return (event, Some transform)
-      | None -> return (event, None)
-    }
-
-  let copyToDisk () =
-    let dir = FileSystem.GetTempDir()
-    let fs = new PhysicalFileSystem()
-    let path = fs.ConvertPathFromInternal dir
-    serverPaths.Value.CopyDirectory("/", fs, path, true, false)
-    dir
-
-  let updateInVirtualFs
-    (
-      event: FileChangedEvent,
-      transform: Plugins.FileTransform option
-    ) =
-    let fullUserPath = UMX.untag event.userPath |> IO.Path.GetFullPath
-
-    let serverFullPath =
-      let filePath = event.path |> IO.Path.GetFullPath
-      filePath.Replace(fullUserPath, UMX.untag event.serverPath)
-
-    match event.changeType, transform with
-    | Created, Some transform ->
-      serverPaths.Value.CreateDirectory(
-        serverFullPath |> IO.Path.GetDirectoryName |> UPath.op_Implicit
-      )
-
-      let updatadPath =
-        IO.Path.ChangeExtension(serverFullPath, transform.extension)
-
-      serverPaths.Value.WriteAllText(updatadPath, transform.content)
-    | Renamed, Some transform
-    | Changed, Some transform ->
-      let updatadPath =
-        IO.Path.ChangeExtension(serverFullPath, transform.extension)
-
-      serverPaths.Value.WriteAllText(updatadPath, transform.content)
-    | Deleted, _
-    | Renamed, None
-    | Created, None
-    | Changed, None -> ()
-
-    event, transform
-
-  let ApplyVirtualOperations stream =
-    stream
-    |> Observable.map tryCompileFile
-    |> Observable.switchAsync
-    |> Observable.map updateInVirtualFs
-
-  let Mount config =
-    mountDirectories (config.mountDirectories)
-
-  let CopyToDisk () = copyToDisk ()
