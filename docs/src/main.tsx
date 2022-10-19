@@ -2,7 +2,7 @@ import { StrictMode } from "react";
 import ReactDOM from "react-dom";
 
 import "./index.css";
-import App from "./App.jsx";
+import App from "./App.js";
 
 //@ts-expect-error
 import { setBasePath } from "@shoelace-style/shoelace/dist/utilities/base-path.js";

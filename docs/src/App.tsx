@@ -6,9 +6,9 @@ import {
   //@ts-ignore
 } from "@shoelace-style/shoelace/dist/react/index.js";
 import { Page } from "./router.js";
-import { Index } from "./Components/Index.jsx";
-import { ToC } from "./Components/ToC.jsx";
-import { MarkdownContent } from "./Components/MarkdownContent.jsx";
+import { Index } from "./Components/Index.js";
+import { ToC } from "./Components/ToC.js";
+import { MarkdownContent } from "./Components/MarkdownContent.js";
 
 function OffCanvas({
   isOpen,

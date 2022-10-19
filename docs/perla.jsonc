@@ -1,32 +1,48 @@
 {
-  "$schema": "https://raw.githubusercontent.com/AngelMunoz/Perla/main/perla.schema.json",
-  "index": "./index.html",
-  "devServer": {
-    "mountDirectories": {
-      "./assets": "/assets",
-      "./src": "/src",
-      "./sw": ""
-    },
-    "liveReload": true
+  "runConfiguration": "development",
+  "provider": "jspm",
+  "mountDirectories": {
+    "/": "./sw",
+    "/assets": "./assets",
+    "/src": "./src"
   },
   "build": {
-    "copyPaths": {
-      "includes": [
-        "./sw/sw.js -> ./sw.js"
-      ]
-    },
     "injects": [
       "./react-shim.js"
     ]
   },
-  "packages": {
-    "@shoelace-style/shoelace": "https://cdn.skypack.dev/pin/@shoelace-style/shoelace@v2.0.0-beta.60-eDIQV0EHf9n8X4vd3EMT/mode=imports/optimized/@shoelace-style/shoelace.js",
-    "highlight.js": "https://ga.jspm.io/npm:highlight.js@11.3.1/es/index.js",
-    "marked": "https://cdn.skypack.dev/pin/marked@v4.0.3-3So9I4Fk51AWrlrVVwIe/mode=imports/optimized/marked.js",
-    "navigo": "https://cdn.skypack.dev/pin/navigo@v8.11.1-P7FrCxiJCiPJPMdihh6j/mode=imports/optimized/navigo.js",
-    "react": "https://ga.jspm.io/npm:react@17.0.2/index.js",
-    "react-dom": "https://ga.jspm.io/npm:react-dom@17.0.2/index.js",
-    "react/jsx-runtime": "https://ga.jspm.io/npm:react@17.0.2/jsx-runtime.js",
-    "rxjs": "https://cdn.skypack.dev/pin/rxjs@v7.4.0-Kfsr0poLPzx4M3FtCZC1/mode=imports/optimized/rxjs.js"
-  }
+  "dependencies": [
+    {
+      "name": "@shoelace-style/shoelace",
+      "version": "2.0.0-beta-60"
+    },
+    {
+      "name": "highlight.js",
+      "version": "11.3.1"
+    },
+    {
+      "name": "marked",
+      "version": "4.0.3"
+    },
+    {
+      "name": "navigo",
+      "version": "8.11.1"
+    },
+    {
+      "name": "react",
+      "version": "17.0.2"
+    },
+    {
+      "name": "react-dom",
+      "version": "17.0.2"
+    },
+    {
+      "name": "react/jsx-runtime",
+      "version": "17.0.2"
+    },
+    {
+      "name": "rxjs",
+      "version": "7.4.0"
+    }
+  ]
 }

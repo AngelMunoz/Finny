@@ -2,7 +2,7 @@ import "./MarkdownContent.css";
 import { useEffect, useState } from "react";
 import { fetchMarkdown } from "../markdown.js";
 import { buildUrl } from "../utils.js";
-import { ToC } from "./ToC.jsx";
+import { ToC } from "./ToC.js";
 
 //@ts-ignore
 import { SlButton } from "@shoelace-style/shoelace/dist/react/index.js";
