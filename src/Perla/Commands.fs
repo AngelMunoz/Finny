@@ -5,31 +5,34 @@ open System.IO
 
 open System.Threading
 open System.Threading.Tasks
-open Perla.VirtualFs
 open Spectre.Console
 
 open FSharp.Control
 open FSharp.Control.Reactive
-
+open FSharp.UMX
 open FsToolkit.ErrorHandling
 
 open Perla
 open Perla.Types
+open Perla.Units
 open Perla.Server
 open Perla.Build
 open Perla.Logger
 open Perla.FileSystem
+open Perla.VirtualFs
 open Perla.Fable
+open Perla.Extensibility
 open Perla.Json
 open Perla.Scaffolding
-open Perla.Plugins.Extensibility
 open Perla.Configuration.Types
 open Perla.Configuration
+
+open Perla.Plugins.Extensibility
 
 open Perla.PackageManager
 open Perla.PackageManager.Types
 
-open FSharp.UMX
+
 
 module CliOptions =
 
@@ -99,8 +102,8 @@ module CliOptions =
 
 open CliOptions
 
+
 module Handlers =
-  open Units
 
   let runBuild (args: BuildOptions) =
 
@@ -487,7 +490,7 @@ module Handlers =
         FileSystem.WriteImportMap(map) |> ignore
         return 0
       | Error err ->
-        Logger.log ($"[bold red]{err}[/]", escape = false)
+        Logger.log ($"[bold red]{err}[/]")
         return 1
     }
 
@@ -699,6 +702,9 @@ module Handlers =
       use cts = new CancellationTokenSource()
 
       do! backgroundTask { do! FileSystem.SetupEsbuild config.esbuild.version }
+
+      Plugins.LoadPlugins(config.esbuild)
+
       do! VirtualFileSystem.Mount(config)
 
       let fileChangeEvents =
@@ -708,26 +714,29 @@ module Handlers =
       let compilerErrors = Observable.empty
 
       let app = Server.GetServerApp(config, fileChangeEvents, compilerErrors)
+      do! app.StartAsync(cts.Token)
 
       match config.fable with
       | Some fable ->
-        async {
+        backgroundTask {
           let logger msg =
             Logger.log msg
 
             if msg.ToLowerInvariant().Contains("watching") then
-              let protocol = if config.devServer.useSSL then "https" else "http"
+              let urls =
+                app.Urls
+                |> Seq.fold (fun current next -> $"{current}\n{next}") ""
 
-              Logger.log
-                $"Server Ready at {protocol}://{config.devServer.host}:{config.devServer.port}"
+              Logger.log $"Server Ready at {urls}"
 
               app.StartAsync(cts.Token) |> Async.AwaitTask |> Async.Start
 
           do!
-            Fable.Start(fable, true, logger) |> Async.AwaitTask |> Async.Ignore
+            Fable.Start(fable, true, logger, cancellationToken = cts.Token)
+            :> Task
         }
-        |> Async.StartImmediate
-      | None -> do! app.StartAsync(cts.Token)
+        |> ignore
+      | None -> ()
 
 
       Console.CancelKeyPress.Add(fun _ ->
