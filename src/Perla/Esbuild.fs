@@ -14,48 +14,56 @@ open Perla.Logger
 open Perla.FileSystem
 open Perla.Plugins
 open FSharp.UMX
+open System.Text
 
 [<RequireQualifiedAccess; Struct>]
 type LoaderType =
   | Typescript
   | Tsx
   | Jsx
+  | Css
 
 [<RequireQualifiedAccess>]
 module Esbuild =
 
-  let addEsExternals
+  let internal addEsExternals
     (externals: (string seq))
     (args: Builders.ArgumentsBuilder)
     =
 
     externals |> Seq.map (fun ex -> $"--external:{ex}") |> args.Add
 
-  let addIsBundle (isBundle: bool) (args: Builders.ArgumentsBuilder) =
+  let internal addIsBundle (isBundle: bool) (args: Builders.ArgumentsBuilder) =
 
     if isBundle then args.Add("--bundle") else args
 
-  let addMinify (minify: bool) (args: Builders.ArgumentsBuilder) =
+  let internal addMinify (minify: bool) (args: Builders.ArgumentsBuilder) =
 
     if minify then args.Add("--minify") else args
 
-  let addFormat (format: string) (args: Builders.ArgumentsBuilder) =
+  let internal addFormat (format: string) (args: Builders.ArgumentsBuilder) =
     args.Add $"--format={format}"
 
-  let addTarget (target: string) (args: Builders.ArgumentsBuilder) =
+  let internal addTarget (target: string) (args: Builders.ArgumentsBuilder) =
     args.Add $"--target={target}"
 
-  let addOutDir (outdir: string<SystemPath>) (args: Builders.ArgumentsBuilder) =
+  let internal addOutDir
+    (outdir: string<SystemPath>)
+    (args: Builders.ArgumentsBuilder)
+    =
     args.Add $"--outdir={outdir}"
 
-  let addOutFile
+  let internal addOutFile
     (outfile: string<SystemPath>)
     (args: Builders.ArgumentsBuilder)
     =
     args.Add $"--outfile={outfile}"
 
   /// This is used for known file types when compiling on the fly or at build time
-  let addLoader (loader: LoaderType option) (args: Builders.ArgumentsBuilder) =
+  let internal addLoader
+    (loader: LoaderType option)
+    (args: Builders.ArgumentsBuilder)
+    =
     match loader with
     | Some loader ->
       let loader =
@@ -63,12 +71,13 @@ module Esbuild =
         | LoaderType.Typescript -> "ts"
         | LoaderType.Tsx -> "tsx"
         | LoaderType.Jsx -> "jsx"
+        | LoaderType.Css -> "css"
 
       args.Add $"--loader={loader}"
     | None -> args
 
   /// This one is used for unknown file assets like png's, svg's font files and similar assets
-  let addDefaultFileLoaders
+  let internal addDefaultFileLoaders
     (loaders: Map<string, string>)
     (args: Builders.ArgumentsBuilder)
     =
@@ -79,12 +88,15 @@ module Esbuild =
 
     args
 
-  let addJsxFactory (factory: string option) (args: Builders.ArgumentsBuilder) =
+  let internal addJsxFactory
+    (factory: string option)
+    (args: Builders.ArgumentsBuilder)
+    =
     match factory with
     | Some factory -> args.Add $"--jsx-factory={factory}"
     | None -> args
 
-  let addJsxFragment
+  let internal addJsxFragment
     (fragment: string option)
     (args: Builders.ArgumentsBuilder)
     =
@@ -92,14 +104,17 @@ module Esbuild =
     | Some fragment -> args.Add $"--jsx-fragment={fragment}"
     | None -> args
 
-  let addInlineSourceMaps (args: Builders.ArgumentsBuilder) =
+  let internal addInlineSourceMaps (args: Builders.ArgumentsBuilder) =
     args.Add "--sourcemap=inline"
 
-  let addInjects (injects: string seq) (args: Builders.ArgumentsBuilder) =
+  let internal addInjects
+    (injects: string seq)
+    (args: Builders.ArgumentsBuilder)
+    =
 
     injects |> Seq.map (fun inject -> $"--inject:{inject}") |> args.Add
 
-  let addTsconfigRaw
+  let internal addTsconfigRaw
     (tsconfig: string option)
     (args: Builders.ArgumentsBuilder)
     =
@@ -166,7 +181,7 @@ type Esbuild =
     (
       config: EsbuildConfig,
       content: string,
-      resultsContainer: Stream,
+      resultsContainer: StringBuilder,
       [<Optional>] ?loader: LoaderType
     ) : Command =
     let execBin = config.esBuildPath |> UMX.untag
@@ -175,41 +190,45 @@ type Esbuild =
     Cli
       .Wrap(execBin)
       .WithStandardInputPipe(PipeSource.FromString(content))
-      .WithStandardOutputPipe(PipeTarget.ToStream(resultsContainer))
+      .WithStandardOutputPipe(PipeTarget.ToStringBuilder(resultsContainer))
       .WithStandardErrorPipe(
         PipeTarget.ToDelegate(fun msg ->
-          Logger.log ($"[bold red]{msg}[/]", target = PrefixKind.Esbuild))
+          Logger.logCustom (
+            $"[bold red]{msg}[/]",
+            escape = true,
+            prefixes = [ PrefixKind.Log; PrefixKind.Esbuild ]
+          ))
       )
       .WithArguments(fun args ->
         args
         |> Esbuild.addTarget config.ecmaVersion
         |> Esbuild.addLoader loader
         |> Esbuild.addFormat "esm"
+        |> Esbuild.addMinify config.minify
         |> Esbuild.addJsxFactory config.jsxFactory
         |> Esbuild.addJsxFragment config.jsxFragment
-        |> Esbuild.addInlineSourceMaps
         |> Esbuild.addTsconfigRaw tsconfig
         |> ignore)
       .WithValidation(CommandResultValidation.None)
 
   static member GetPlugin(config: EsbuildConfig) : PluginInfo =
     let shouldTransform: FilePredicate =
-      fun args ->
-        [ ".jsx"; ".tsx"; ".ts"; ".js"; ".css" ] |> List.contains args.extension
+      fun extension ->
+        [ ".jsx"; ".tsx"; ".ts"; ".js"; ".css" ] |> List.contains extension
 
     let transform: TransformTask =
       fun args ->
         task {
           let loader =
             match args.extension with
-            | ".css"
-            | ".js" -> None
+            | ".css" -> Some LoaderType.Css
             | ".jsx" -> Some LoaderType.Jsx
             | ".tsx" -> Some LoaderType.Tsx
             | ".ts" -> Some LoaderType.Typescript
+            | ".js" -> None
             | _ -> None
 
-          use resultsContainer = new MemoryStream()
+          let resultsContainer = new StringBuilder()
 
           let result =
             Esbuild.BuildSingleFile(
@@ -220,9 +239,10 @@ type Esbuild =
             )
 
           let! _ = result.ExecuteAsync()
-          use transformContent = new StreamReader(resultsContainer)
-          let! result = transformContent.ReadToEndAsync()
-          return { content = result; extension = ".js" }
+
+          return
+            { content = resultsContainer.ToString()
+              extension = if args.extension = ".css" then ".css" else ".js" }
         }
 
     plugin "perla-esbuild-plugin" {

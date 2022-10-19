@@ -1,6 +1,7 @@
-namespace Perla.Esbuild
+﻿namespace Perla.Esbuild
 
 open System.IO
+open System.Text
 open System.Runtime.InteropServices
 open CliWrap
 open Perla.Types
@@ -13,6 +14,8 @@ type LoaderType =
     | Typescript
     | Tsx
     | Jsx
+    | Css
+
 
 [<Class>]
 type Esbuild =
@@ -21,5 +24,5 @@ type Esbuild =
             Command
     static member ProcessCss: entryPoint: string * config: EsbuildConfig * outDir: string<SystemPath> -> Command
     static member BuildSingleFile:
-        config: EsbuildConfig * content: string * resultsContainer: Stream * ?loader: LoaderType -> Command
+        config: EsbuildConfig * content: string * resultsContainer: StringBuilder * ?loader: LoaderType -> Command
     static member GetPlugin: config: EsbuildConfig -> PluginInfo
