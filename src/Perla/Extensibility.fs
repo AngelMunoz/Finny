@@ -1,4 +1,4 @@
-﻿namespace Perla.Extensibility
+﻿namespace Perla
 
 open Perla
 open Perla.Types

@@ -10,7 +10,6 @@ open Perla.Units
 open Perla.Logger
 open Perla.Plugins
 open Perla.FileSystem
-open Perla.Extensibility
 
 open FSharp.UMX
 open FSharp.Control

@@ -25,7 +25,6 @@ open Perla.FileSystem
 open Perla.VirtualFs
 open Perla.Esbuild
 open Perla.Fable
-open Perla.Extensibility
 open Perla.Json
 open Perla.Scaffolding
 open Perla.Configuration.Types

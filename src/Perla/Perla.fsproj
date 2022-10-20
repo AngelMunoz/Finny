@@ -40,8 +40,8 @@
     <Compile Include="Library.fs" />
     <Compile Include="Server.fsi" />
     <Compile Include="Server.fs" />
-    <Compile Include="PackageManagement.fsi" />
-    <Compile Include="PackageManagement.fs" />
+    <Compile Include="Dependencies.fsi" />
+    <Compile Include="Dependencies.fs" />
     <Compile Include="Configuration.fsi" />
     <Compile Include="Configuration.fs" />
     <Compile Include="Commands.fs" />
