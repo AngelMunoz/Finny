@@ -1,8 +1,8 @@
-﻿{
+{
   "profiles": {
     "Serve App": {
       "commandName": "Project",
-      "commandLineArgs": "",
+      "commandLineArgs": "serve",
       "workingDirectory": "$(ProjectDir)/../../sample",
       "environmentVariables": {
         "PERLA_envValue": "this is my value",
