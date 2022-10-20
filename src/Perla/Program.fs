@@ -4,44 +4,22 @@ open Perla
 open Perla.Types
 open Perla.CliOptions
 open Perla.Commands
+open System.Threading.Tasks
 
 [<EntryPoint>]
 let main argv =
+  let maybeHelp = Input.OptionMaybe([ "--info" ], "Brings the Help dialog")
 
-  let port =
-    Input.OptionMaybe<int>(
-      [ "--port"; "-p" ],
-      "Port where the application starts"
-    )
-
-  let host =
-    Input.OptionMaybe<string>(
-      [ "--host" ],
-      "network ip address where the application will run"
-    )
-
-  let ssl = Input.OptionMaybe<bool>([ "--ssl" ], "Run dev server with SSL")
-
-
-  let buildArgs
-    (
-      mode: string option,
-      port: int option,
-      host: string option,
-      ssl: bool option
-    ) : ServeOptions =
-    { mode = mode |> Option.map RunConfiguration.FromString
-      port = port
-      host = host
-      ssl = ssl }
+  let handler (help: bool option) = Task.FromResult 0
 
   rootCommand argv {
     description "The Perla Dev Server!"
-    inputs (modeArg, port, host, ssl)
-    setHandler (buildArgs >> Handlers.runServe)
+    inputs maybeHelp
+    setHandler (handler)
 
     addCommands
-      [ buildCmd
+      [ serveCmd
+        buildCmd
         initCmd
         searchPackagesCmd
         showPackageCmd
