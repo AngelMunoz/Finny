@@ -4,6 +4,7 @@ open FSharp.UMX
 open Perla.Types
 open Perla.Units
 open Perla.PackageManager.Types
+open System.Runtime.InteropServices
 
 module Types =
     type DevServerField =
@@ -41,7 +42,11 @@ module Defaults =
 type Configuration =
     new: unit -> Configuration
     member CurrentConfig: PerlaConfig
-    member UpdateFromCliArgs: ?runConfig: RunConfiguration * ?serverOptions: seq<DevServerField> -> unit
+    member UpdateFromCliArgs:
+        [<Optional>] ?runConfig: RunConfiguration *
+        [<Optional>] ?provider: Provider *
+        [<Optional>] ?serverOptions: seq<DevServerField> ->
+            unit
     member UpdateFromFile: unit -> unit
     member WriteFieldsToFile: newValues: seq<PerlaWritableField> -> unit
 

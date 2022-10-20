@@ -368,10 +368,12 @@ type Configuration() =
   member _.UpdateFromCliArgs
     (
       ?runConfig: RunConfiguration,
+      ?provider: Provider,
       ?serverOptions: DevServerField seq
     ) =
     _runConfig <- runConfig
     _serverOptions <- serverOptions
+    _provider <- provider
 
     runPipeline ()
 
