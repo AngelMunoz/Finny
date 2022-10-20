@@ -134,7 +134,7 @@ module Steps =
     let format = Step.create "format" { do! Operations.fantomas "format" }
 
     let test =
-        Step.create "tests" { do! Operations.dotnet "test --no-build --no-restore" }
+        Step.create "tests" { do! Operations.dotnet "test tests/Perla.Tests --no-restore" }
 
 module Pipelines =
 
