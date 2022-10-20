@@ -153,18 +153,30 @@ type Dependencies =
       ?provider = provider
     )
 
+  static member inline GetMapAndDependencies
+    (
+      packages: string seq,
+      ?provider: Provider
+    ) =
+    PackageManager.Regenerate(
+      packages,
+      [ GeneratorEnv.Browser; GeneratorEnv.Module; GeneratorEnv.Development ],
+      ?provider = provider
+    )
+    |> TaskResult.map (fun result -> result.staticDeps, result.map)
+
   static member inline Remove
     (
       package: string,
       map: ImportMap,
       provider: Provider
     ) =
-
     PackageManager.Regenerate(
       Map.remove package map.imports |> Map.keys,
       [ GeneratorEnv.Browser; GeneratorEnv.Module; GeneratorEnv.Development ],
       provider
     )
+    |> TaskResult.map (fun r -> r.map)
 
   static member inline SwitchProvider(map: ImportMap, provider: Provider) =
     PackageManager.AddJspm(

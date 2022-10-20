@@ -1,4 +1,4 @@
-namespace Perla
+﻿namespace Perla
 
 open System.Threading.Tasks
 open Perla.PackageManager.Types
@@ -12,6 +12,8 @@ type Dependencies =
     static member inline Add: package: string * map: ImportMap * provider: Provider -> Task<Result<ImportMap, string>>
     static member inline Restore: package: string * ?provider: Provider -> Task<Result<ImportMap, string>>
     static member inline Restore: packages: seq<string> * ?provider: Provider -> Task<Result<ImportMap, string>>
+    static member inline GetMapAndDependencies:
+        packages: seq<string> * ?provider: Provider -> Task<Result<string seq * ImportMap, string>>
     static member inline Remove:
         package: string * map: ImportMap * provider: Provider -> Task<Result<ImportMap, string>>
     static member inline SwitchProvider: map: ImportMap * provider: Provider -> Task<Result<ImportMap, string>>
