@@ -10,7 +10,7 @@ module Lib =
     open Spectre.Console
 
     val (|ParseRegex|_|): regex: string -> str: string -> string list option
-    val parseUrl: url: string -> (Provider * string * string) option
+    val ExtractDependencyInfoFromUrl: url: string -> (Provider * string * string) option
     val (|RestartFable|StartFable|StopFable|UnknownFable|): (string -> Choice<unit, unit, unit, string>)
 
     val (|RestartServer|StartServer|StopServer|Clear|Exit|Unknown|):

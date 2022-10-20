@@ -28,11 +28,6 @@ module Types =
     | Production
     | Development
 
-    member this.AsString =
-      match this with
-      | Production -> "production"
-      | Development -> "development"
-
   type FableConfig =
     { project: string<SystemPath>
       extension: string<FileExtension>
@@ -101,6 +96,11 @@ module Types =
   exception FailedToParseNameException of string
 
   type RunConfiguration with
+
+    member this.AsString =
+      match this with
+      | Production -> "production"
+      | Development -> "development"
 
     static member FromString(value: string) =
       match value.ToLowerInvariant() with

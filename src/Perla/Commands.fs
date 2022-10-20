@@ -13,7 +13,6 @@ open FSharp.UMX
 open FsToolkit.ErrorHandling
 
 open AngleSharp
-open AngleSharp.Html.Dom
 
 open Perla
 open Perla.Types

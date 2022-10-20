@@ -17,7 +17,7 @@ module Lib =
     else
       None
 
-  let parseUrl url =
+  let ExtractDependencyInfoFromUrl url =
     match url with
     | ParseRegex @"https://cdn.skypack.dev/pin/(@?[^@]+)@v([\d.]+)"
                  [ name; version ] -> Some(Provider.Skypack, name, version)
