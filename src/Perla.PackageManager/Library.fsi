@@ -2,6 +2,7 @@
 
 open System.Threading.Tasks
 open Perla.PackageManager.Types
+open Perla.PackageManager.Jspm
 
 [<AutoOpen>]
 module PackageManager =
@@ -108,13 +109,9 @@ module PackageManager =
         /// <remarks>
         /// This method will try to produce a flattened scope to make it easier to edit by hand for most users.
         /// </remarks>
-        /// <remarks>
-        /// If you choose to install via skypack this will use the JSPM Generator API not the Skypack CDN.
-        /// To install/reinstall multiple Skypack CDN use the resulting import map as a parameter of <see cref="Perla.PackageManager.PackageManager.AddSkypack">PackageManager.AddSkypack</see>
-        /// </remarks>
         /// <param name="packages">An sequence of packages to install.</param>
         /// <param name="environments">JSPM Generator Environment hints to provide the best assets possible</param>
         /// <param name="provider">The current dependency list, this list is useful to differentiate between dev/prod/testing dependencies</param>
         static member Regenerate:
             packages: seq<string> * environments: seq<GeneratorEnv> * ?provider: Provider ->
-                Task<Result<ImportMap, string>>
+                Task<Result<InstallResponse, string>>

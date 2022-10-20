@@ -167,7 +167,7 @@ module PackageManager =
             ?provider = provider
           )
         with
-        | Ok response -> return Ok response.map
+        | Ok response -> return Ok response
         | Error err -> return Error err
       }
 
