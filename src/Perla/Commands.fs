@@ -12,6 +12,9 @@ open FSharp.Control.Reactive
 open FSharp.UMX
 open FsToolkit.ErrorHandling
 
+open AngleSharp
+open AngleSharp.Html.Dom
+
 open Perla
 open Perla.Types
 open Perla.Units
@@ -20,6 +23,7 @@ open Perla.Build
 open Perla.Logger
 open Perla.FileSystem
 open Perla.VirtualFs
+open Perla.Esbuild
 open Perla.Fable
 open Perla.Extensibility
 open Perla.Json
@@ -52,7 +56,9 @@ module CliOptions =
       mode: RunConfiguration option
       ssl: bool option }
 
-  type BuildOptions = { mode: RunConfiguration option }
+  type BuildOptions =
+    { mode: RunConfiguration option
+      disablePreloads: bool }
 
   type InitOptions =
     { path: DirectoryInfo
@@ -68,7 +74,7 @@ module CliOptions =
 
   type AddPackageOptions =
     { package: string
-      version: string
+      version: string option
       source: Provider
       mode: RunConfiguration
       alias: string option }
@@ -104,37 +110,9 @@ open CliOptions
 
 
 module Handlers =
-
-  let runBuild (args: BuildOptions) =
-
-    Configuration.UpdateFromCliArgs(?runConfig = args.mode)
-    let config = Configuration.CurrentConfig
-
-    task {
-      match config.fable with
-      | Some fable ->
-        do!
-          Logger.spinner ("Running Fable...", Fable.Start(fable, false)) :> Task
-      | None ->
-        Logger.log (
-          "No Fable configuration provided, skipping fable",
-          target = PrefixKind.Build
-        )
-
-      if not <| File.Exists($"{FileSystem.EsbuildBinaryPath}") then
-        do! FileSystem.SetupEsbuild(config.esbuild.version)
-
-      let outDir = UMX.untag config.build.outDir
-
-      try
-        Directory.Delete(outDir, true)
-        Directory.CreateDirectory(outDir) |> ignore
-      with ex ->
-        ()
-
-      do! Build.Execute config
-      return 0
-    }
+  open AngleSharp.Html.Parser
+  open Zio.FileSystems
+  open Zio
 
   let runListTemplates (options: ListTemplatesOptions) =
     let results = Templates.List()
@@ -419,8 +397,8 @@ module Handlers =
         let inline aliasDependency (dep: Dependency) =
           let name =
             match dep.alias with
-            | Some alias -> $"{alias}:{dep.name}"
-            | None -> dep.name
+            | ValueSome alias -> $"{alias}:{dep.name}"
+            | ValueNone -> dep.name
 
           name, dep.version
 
@@ -446,8 +424,8 @@ module Handlers =
 
       let inline filterNameOrAlias (dep: Dependency) =
         match dep.alias with
-        | Some alias -> not (dep.name = name || alias = name)
-        | None -> dep.name <> name
+        | ValueSome alias -> not (dep.name = name || alias = name)
+        | ValueNone -> dep.name <> name
 
       let deps =
         option {
@@ -650,34 +628,203 @@ module Handlers =
     }
 
   let runRestore (options: RestoreOptions) =
-    taskResult {
-      let importMap = FileSystem.ImportMap()
+    task {
+      Configuration.UpdateFromCliArgs(options.mode, provider = options.source)
+
+      let config = Configuration.CurrentConfig
 
       Logger.log "Regenerating import map..."
 
-      let packages = importMap.imports |> Map.keys
+      let packages =
+        [ yield! config.dependencies
+          match config.runConfiguration with
+          | RunConfiguration.Development -> yield! config.devDependencies
+          | RunConfiguration.Production -> () ]
+        |> List.map (fun d -> d.AsVersionedString)
+        // deduplicate repeated strings
+        |> set
 
+      printfn "%A" packages
       let provider = options.source
 
-      let! newMap =
-        Dependencies.Restore(packages, provider = provider)
-        |> TaskResult.mapError (fun err -> exn err)
+      match!
+        Logger.spinner (
+          "Fetching dependencies...",
+          Dependencies.Restore(packages, provider = provider)
+        )
+      with
+      | Ok response -> FileSystem.WriteImportMap(response) |> ignore
+      | Error err ->
+        Logger.log ($"An error happened restoring the import map:\n{err}")
 
-      FileSystem.WriteImportMap(newMap) |> ignore
       return 0
     }
 
+  let runBuild (args: BuildOptions) =
+    task {
 
-  let runVersion (isSemver: bool) : int =
-    let version =
-      System.Reflection.Assembly.GetEntryAssembly().GetName().Version
+      Configuration.UpdateFromFile()
+      Configuration.UpdateFromCliArgs(?runConfig = args.mode)
+      let config = Configuration.CurrentConfig
+      use cts = new CancellationTokenSource()
 
-    if isSemver then
-      Logger.log $"{version.Major}.{version.Minor}.{version.Revision}"
-    else
-      Logger.log $"{version}"
+      match config.fable with
+      | Some fable ->
+        do!
+          Logger.spinner (
+            "Running Fable...",
+            Fable.Start(fable, false, cancellationToken = cts.Token)
+          )
+          :> Task
+      | None ->
+        Logger.log (
+          "No Fable configuration provided, skipping fable",
+          target = PrefixKind.Build
+        )
 
-    0
+      if not <| File.Exists($"{FileSystem.EsbuildBinaryPath}") then
+        do! FileSystem.SetupEsbuild(config.esbuild.version, cts.Token)
+
+      let outDir = UMX.untag config.build.outDir
+
+      try
+        Directory.Delete(outDir, true)
+        Directory.CreateDirectory(outDir) |> ignore
+      with ex ->
+        ()
+
+      Plugins.LoadPlugins(config.esbuild)
+
+      do!
+        Logger.spinner (
+          "Mounting Virtual File System",
+          VirtualFileSystem.Mount config
+        )
+
+      let tempDirectory = VirtualFileSystem.CopyToDisk() |> UMX.tag<SystemPath>
+
+      Logger.log (
+        $"Copying Processed files to {tempDirectory}",
+        target = PrefixKind.Build
+      )
+
+      let externals = Build.GetExternals(config)
+
+      let index = FileSystem.IndexFile(config.index)
+
+      use browserCtx = new BrowsingContext()
+
+      let parser = browserCtx.GetService<IHtmlParser>()
+
+      let document = parser.ParseDocument index
+
+      use fs = new PhysicalFileSystem()
+
+      let tmp = UMX.untag tempDirectory |> fs.ConvertPathFromInternal
+
+      let css, js = Build.GetEntryPoints(document)
+
+      let runEsbuild =
+        Task.WhenAll(
+          backgroundTask {
+            for css in css do
+              let path =
+                UPath.Combine(tmp, UMX.untag css) |> fs.ConvertPathToInternal
+
+              let targetPath =
+                Path.Combine(UMX.untag config.build.outDir, UMX.untag css)
+                |> Path.GetDirectoryName
+                |> UMX.tag<SystemPath>
+
+              let tsk =
+                Esbuild
+                  .ProcessCss(path, config.esbuild, targetPath)
+                  .ExecuteAsync(cts.Token)
+
+              do! tsk.Task :> Task
+          },
+
+          backgroundTask {
+            for js in js do
+              let path =
+                UPath.Combine(tmp, UMX.untag js) |> fs.ConvertPathToInternal
+
+              let targetPath =
+                Path.Combine(UMX.untag config.build.outDir, UMX.untag js)
+                |> Path.GetDirectoryName
+                |> UMX.tag<SystemPath>
+
+              let tsk =
+                Esbuild
+                  .ProcessJS(path, config.esbuild, targetPath, externals)
+                  .ExecuteAsync(cts.Token)
+
+              do! tsk.Task :> Task
+          }
+        )
+
+      do! Logger.spinner ("Transpiling CSS and JS Files", runEsbuild) :> Task
+
+      let css =
+        [ yield! css
+          yield!
+            js
+            |> Seq.map (fun p ->
+              IO.Path.ChangeExtension(UMX.untag p, ".css") |> UMX.tag) ]
+
+      let! indexContent =
+        task {
+          let dependencies =
+            match config.runConfiguration with
+            | RunConfiguration.Production ->
+              config.dependencies |> Seq.map (fun d -> d.AsVersionedString)
+            | RunConfiguration.Development ->
+              [ yield! config.dependencies; yield! config.devDependencies ]
+              |> Seq.map (fun d -> d.AsVersionedString)
+
+          match!
+            Logger.spinner (
+              "Resolving Static dependencies and import map...",
+              Dependencies.GetMapAndDependencies(dependencies, config.provider)
+            )
+          with
+          | Ok (deps, map) ->
+            FileSystem.WriteImportMap(map) |> ignore
+            let deps = if args.disablePreloads then Seq.empty else deps
+            return Build.GetIndexFile(document, css, js, map, deps)
+          | Error err ->
+            Logger.log (
+              $"We were unable to update static dependencies and import map: {err}, falling back to the map in disk"
+            )
+
+            let map = FileSystem.ImportMap()
+            return Build.GetIndexFile(document, css, js, map)
+        }
+
+      let outDir =
+        config.build.outDir
+        |> UMX.untag
+        |> Path.GetFullPath
+        |> fs.ConvertPathFromInternal
+
+      fs.WriteAllText(UPath.Combine(outDir, "index.html"), indexContent)
+
+      // copy any glob files
+      Build.CopyGlobs(config.build)
+      // copy any root files
+      fs.EnumerateFileEntries(tmp, "*.*", SearchOption.TopDirectoryOnly)
+      |> Seq.iter (fun file ->
+        file.CopyTo(UPath.Combine(outDir, file.Name), true) |> ignore)
+
+      Logger.log ($"Cleaning up temp dir {tempDirectory}")
+
+      try
+        Directory.Delete(UMX.untag tempDirectory, true)
+      with ex ->
+        Logger.log ($"Failed to delete {tempDirectory}", ex = ex)
+
+      return 0
+    }
 
   let runServe (options: ServeOptions) =
     task {
@@ -812,22 +959,75 @@ module Commands =
           .FromAmong(values |> Array.ofSeq)
         |> HandlerInput.OfArgument
 
-  let modeArg =
-    Input.ArgumentMaybe(
-      "mode",
-      [ "development"; "dev"; "prod"; "production" ],
-      "Use Dev or Production dependencies when running, defaults to development"
+  let runAsDev =
+    Input.OptionMaybe(
+      [ "--development"; "-d"; "--dev" ],
+      "Use Dev dependencies when running, defaults to false"
     )
 
   let buildCmd =
+    let disablePreloads =
+      Input.OptionMaybe(
+        [ "-dpl"; "--disable-preload-links" ],
+        "disables adding modulepreload links in the final build"
+      )
 
-    let buildArgs (mode: string option) : BuildOptions =
-      { mode = mode |> Option.map RunConfiguration.FromString }
+    let buildArgs
+      (
+        runAsDev: bool option,
+        disablePreloads: bool option
+      ) : BuildOptions =
+      { mode =
+          runAsDev
+          |> Option.map (fun runAsDev ->
+            match runAsDev with
+            | true -> RunConfiguration.Development
+            | false -> RunConfiguration.Production)
+        disablePreloads = defaultArg disablePreloads false }
 
     command "build" {
       description "Builds the SPA application for distribution"
-      inputs modeArg
+      inputs (runAsDev, disablePreloads)
       setHandler (buildArgs >> Handlers.runBuild)
+    }
+
+  let serveCmd =
+
+    let port =
+      Input.OptionMaybe<int>(
+        [ "--port"; "-p" ],
+        "Port where the application starts"
+      )
+
+    let host =
+      Input.OptionMaybe<string>(
+        [ "--host" ],
+        "network ip address where the application will run"
+      )
+
+    let ssl = Input.OptionMaybe<bool>([ "--ssl" ], "Run dev server with SSL")
+
+
+    let buildArgs
+      (
+        mode: bool option,
+        port: int option,
+        host: string option,
+        ssl: bool option
+      ) : ServeOptions =
+      { mode =
+          mode
+          |> Option.map (fun runAsDev ->
+            match runAsDev with
+            | true -> RunConfiguration.Development
+            | false -> RunConfiguration.Production)
+        port = port
+        host = host
+        ssl = ssl }
+
+    command "serve" {
+      inputs (runAsDev, port, host, ssl)
+      setHandler (buildArgs >> Handlers.runServe)
     }
 
   let initCmd =
@@ -950,10 +1150,18 @@ module Commands =
       )
 
     let version =
-      Input.ArgumentMaybe(
-        "version",
-        "The version of the package you want to use, it defaults to latest"
-      )
+      let opt =
+        Aliases.Opt<string option>(
+          [| "-v"; "--version" |],
+          parseArgument =
+            (fun arg ->
+              arg.Tokens
+              |> Seq.tryHead
+              |> Option.map (fun token -> token.Value |> Option.ofObj)
+              |> Option.flatten)
+        )
+
+      opt |> HandlerInput.OfOption
 
     let source =
       Input.OptionWithStrings(
@@ -984,7 +1192,7 @@ module Commands =
         alias: string option
       ) : AddPackageOptions =
       { package = package
-        version = version |> Option.defaultValue "latest"
+        version = version
         source = Provider.FromString source
         mode =
           dev
@@ -1146,18 +1354,4 @@ module Commands =
 
       inputs (name, templateName)
       setHandler (buildArgs >> Handlers.runNew)
-    }
-
-  let versionCmd =
-    let isSemver =
-      Input.OptionMaybe([ "--semver" ], "Gets the version of the application")
-
-    command "--version" {
-      description "Shows the full or semver version of the application"
-      inputs isSemver
-
-      setHandler (
-        (fun isSemver -> isSemver |> Option.defaultValue true)
-        >> Handlers.runVersion
-      )
     }
