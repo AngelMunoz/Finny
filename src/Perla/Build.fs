@@ -1,41 +1,21 @@
 ﻿namespace Perla.Build
 
-open System
 open System.IO
-open System.Net.Http
-open System.Threading.Tasks
 
 open AngleSharp
-open AngleSharp.Html.Parser
+open AngleSharp.Html.Dom
 
 open Perla
 open Perla.Types
 open Perla.Units
-open Perla.Json
 open Perla.FileSystem
-open Perla.VirtualFs
-open Perla.Logger
-open Perla.Esbuild
+
+open Perla.PackageManager.Types
 
 open Fake.IO.Globbing
 
 open FSharp.UMX
-open System.Threading
-open Zio
-open AngleSharp.Html.Dom
-open Perla.FileSystem
-open Perla.PackageManager.Types
 open Spectre.Console
-
-[<RequireQualifiedAccess>]
-type ResourceType =
-  | JS
-  | CSS
-
-  member this.AsString() =
-    match this with
-    | JS -> "JS"
-    | CSS -> "CSS"
 
 [<RequireQualifiedAccess>]
 module Build =
@@ -99,7 +79,10 @@ type Build =
     Build.insertImportMap (document, importMap)
 
     // remove any existing entry points, we don't need them at this point
-    document.Body.QuerySelectorAll("[data-entry-point][type=module]")
+    document.QuerySelectorAll("[data-entry-point][type=module]")
+    |> Seq.iter (fun f -> f.Remove())
+
+    document.QuerySelectorAll("[data-entry-point][rel=stylesheet]")
     |> Seq.iter (fun f -> f.Remove())
 
     // insert the resolved entry points which should match paths in mounted directories
