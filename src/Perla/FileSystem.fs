@@ -3,7 +3,9 @@
 open System
 open System.IO
 open System.IO.Compression
+open System.Threading
 open System.Threading.Tasks
+open System.Runtime.InteropServices
 
 open FSharp.UMX
 
@@ -132,7 +134,11 @@ module FileSystem =
       .WithStandardOutputPipe(PipeTarget.ToStream(Console.OpenStandardOutput()))
       .WithArguments($"+x {EsbuildBinaryPath()}")
 
-  let tryDownloadEsBuild (esbuildVersion: string) : Task<string option> =
+  let tryDownloadEsBuild
+    (
+      esbuildVersion: string,
+      cancellationToken: CancellationToken option
+    ) : Task<string option> =
     let binString = $"esbuild-{Env.PlatformString}-{Env.ArchString}"
     let compressedFile = (UMX.untag AssemblyRoot) / "esbuild.tgz"
 
@@ -146,12 +152,15 @@ module FileSystem =
 
     task {
       try
-        use! stream = url.GetStreamAsync()
+        use! stream = url.GetStreamAsync(?cancellationToken = cancellationToken)
         Logger.log $"Downloading esbuild from: {url}"
 
         use file = File.OpenWrite(compressedFile)
 
-        do! stream.CopyToAsync file
+        do!
+          match cancellationToken with
+          | Some token -> stream.CopyToAsync(file, cancellationToken = token)
+          | None -> stream.CopyToAsync(file)
 
         Logger.log $"Downloaded esbuild to: {file.Name}"
 
@@ -188,30 +197,6 @@ module FileSystem =
 
       return ()
     }
-
-  let SetupEsbuild (esbuildVersion: string<Semver>) =
-    Logger.log "Checking whether esbuild is present..."
-
-    if File.Exists(EsbuildBinaryPath() |> UMX.untag) then
-      Logger.log "esbuild is present."
-      Task.FromResult(())
-    else
-      Logger.log "esbuild is not present, setting esbuild..."
-
-      Logger.spinner (
-        "esbuild is not present, setting esbuild...",
-        fun context ->
-          context.Status <- "Downloading esbuild..."
-
-          tryDownloadEsBuild (UMX.untag esbuildVersion)
-          |> (fun path ->
-            context.Status <- "Extracting esbuild..."
-            path)
-          |> decompressEsbuild
-          |> (fun path ->
-            context.Status <- "Cleaning up extra files..."
-            path)
-      )
 
   let TryReadTsConfig () =
     let path = Path.Combine($"{CurrentWorkingDirectory()}", "tsconfig.json")
@@ -312,6 +297,37 @@ type FileSystem =
     let tplName = defaultArg tplName ""
 
     Path.Combine(UMX.untag FileSystem.Templates, $"{name}-{branch}", tplName)
+
+  static member SetupEsbuild
+    (
+      esbuildVersion: string<Semver>,
+      [<Optional>] ?cancellationToken: CancellationToken
+    ) =
+    Logger.log "Checking whether esbuild is present..."
+
+    if File.Exists(FileSystem.EsbuildBinaryPath() |> UMX.untag) then
+      Logger.log "esbuild is present."
+      Task.FromResult(())
+    else
+      Logger.log "esbuild is not present, setting esbuild..."
+
+      Logger.spinner (
+        "esbuild is not present, setting esbuild...",
+        fun context ->
+          context.Status <- "Downloading esbuild..."
+
+          FileSystem.tryDownloadEsBuild (
+            UMX.untag esbuildVersion,
+            cancellationToken
+          )
+          |> (fun path ->
+            context.Status <- "Extracting esbuild..."
+            path)
+          |> FileSystem.decompressEsbuild
+          |> (fun path ->
+            context.Status <- "Cleaning up extra files..."
+            path)
+      )
 
   static member GetTemplateScriptContent
     (

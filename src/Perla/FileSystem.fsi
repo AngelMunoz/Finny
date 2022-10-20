@@ -2,6 +2,8 @@
 
 open System
 open System.IO
+open System.Runtime.InteropServices
+open System.Threading
 open System.Threading.Tasks
 open FSharp.UMX
 open Perla.Units
@@ -23,7 +25,6 @@ module FileSystem =
     val ExtractTemplateZip: name: string<SystemPath> -> stream: Stream -> unit
     val RemoveTemplateDirectory: name: string<SystemPath> -> unit
     val EsbuildBinaryPath: unit -> string<SystemPath>
-    val SetupEsbuild: esbuildVersion: string<Semver> -> Task<unit>
     val TryReadTsConfig: unit -> string option
     val GetTempDir: unit -> string
     val TplRepositoryChildTemplates: path: string<SystemPath> -> string<SystemPath> seq
@@ -33,6 +34,8 @@ type FileSystem =
     static member PerlaConfigText: ?fromDirectory: string<SystemPath> -> string option
     static member SetCwdToPerlaRoot: ?fromPath: string<SystemPath> -> unit
     static member ImportMap: ?fromDirectory: string<SystemPath> -> ImportMap
+    static member SetupEsbuild:
+        esbuildVersion: string<Semver> * [<Optional>] ?cancellationToken: CancellationToken -> Task<unit>
     static member WriteImportMap: map: ImportMap * ?fromDirectory: string<SystemPath> -> ImportMap
     static member PathForTemplate: name: string * branch: string * ?tplName: string -> string
     static member WriteTplRepositoryToDisk:
