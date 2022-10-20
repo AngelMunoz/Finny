@@ -66,8 +66,17 @@ module Types =
   [<Struct>]
   type Dependency =
     { name: string
-      version: string
-      alias: string option }
+      version: string voption
+      alias: string voption }
+
+    member this.AsVersionedString =
+      let version =
+        match this.version with
+        | ValueSome version -> $"@{version}"
+        | ValueNone -> ""
+
+      $"{this.name}{version}"
+
 
   type PerlaConfig =
     { index: string<SystemPath>

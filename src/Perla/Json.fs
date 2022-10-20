@@ -10,7 +10,7 @@ open Perla.Types
 
 open Perla.Units
 open Thoth.Json.Net
-
+open FsToolkit.ErrorHandling
 open FSharp.UMX
 
 [<RequireQualifiedAccess; Struct>]
@@ -144,8 +144,9 @@ module ConfigDecoders =
   let DependencyDecoder: Decoder<Dependency> =
     Decode.object (fun get ->
       { name = get.Required.Field "name" Decode.string
-        version = get.Required.Field "version" Decode.string
-        alias = get.Optional.Field "alias" Decode.string })
+        version =
+          get.Optional.Field "version" Decode.string |> ValueOption.ofOption
+        alias = get.Optional.Field "alias" Decode.string |> ValueOption.ofOption })
 
   let PerlaDecoder: Decoder<DecodedPerlaConfig> =
     Decode.object (fun get ->

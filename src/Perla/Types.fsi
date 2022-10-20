@@ -61,8 +61,10 @@ module Types =
     [<Struct>]
     type Dependency =
         { name: string
-          version: string
-          alias: string option }
+          version: string voption
+          alias: string voption }
+
+        member AsVersionedString: string
 
     type PerlaConfig =
         { index: string<SystemPath>
