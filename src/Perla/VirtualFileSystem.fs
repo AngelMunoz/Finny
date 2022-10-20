@@ -190,6 +190,8 @@ module VirtualFileSystem =
       let cwd = FileSystem.CurrentWorkingDirectory()
 
       for KeyValue (url, path) in directories do
+        Logger.log ($"Mounting {path} into {url}...")
+
         do!
           IO.Path.Combine(UMX.untag cwd, UMX.untag path)
           |> IO.Path.GetFullPath
