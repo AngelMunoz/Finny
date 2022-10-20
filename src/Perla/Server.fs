@@ -1,5 +1,7 @@
 ﻿namespace Perla.Server
 
+#nowarn "3391"
+
 open System
 open System.IO
 open System.Net
@@ -228,56 +230,58 @@ module Middleware =
     | JS
     | Normal
 
-  let processCssAsJs (content, url) =
-    $"""const css = `{content}`,style = document.createElement('style');
-  style.innerHTML = css;style.setAttribute("filename", "{url}");
-  document.head.appendChild(style)"""
-
-  let processJsonAsJs (content) = $"""export default {content};"""
-
   let processFile
     (
-      ctx: HttpContext,
+      setContentAndWrite: string * string -> Task<_>,
+      reqPath: string,
       mimeType: string,
       requestedAs: RequestedAs,
       content: string
     ) : Task =
+    let processCssAsJs (content, url: string) =
+      $"""const style=document.createElement('style');style.setAttribute("filename", "{url}");
+document.head.appendChild(style).innerHTML=`{content}`;"""
+
+    let processJsonAsJs (content) = $"""export default {content};"""
+
     match mimeType, requestedAs with
     | "application/json", RequestedAs.JS ->
-      ctx.SetContentType MimeTypeNames.DefaultJavaScript
-      ctx.WriteStringAsync(processJsonAsJs content)
+      setContentAndWrite (
+        MimeTypeNames.DefaultJavaScript,
+        processJsonAsJs content
+      )
     | "text/css", Normal ->
-      ctx.SetContentType MimeTypeNames.DefaultJavaScript
-      ctx.WriteStringAsync(processCssAsJs (content, ctx.Request.Path))
+      setContentAndWrite (
+        MimeTypeNames.DefaultJavaScript,
+        processCssAsJs (content, reqPath)
+      )
     | mimeType, ModuleAssertion
-    | mimeType, Normal ->
-      ctx.SetContentType mimeType
-      ctx.WriteStringAsync content
+    | mimeType, Normal -> setContentAndWrite (mimeType, content)
     | mimeType, value ->
       Logger.log (
-        $"Requested %A{value} - {mimeType} - {ctx.Request.Path} as JS, this file type is not supported as JS, sending default content"
+        $"Requested %A{value} - {mimeType} - {reqPath} as JS, this file type is not supported as JS, sending default content"
       )
 
-      ctx.SetContentType mimeType
-      ctx.WriteStringAsync content
-
-
+      setContentAndWrite (mimeType, content)
 
   let ResolveFile
     (config: PerlaConfig)
     : HttpContext -> RequestDelegate -> Task =
     fun ctx next ->
       task {
-        let file =
+        match
           VirtualFileSystem.TryResolveFile(UMX.tag<ServerUrl> ctx.Request.Path)
-
-        match file with
+        with
         | Some file ->
           let fileExtProvider =
             ctx.GetService<FileExtensionContentTypeProvider>()
 
           match fileExtProvider.TryGetContentType(ctx.Request.Path) with
           | true, mime ->
+            let setContentTypeAndWrite (mimeType, content) =
+              ctx.SetContentType mimeType
+              ctx.WriteStringAsync content
+
             let requestedAs =
               let query = ctx.Request.Query
 
@@ -289,7 +293,14 @@ module Middleware =
               elif query.ContainsKey("assertion") then ModuleAssertion
               else Normal
 
-            return! processFile (ctx, mime, requestedAs, file)
+            return!
+              processFile (
+                setContentTypeAndWrite,
+                ctx.Request.Path,
+                mime,
+                requestedAs,
+                file
+              )
           | false, _ -> return! next.Invoke(ctx)
         | None -> return! next.Invoke(ctx)
       }
