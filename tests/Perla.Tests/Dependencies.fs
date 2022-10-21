@@ -1,8 +1,9 @@
-namespace Perla.Tests
+﻿namespace Perla.Tests
 
 open Xunit
 
 open Perla
+open Perla.Types
 open Perla.Logger
 open Perla.PackageManager.Types
 
@@ -215,3 +216,111 @@ module Dependencies =
       AssertLodash(result, Provider.Unpkg)
       AssertJQuery(result, Provider.Unpkg)
     }
+
+  [<Fact>]
+  let ``LocateDependenciesFromMapAndConfig should not grab dependencies from import map if they don't exist in the configuration``
+    ()
+    =
+    let importMap =
+      { imports =
+          [ "jquery", "https://ga.jspm.io/npm:jquery@3.6.1/dist/jquery.js"
+            "lodash", "https://ga.jspm.io/npm:lodash@4.17.21/lodash.js"
+            "lit",
+            "https://cdn.skypack.dev/pin/lit@v2.0.0-B36tAUEdI9Ino7UGfR7h/mode=imports,min/optimized/lit.js" ]
+          |> Map.ofList
+        scopes = None }
+
+    let config =
+      { Configuration.Defaults.PerlaConfig with
+          dependencies =
+            [ { name = LitName
+                version = Some LitVersion
+                alias = None }
+              { name = LodashName
+                version = Some LodashVersion
+                alias = None } ] }
+
+    let dependencies, devDependencies =
+      Dependencies.LocateDependenciesFromMapAndConfig(importMap, config)
+
+    Assert.Contains(
+      { name = LitName
+        version = Some LitVersion
+        alias = None },
+      dependencies
+    )
+
+    Assert.Contains(
+      { name = LodashName
+        version = Some LodashVersion
+        alias = None },
+      dependencies
+    )
+
+    Assert.DoesNotContain(
+      { name = "jquery"
+        version = Some "3.6.1"
+        alias = None },
+      dependencies
+    )
+
+    Assert.Empty(devDependencies)
+    
+  [<Fact>]
+  let ``LocateDependenciesFromMapAndConfig should grab dependencies from import map if they exist in the configuration``
+    ()
+    =
+    let importMap =
+      { imports =
+          [ "jquery", "https://ga.jspm.io/npm:jquery@3.6.1/dist/jquery.js"
+            "lodash", "https://ga.jspm.io/npm:lodash@4.17.21/lodash.js"
+            "lit",
+            "https://cdn.skypack.dev/pin/lit@v2.0.0-B36tAUEdI9Ino7UGfR7h/mode=imports,min/optimized/lit.js" ]
+          |> Map.ofList
+        scopes = None }
+
+    let config =
+      { Configuration.Defaults.PerlaConfig with
+          dependencies =
+            [ { name = LitName
+                version = Some LitVersion
+                alias = None }
+              { name = LodashName
+                version = Some LodashVersion
+                alias = None }]
+          devDependencies =
+            [ { name = "jquery"
+                version = Some "3.6.1"
+                alias = None }]}
+
+    let dependencies, devDependencies =
+      Dependencies.LocateDependenciesFromMapAndConfig(importMap, config)
+
+    Assert.Contains(
+      { name = LitName
+        version = Some LitVersion
+        alias = None },
+      dependencies
+    )
+
+    Assert.Contains(
+      { name = LodashName
+        version = Some LodashVersion
+        alias = None },
+      dependencies
+    )
+
+    Assert.Contains(
+      { name = "jquery"
+        version = Some "3.6.1"
+        alias = None },
+      devDependencies
+    )
+
+    Assert.DoesNotContain(
+      { name = "jquery"
+        version = Some "3.6.1"
+        alias = None },
+      dependencies
+    )
+
