@@ -20,7 +20,7 @@
     },
     "Serve Docs": {
       "commandName": "Project",
-      "commandLineArgs": "dev",
+      "commandLineArgs": "serve",
       "workingDirectory": "$(ProjectDir)/../../docs"
     },
     "Build Docs": {
@@ -38,15 +38,10 @@
       "commandLineArgs": "new -t perla-templates/lit-js -n clam-poc",
       "workingDirectory": "$(ProjectDir)/../../App"
     },
-    "Add Lit JSPM ": {
+    "Add Package ": {
       "commandName": "Project",
-      "commandLineArgs": "add -p lit -s jspm",
-      "workingDirectory": "$(ProjectDir)/../../App"
-    },
-    "Add RxJS JSPM ": {
-      "commandName": "Project",
-      "commandLineArgs": "add -p rxjs -s jspm",
-      "workingDirectory": "$(ProjectDir)/../../App"
+      "commandLineArgs": "add rxjs",
+      "workingDirectory": "$(ProjectDir)/../../sample"
     }
   }
 }

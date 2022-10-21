@@ -61,16 +61,16 @@
             "console": "integratedTerminal"
         },
         {
-            "name": "Perla add @shoelace-style/shoelace",
+            "name": "Perla add package",
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build",
             "program": "${workspaceFolder}/src/Perla/bin/Debug/net6.0/Perla.dll",
             "args": [
                 "add",
-                "@shoelace-style/shoelace"
+                "lit"
             ],
-            "cwd": "${workspaceFolder}/src/App",
+            "cwd": "${workspaceFolder}/sample",
             "stopAtEntry": false,
             "console": "integratedTerminal"
         },
