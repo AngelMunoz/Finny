@@ -3,9 +3,11 @@
 open System
 open System.IO
 open System.Runtime.InteropServices
+open System.Text.Json.Nodes
 open System.Threading
 open System.Threading.Tasks
 open FSharp.UMX
+open Perla.Types
 open Perla.Units
 open Perla.PackageManager.Types
 
@@ -37,6 +39,7 @@ type FileSystem =
     static member SetupEsbuild:
         esbuildVersion: string<Semver> * [<Optional>] ?cancellationToken: CancellationToken -> Task<unit>
     static member WriteImportMap: map: ImportMap * ?fromDirectory: string<SystemPath> -> ImportMap
+    static member WritePerlaConfig: ?config: JsonObject * ?fromDirectory: string<SystemPath> -> unit
     static member PathForTemplate: name: string * branch: string * ?tplName: string -> string
     static member WriteTplRepositoryToDisk:
         origin: string<SystemPath> * target: string<UserPath> * ?payload: obj -> unit

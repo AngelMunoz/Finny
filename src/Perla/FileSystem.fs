@@ -3,6 +3,8 @@
 open System
 open System.IO
 open System.IO.Compression
+open System.Text.Json.Nodes
+open System.Text.Json.Serialization
 open System.Threading
 open System.Threading.Tasks
 open System.Runtime.InteropServices
@@ -10,6 +12,7 @@ open System.Runtime.InteropServices
 open FSharp.UMX
 
 open Perla
+open Perla.Types
 open Perla.Units
 open Perla.Json
 open Perla.Logger
@@ -287,6 +290,21 @@ type FileSystem =
   static member WriteImportMap(map: ImportMap, ?fromDirectory) =
     let path = FileSystem.GetConfigPath Constants.ImportMapName fromDirectory
     FileSystem.ensureFileContent path map
+
+  static member WritePerlaConfig(?config: JsonObject, ?fromDirectory) =
+    let path = FileSystem.GetConfigPath Constants.PerlaConfigName fromDirectory
+    match config with
+    | Some config ->
+      try
+        File.WriteAllText(UMX.untag path, config.ToJsonString(Json.DefaultJsonOptions()))
+      with ex ->
+        Logger.log (
+          $"[bold red]Unable to write file at[/][bold yellow]{path}[/]",
+          ex = ex,
+          escape = false
+        )
+        exit (1)
+    | None -> ()
 
   static member PathForTemplate
     (
