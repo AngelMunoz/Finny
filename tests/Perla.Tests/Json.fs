@@ -113,10 +113,10 @@ let ``PerlaDecoder Should Decode from a complete object`` () =
 
       let expected: Dependency =
         { name = "lit"
-          version = ValueSome "2.4.0"
-          alias = ValueNone }
+          version = Some "2.4.0"
+          alias = None }
 
-      Assert.Equivalent(expected, actual)
+      Assert.Equal(expected, actual)
 
     match decoded.devDependencies with
     | None -> Assert.Fail "devDependencies should have a value"

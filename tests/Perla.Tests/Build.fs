@@ -1,4 +1,4 @@
-namespace Perla.Tests
+﻿namespace Perla.Tests
 
 open Xunit
 open AngleSharp
@@ -125,11 +125,11 @@ module Build =
                 externals = [ "my-local-dep"; "external-dep" ] }
           dependencies =
             [ { name = "lit"
-                version = ValueNone
-                alias = ValueSome "lit-v1" }
+                version = None
+                alias = Some "lit-v1" }
               { name = "lit"
-                version = ValueNone
-                alias = ValueNone } ] }
+                version = None
+                alias = None } ] }
 
     let externals = Build.GetExternals(config)
     Assert.Contains(externals, (fun p -> p = "lit"))

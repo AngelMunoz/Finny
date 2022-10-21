@@ -58,13 +58,12 @@ module Types =
           outDir: string<SystemPath>
           emitEnvFile: bool }
 
-    [<Struct>]
     type Dependency =
         { name: string
-          version: string voption
-          alias: string voption }
+          version: string option
+          alias: string option }
 
-        member AsVersionedString: string
+        member internal AsVersionedString: string
 
     type PerlaConfig =
         { index: string<SystemPath>

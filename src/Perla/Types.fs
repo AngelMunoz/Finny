@@ -58,17 +58,16 @@ module Types =
       outDir: string<SystemPath>
       emitEnvFile: bool }
 
-  [<Struct>]
   type Dependency =
     { name: string
-      version: string voption
-      alias: string voption }
+      version: string option
+      alias: string option }
 
-    member this.AsVersionedString =
+    member internal this.AsVersionedString =
       let version =
         match this.version with
-        | ValueSome version -> $"@{version}"
-        | ValueNone -> ""
+        | Some version -> $"@{version}"
+        | None -> ""
 
       $"{this.name}{version}"
 

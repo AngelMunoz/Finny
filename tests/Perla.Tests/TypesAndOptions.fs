@@ -1,4 +1,4 @@
-namespace Perla.Tests
+﻿namespace Perla.Tests
 
 open Xunit
 open Perla.Types
@@ -53,23 +53,23 @@ module Dependency =
     Assert.Equal(
       "lit@2.0.0",
       { name = "lit"
-        version = ValueSome "2.0.0"
-        alias = ValueNone }
+        version = Some "2.0.0"
+        alias = None }
         .AsVersionedString
     )
 
     Assert.Equal(
       "react",
       { name = "react"
-        version = ValueNone
-        alias = ValueNone }
+        version = None
+        alias = None }
         .AsVersionedString
     )
 
     Assert.Equal(
       "react@17.2.0",
       { name = "react"
-        version = ValueSome "17.2.0"
-        alias = ValueSome "react-17" }
+        version = Some "17.2.0"
+        alias = Some "react-17" }
         .AsVersionedString
     )

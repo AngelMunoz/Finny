@@ -126,8 +126,8 @@ module Lib =
     for dependency in deps do
       table.AddRow(
         dependency.name,
-        defaultValueArg dependency.version "",
-        defaultValueArg dependency.alias ""
+        defaultArg dependency.version "",
+        defaultArg dependency.alias ""
       )
       |> ignore
 
