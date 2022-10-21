@@ -22,7 +22,7 @@ type Fsi =
       [<Optional>] ?stderr
     ) =
     let defaultArgv =
-      [| "fsi.exe"; "--optinize+"; "--nologo"; "--gui-"; "--readline-" |]
+      [| "fsi.exe"; "--optimize+"; "--nologo"; "--gui-"; "--readline-" |]
 
     let argv =
       match argv with
