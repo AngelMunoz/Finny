@@ -73,8 +73,8 @@ module CliOptions =
   type AddPackageOptions =
     { package: string
       version: string option
-      source: Provider
-      mode: RunConfiguration
+      source: Provider option
+      mode: RunConfiguration option
       alias: string option }
 
   type RemovePackageOptions =
@@ -93,8 +93,8 @@ module CliOptions =
       templateName: string }
 
   type RestoreOptions =
-    { source: Provider
-      mode: RunConfiguration }
+    { source: Provider option
+      mode: RunConfiguration option }
 
   type Init with
 
@@ -107,10 +107,32 @@ module CliOptions =
 open CliOptions
 
 
+[<RequireQualifiedAccess>]
 module Handlers =
   open AngleSharp.Html.Parser
   open Zio.FileSystems
   open Zio
+
+  let private updateTemplate
+    (template: PerlaTemplateRepository)
+    (branch: string)
+    (context: StatusContext)
+    =
+    context.Status <-
+      $"Download and extracting template {template.fullName}/{branch}"
+
+    Templates.Update({ template with branch = branch })
+
+  let private addTemplate
+    (simpleName: string)
+    (fullName: string)
+    (branch: string)
+    (path: string)
+    (context: StatusContext)
+    =
+    context.Status <- $"Download and extracting template {fullName}/{branch}"
+
+    Templates.Add(simpleName, fullName, branch, path)
 
   let runListTemplates (options: ListTemplatesOptions) =
     let results = Templates.List()
@@ -174,27 +196,6 @@ module Handlers =
         AnsiConsole.Write path
 
       0
-
-  let private updateTemplate
-    (template: PerlaTemplateRepository)
-    (branch: string)
-    (context: StatusContext)
-    =
-    context.Status <-
-      $"Download and extracting template {template.fullName}/{branch}"
-
-    Templates.Update({ template with branch = branch })
-
-  let private addTemplate
-    (simpleName: string)
-    (fullName: string)
-    (branch: string)
-    (path: string)
-    (context: StatusContext)
-    =
-    context.Status <- $"Download and extracting template {fullName}/{branch}"
-
-    Templates.Add(simpleName, fullName, branch, path)
 
   let runAddTemplate (opts: TemplateRepositoryOptions) =
     taskResult {
@@ -270,7 +271,9 @@ module Handlers =
 
         match Templates.FindOne(tplId) with
         | Some template ->
-          Logger.log $"Succesfully added {template.fullName} at {template.path}"
+          Logger.log
+            $"Successfully added {template.fullName} at {template.path}"
+
           return 0
         | None ->
           Logger.log
@@ -279,7 +282,6 @@ module Handlers =
           return 1
 
     }
-
 
   let runInit (options: InitOptions) =
     taskResult {
@@ -310,10 +312,7 @@ module Handlers =
           Logger.log "Nothing to do, finishing here"
           return 0
         else
-          do!
-            FileSystem.SetupEsbuild(
-              FSharp.UMX.UMX.tag Constants.Esbuild_Version
-            )
+          do! FileSystem.SetupEsbuild(UMX.tag Constants.Esbuild_Version)
 
           let! res =
             runAddTemplate
@@ -354,15 +353,11 @@ module Handlers =
         return 0
     }
 
-
-
   let runSearch (options: SearchOptions) =
     task {
       do! Dependencies.Search(options.package, options.page)
       return 0
     }
-
-
 
   let runShow (options: ShowPackageOptions) =
     task {
@@ -395,8 +390,8 @@ module Handlers =
         let inline aliasDependency (dep: Dependency) =
           let name =
             match dep.alias with
-            | ValueSome alias -> $"{alias}:{dep.name}"
-            | ValueNone -> dep.name
+            | Some alias -> $"{alias}:{dep.name}"
+            | None -> dep.name
 
           name, dep.version
 
@@ -414,65 +409,9 @@ module Handlers =
       return 0
     }
 
-  let runRemove (options: RemovePackageOptions) =
-    task {
-      let name = options.package
-      Logger.log ($"Removing: [red]{name}[/]", escape = false)
-      let config = Configuration.CurrentConfig
-
-      let inline filterNameOrAlias (dep: Dependency) =
-        match dep.alias with
-        | ValueSome alias -> not (dep.name = name || alias = name)
-        | ValueNone -> dep.name <> name
-
-      let deps =
-        option {
-          let! dependencies = config.dependencies
-
-          return dependencies |> Seq.filter filterNameOrAlias
-        }
-
-      let depDeps =
-        option {
-          let! devDependencies = config.devDependencies
-
-          return devDependencies |> Seq.filter filterNameOrAlias
-        }
-
-      match deps, depDeps with
-      | Some deps, Some devDeps ->
-        Configuration.WriteFieldsToFile(
-          [ PerlaWritableField.Dependencies deps
-            PerlaWritableField.DevDependencies devDeps ]
-        )
-      | Some deps, None ->
-        Configuration.WriteFieldsToFile(
-          [ PerlaWritableField.Dependencies deps ]
-        )
-      | None, Some devDeps ->
-        Configuration.WriteFieldsToFile(
-          [ PerlaWritableField.DevDependencies devDeps ]
-        )
-      | None, None -> ()
-
-
-      let deps =
-        deps
-        |> Option.defaultValue Seq.empty
-        |> Seq.map (fun p -> $"{p.name}@{p.version}")
-
-      match! Dependencies.Restore(deps, Provider.Jspm) with
-      | Ok map ->
-        FileSystem.WriteImportMap(map) |> ignore
-        return 0
-      | Error err ->
-        Logger.log ($"[bold red]{err}[/]")
-        return 1
-    }
-
   let runNew (opts: ProjectOptions) =
-    Logger.log ("Creating new project...")
-    let (user, template, child) = getTemplateAndChild opts.templateName
+    Logger.log "Creating new project..."
+    let user, template, child = getTemplateAndChild opts.templateName
 
     option {
       let! repository =
@@ -502,10 +441,10 @@ module Handlers =
           repository.branch,
           repository.name
         )
-        |> Option.map (Scaffolding.getConfigurationFromScript)
+        |> Option.map Scaffolding.getConfigurationFromScript
         |> Option.flatten
 
-      Logger.log ($"Creating structure...")
+      Logger.log $"Creating structure..."
 
       FileSystem.WriteTplRepositoryToDisk(
         UMX.tag<SystemPath> templatePath,
@@ -520,7 +459,6 @@ module Handlers =
         Logger.log $"Template [{opts.templateName}] was not found"
         1
       | Some n -> n
-
 
   let runRemoveTemplate (name: string) =
     let deleteOperation =
@@ -588,9 +526,64 @@ module Handlers =
 
     }
 
+  let runRemove (options: RemovePackageOptions) =
+    task {
+      let name = options.package
+      Logger.log ($"Removing: [red]{name}[/]", escape = false)
+      let config = Configuration.CurrentConfig
+
+      let map = FileSystem.ImportMap()
+
+      let dependencies, devDependencies =
+        let deps, devDeps =
+          Dependencies.LocateDependenciesFromMapAndConfig(
+            map,
+            { config with
+                dependencies =
+                  config.dependencies |> Seq.filter (fun d -> d.name <> name)
+                devDependencies =
+                  config.devDependencies |> Seq.filter (fun d -> d.name <> name) }
+          )
+
+        deps, devDeps
+
+      Configuration.WriteFieldsToFile(
+        [ PerlaWritableField.Dependencies dependencies
+          PerlaWritableField.DevDependencies devDependencies ]
+      )
+
+      let packages =
+        match config.runConfiguration with
+        | RunConfiguration.Production ->
+          dependencies |> Seq.map (fun f -> f.AsVersionedString)
+        | RunConfiguration.Development ->
+          [ yield! dependencies; yield! devDependencies ]
+          |> Seq.map (fun f -> f.AsVersionedString)
+
+      match!
+        Dependencies.Restore(
+          packages,
+          Provider.Jspm,
+          runConfig = config.runConfiguration
+        )
+      with
+      | Ok map ->
+        FileSystem.WriteImportMap(map) |> ignore
+        return 0
+      | Error err ->
+        Logger.log $"[bold red]{err}[/]"
+        return 1
+    }
+
   let runAdd (options: AddPackageOptions) =
     task {
-      let package, version = parsePackageName options.package
+      Configuration.UpdateFromCliArgs(
+        ?runConfig = options.mode,
+        ?provider = options.source
+      )
+
+      let config = Configuration.CurrentConfig
+      let package, packageVersion = parsePackageName options.package
 
       match options.alias with
       | Some _ ->
@@ -600,24 +593,44 @@ module Handlers =
         )
       | None -> ()
 
-      let provider = options.source
-
       let version =
-        match version with
+        match packageVersion with
         | Some version -> $"@{version}"
         | None -> ""
 
       let importMap = FileSystem.ImportMap()
-      Logger.log "Updating importmap..."
+      Logger.log "Updating Import Map..."
 
       let! map =
         Logger.spinner (
           $"Adding: [bold yellow]{package}{version}[/]",
-          Dependencies.Add($"{package}{version}", importMap, provider)
+          Dependencies.Add(
+            $"{package}{version}",
+            importMap,
+            provider = config.provider,
+            runConfig = config.runConfiguration
+          )
         )
 
       match map with
       | Ok map ->
+        let dependencies, devDependencies =
+          let deps, devDeps =
+            Dependencies.LocateDependenciesFromMapAndConfig(
+              map,
+              { config with
+                  dependencies =
+                    [ yield! config.dependencies
+                      { name = package
+                        version = packageVersion
+                        alias = options.alias } ] }
+            )
+
+          PerlaWritableField.Dependencies deps,
+          PerlaWritableField.DevDependencies devDeps
+
+        Configuration.WriteFieldsToFile([ dependencies; devDependencies ])
+
         FileSystem.WriteImportMap(map) |> ignore
         return 0
       | Error err ->
@@ -627,7 +640,10 @@ module Handlers =
 
   let runRestore (options: RestoreOptions) =
     task {
-      Configuration.UpdateFromCliArgs(options.mode, provider = options.source)
+      Configuration.UpdateFromCliArgs(
+        ?runConfig = options.mode,
+        ?provider = options.source
+      )
 
       let config = Configuration.CurrentConfig
 
@@ -642,18 +658,15 @@ module Handlers =
         // deduplicate repeated strings
         |> set
 
-      printfn "%A" packages
-      let provider = options.source
-
       match!
         Logger.spinner (
           "Fetching dependencies...",
-          Dependencies.Restore(packages, provider = provider)
+          Dependencies.Restore(packages, provider = config.provider)
         )
       with
       | Ok response -> FileSystem.WriteImportMap(response) |> ignore
       | Error err ->
-        Logger.log ($"An error happened restoring the import map:\n{err}")
+        Logger.log $"An error happened restoring the import map:\n{err}"
 
       return 0
     }
@@ -661,10 +674,13 @@ module Handlers =
   let runBuild (args: BuildOptions) =
     task {
 
-      Configuration.UpdateFromFile()
       Configuration.UpdateFromCliArgs(?runConfig = args.mode)
       let config = Configuration.CurrentConfig
       use cts = new CancellationTokenSource()
+
+      Console.CancelKeyPress.Add(fun _ ->
+        Logger.log "Got it, see you around!..."
+        cts.Cancel())
 
       match config.fable with
       | Some fable ->
@@ -688,7 +704,7 @@ module Handlers =
       try
         Directory.Delete(outDir, true)
         Directory.CreateDirectory(outDir) |> ignore
-      with ex ->
+      with _ ->
         ()
 
       Plugins.LoadPlugins(config.esbuild)
@@ -768,7 +784,7 @@ module Handlers =
           yield!
             js
             |> Seq.map (fun p ->
-              IO.Path.ChangeExtension(UMX.untag p, ".css") |> UMX.tag) ]
+              Path.ChangeExtension(UMX.untag p, ".css") |> UMX.tag) ]
 
       let! indexContent =
         task {
@@ -791,9 +807,8 @@ module Handlers =
             let deps = if args.disablePreloads then Seq.empty else deps
             return Build.GetIndexFile(document, css, js, map, deps)
           | Error err ->
-            Logger.log (
+            Logger.log
               $"We were unable to update static dependencies and import map: {err}, falling back to the map in disk"
-            )
 
             let map = FileSystem.ImportMap()
             return Build.GetIndexFile(document, css, js, map)
@@ -814,7 +829,7 @@ module Handlers =
       |> Seq.iter (fun file ->
         file.CopyTo(UPath.Combine(outDir, file.Name), true) |> ignore)
 
-      Logger.log ($"Cleaning up temp dir {tempDirectory}")
+      Logger.log $"Cleaning up temp dir {tempDirectory}"
 
       try
         Directory.Delete(UMX.untag tempDirectory, true)
@@ -846,7 +861,14 @@ module Handlers =
 
       use cts = new CancellationTokenSource()
 
-      do! backgroundTask { do! FileSystem.SetupEsbuild config.esbuild.version }
+      Console.CancelKeyPress.Add(fun _ ->
+        Logger.log "Got it, see you around!..."
+        cts.Cancel())
+
+      do!
+        backgroundTask {
+          do! FileSystem.SetupEsbuild(config.esbuild.version, cts.Token)
+        }
 
       Plugins.LoadPlugins(config.esbuild)
 
@@ -856,6 +878,7 @@ module Handlers =
         VirtualFileSystem.GetFileChangeStream config.mountDirectories
         |> VirtualFileSystem.ApplyVirtualOperations
 
+      // TODO: Grab these from esbuild
       let compilerErrors = Observable.empty
 
       let app = Server.GetServerApp(config, fileChangeEvents, compilerErrors)
@@ -885,8 +908,6 @@ module Handlers =
 
 
       Console.CancelKeyPress.Add(fun _ ->
-        Logger.log "Got it, see you around!..."
-        cts.Cancel()
         app.StopAsync() |> Async.AwaitTask |> Async.RunSynchronously)
 
       while not cts.IsCancellationRequested do
@@ -910,51 +931,63 @@ module Commands =
       static member OptionWithStrings
         (
           aliases: string seq,
-          values: string seq,
-          defaultValue: string,
+          ?values: string seq,
+          ?defaultValue: string,
           ?description
         ) =
-        Opt<string>(
-          aliases |> Array.ofSeq,
-          getDefaultValue = (fun _ -> defaultValue),
-          ?description = description
-        )
-          .FromAmong(values |> Array.ofSeq)
+        let option =
+          Opt<string option>(
+            aliases |> Array.ofSeq,
+            getDefaultValue = (fun _ -> defaultValue),
+            ?description = description
+          )
+
+        match values with
+        | Some values -> option.FromAmong(values |> Array.ofSeq)
+        | None -> option
         |> HandlerInput.OfOption
 
       static member ArgumentWithStrings
         (
           name: string,
-          defaultValue: string,
-          values: string seq,
+          ?values: string seq,
+          ?defaultValue: string,
           ?description
         ) =
-        Arg<string>(
-          name,
-          getDefaultValue = (fun _ -> defaultValue),
-          ?description = description
-        )
-          .FromAmong(values |> Array.ofSeq)
+        let arg =
+          Arg<string option>(
+            name,
+            getDefaultValue = (fun _ -> defaultValue),
+            ?description = description
+          )
+
+        match values with
+        | Some values -> arg.FromAmong(values |> Array.ofSeq)
+        | None -> arg
         |> HandlerInput.OfArgument
 
       static member ArgumentMaybe
         (
           name: string,
-          values: string seq,
+          ?values: string seq,
           ?description
         ) =
-        Arg<string option>(
-          name,
-          parse =
-            (fun argResult ->
-              match argResult.Tokens |> Seq.toList with
-              | [] -> None
-              | [ token ] -> Some token.Value
-              | _ :: _ ->
-                failwith "F# Option can only be used with a single argument."),
-          ?description = description
-        )
-          .FromAmong(values |> Array.ofSeq)
+        let arg =
+          Arg<string option>(
+            name,
+            parse =
+              (fun argResult ->
+                match argResult.Tokens |> Seq.toList with
+                | [] -> None
+                | [ token ] -> Some token.Value
+                | _ :: _ ->
+                  failwith "F# Option can only be used with a single argument."),
+            ?description = description
+          )
+
+        match values with
+        | Some values -> arg.FromAmong(values |> Array.ofSeq)
+        | None -> arg
         |> HandlerInput.OfArgument
 
   let runAsDev =
@@ -963,7 +996,7 @@ module Commands =
       "Use Dev dependencies when running, defaults to false"
     )
 
-  let buildCmd =
+  let Build =
     let disablePreloads =
       Input.OptionMaybe(
         [ "-dpl"; "--disable-preload-links" ],
@@ -989,7 +1022,7 @@ module Commands =
       setHandler (buildArgs >> Handlers.runBuild)
     }
 
-  let serveCmd =
+  let Serve =
 
     let port =
       Input.OptionMaybe<int>(
@@ -1028,13 +1061,13 @@ module Commands =
       setHandler (buildArgs >> Handlers.runServe)
     }
 
-  let initCmd =
+  let Init =
     let mode =
       Input.ArgumentWithStrings(
         "mode",
-        "simple",
         [ "simple"; "full" ],
-        "Selects if we are initializing a project, or perla itself"
+        description =
+          "Selects if we are initializing a project, or perla itself"
       )
 
     let path =
@@ -1053,12 +1086,13 @@ module Commands =
 
     let buildArgs
       (
-        mode: string,
+        mode: string option,
         path: DirectoryInfo option,
         yes: bool option,
         fable: bool option
       ) : InitOptions =
-      { mode = Init.FromString mode
+      { mode =
+          mode |> Option.map Init.FromString |> Option.defaultValue Init.Simple
         path =
           path
           |> Option.defaultWith (fun _ -> DirectoryInfo(Path.GetFullPath "./"))
@@ -1071,11 +1105,11 @@ module Commands =
       setHandler (buildArgs >> Handlers.runInit)
     }
 
-  let searchPackagesCmd =
+  let SearchPackages =
     let package =
       Input.Argument(
         "package",
-        "The package you want to search for in the skypack api"
+        "The package you want to search for in the Skypack api"
       )
 
     let page =
@@ -1090,17 +1124,17 @@ module Commands =
 
     command "search" {
       description
-        "Search a pacakge name in the skypack api, this will bring potential results"
+        "Search a package name in the Skypack api, this will bring potential results"
 
       inputs (package, page)
       setHandler (buildArgs >> Handlers.runSearch)
     }
 
-  let showPackageCmd =
+  let ShowPackage =
     let package =
       Input.Argument(
         "package",
-        "The package you want to search for in the skypack api"
+        "The package you want to search for in the Skypack api"
       )
 
     let buildArgs (package: string) : ShowPackageOptions = { package = package }
@@ -1113,11 +1147,11 @@ module Commands =
       setHandler (buildArgs >> Handlers.runShow)
     }
 
-  let removePackageCmd =
+  let RemovePackage =
     let package =
       Input.Argument(
         "package",
-        "The package you want to search for in the skypack api"
+        "The package you want to search for in the Skypack api"
       )
 
     let alias =
@@ -1140,7 +1174,7 @@ module Commands =
       setHandler (buildArgs >> Handlers.runRemove)
     }
 
-  let addPacakgeCmd =
+  let AddPackage =
     let package =
       Input.Argument(
         "package",
@@ -1185,13 +1219,13 @@ module Commands =
       (
         package: string,
         version: string option,
-        source: string,
+        source: string option,
         dev: bool option,
         alias: string option
       ) : AddPackageOptions =
       { package = package
         version = version
-        source = Provider.FromString source
+        source = source |> Option.map Provider.FromString
         mode =
           dev
           |> Option.map (fun dev ->
@@ -1199,7 +1233,6 @@ module Commands =
               RunConfiguration.Development
             else
               RunConfiguration.Production)
-          |> Option.defaultValue RunConfiguration.Production
         alias = alias }
 
     command "add" {
@@ -1210,7 +1243,7 @@ module Commands =
       setHandler (buildArgs >> Handlers.runAdd)
     }
 
-  let listCmd =
+  let ListDependencies =
 
     let asNpm =
       Input.OptionMaybe(
@@ -1236,26 +1269,28 @@ module Commands =
       setHandler (buildArgs >> Handlers.runList)
     }
 
-  let restoreCmd =
+  let Restore =
     let source =
       Input.OptionWithStrings(
         [ "--source"; "-s" ],
         [ "jspm"; "skypack"; "unpkg"; "jsdelivr"; "jspm.system" ],
-        "jspm",
-        "CDN that will be used to fetch dependencies from"
+        description = "CDN that will be used to fetch dependencies from"
       )
 
     let mode =
       Input.OptionWithStrings(
         [ "--mode"; "-m" ],
         [ "dev"; "development"; "prod"; "production" ],
-        "production",
-        "Restore Dependencies based on the mode to run"
+        description = "Restore Dependencies based on the mode to run"
       )
 
-    let buildArgs (source: string, mode: string) : RestoreOptions =
-      { source = Provider.FromString source
-        mode = RunConfiguration.FromString mode }
+    let buildArgs
+      (
+        source: string option,
+        mode: string option
+      ) : RestoreOptions =
+      { source = source |> Option.map Provider.FromString
+        mode = mode |> Option.map RunConfiguration.FromString }
 
     command "restore" {
       description
@@ -1265,7 +1300,7 @@ module Commands =
       setHandler (buildArgs >> Handlers.runRestore)
     }
 
-  let addTemplateCmd, updateTemplateCmd =
+  let AddTemplate, UpdateTemplate =
     let repoName =
       Input.Argument(
         "templateRepositoryName",
@@ -1303,24 +1338,32 @@ module Commands =
 
     add, update
 
-  let listTemplatesCmd =
+  let ListTemplates =
     let display =
-      Input.ArgumentWithStrings("format", "table", [ "table"; "simple" ])
+      Input.ArgumentWithStrings(
+        "format",
+        [ "table"; "simple" ],
+        description =
+          "The chosen format to display the existing perla templates"
+      )
 
-    let buildArgs (format: string) : ListTemplatesOptions =
-      let toFormat =
+    let buildArgs (format: string option) : ListTemplatesOptions =
+      let toFormat (format: string) =
         match format.ToLowerInvariant() with
         | "table" -> ListFormat.HumanReadable
         | _ -> ListFormat.TextOnly
 
-      { format = toFormat }
+      { format =
+          format
+          |> Option.map toFormat
+          |> Option.defaultValue ListFormat.HumanReadable }
 
     command "templates:list" {
       inputs display
       setHandler (buildArgs >> Handlers.runListTemplates)
     }
 
-  let removeTemplateCmd =
+  let RemoveTemplate =
     let repoName =
       Input.Argument(
         "templateRepositoryName",
@@ -1329,11 +1372,11 @@ module Commands =
 
     command "templates:delete" {
       description "Removes a template from the templates database"
-      inputs (repoName)
+      inputs repoName
       setHandler Handlers.runRemoveTemplate
     }
 
-  let newProjectCmd =
+  let NewProject =
     let name = Input.Argument("name", "Name of the new project")
 
     let templateName =
