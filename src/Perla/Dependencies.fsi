@@ -34,3 +34,6 @@ type Dependencies =
     static member SwitchProvider:
         map: ImportMap * provider: Provider * [<Optional>] ?runConfig: RunConfiguration ->
             Task<Result<ImportMap, string>>
+
+    static member LocateDependenciesFromMapAndConfig:
+        importMap: ImportMap * config: PerlaConfig -> (Dependency seq * Dependency seq)

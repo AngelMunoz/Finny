@@ -337,3 +337,49 @@ type Dependencies =
 
       return { resultMap with imports = allPackages }
     }
+
+  static member LocateDependenciesFromMapAndConfig
+    (
+      importMap: ImportMap,
+      config: PerlaConfig
+    ) =
+    let devDependencies =
+      config.devDependencies |> Seq.map (fun f -> f.name) |> set
+
+    let dependencies = config.dependencies |> Seq.map (fun f -> f.name) |> set
+
+    let allTogether = set dependencies |> Set.union (set devDependencies)
+
+    let fromImportMap =
+      importMap.imports
+      |> Map.toList
+      |> List.choose (fun (name, url) ->
+        match ExtractDependencyInfoFromUrl url with
+        | Some value ->
+          if allTogether |> Set.contains name then
+            Some value
+          else
+            None
+        | None -> None)
+      |> List.map (fun (provider, name, version) ->
+        { name = name
+          version = Some version
+          alias = None })
+
+    let (deps, devDeps) =
+      fromImportMap
+      |> List.fold
+           (fun (current: Set<Dependency> * Set<Dependency>) (next: Dependency) ->
+             let deps, devDeps = current
+
+             if dependencies |> Set.contains next.name then
+               (deps |> Set.add next, devDeps)
+             elif devDependencies |> Set.contains next.name then
+               (deps, devDeps |> Set.add next)
+             else
+               match config.runConfiguration with
+               | RunConfiguration.Production -> (deps |> Set.add next, devDeps)
+               | RunConfiguration.Development -> (deps, devDeps |> Set.add next))
+           (Set.empty<Dependency>, Set.empty<Dependency>)
+
+    seq deps, seq devDeps
