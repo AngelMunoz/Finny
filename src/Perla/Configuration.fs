@@ -73,7 +73,7 @@ module Defaults =
 
   let PerlaConfig =
     { index = UMX.tag Constants.IndexFile
-      runConfiguration = RunConfiguration.Development
+      runConfiguration = RunConfiguration.Production
       provider = Provider.Jspm
       build = BuildConfig
       devServer = DevServerConfig
@@ -381,8 +381,10 @@ type Configuration() =
     _fileConfig <- Json.getConfigDocument ()
     runPipeline ()
 
-  member _.WriteFieldsToFile(newValues: PerlaWritableField seq) =
+  member this.WriteFieldsToFile(newValues: PerlaWritableField seq) =
     Json.updateFileFields &_fileConfig newValues
+    FileSystem.FileSystem.WritePerlaConfig (?config=_fileConfig)
     runPipeline ()
+
 
 let Configuration = Configuration()
