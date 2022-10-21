@@ -273,6 +273,16 @@ let fromFile (fileContent: JsonObject option) (config: PerlaConfig) =
                 extension = defaultArg decoded.extension fable.extension
                 sourceMaps = defaultArg decoded.sourceMaps fable.sourceMaps
                 outDir = decoded.outDir }
+        | None, Some decoded ->
+          Some
+            { Defaults.FableConfig with
+                project =
+                  defaultArg decoded.project Defaults.FableConfig.project
+                extension =
+                  defaultArg decoded.extension Defaults.FableConfig.extension
+                sourceMaps =
+                  defaultArg decoded.sourceMaps Defaults.FableConfig.sourceMaps
+                outDir = decoded.outDir }
         | _, _ -> config.fable
 
       let devServer =
@@ -383,7 +393,7 @@ type Configuration() =
 
   member this.WriteFieldsToFile(newValues: PerlaWritableField seq) =
     Json.updateFileFields &_fileConfig newValues
-    FileSystem.FileSystem.WritePerlaConfig (?config=_fileConfig)
+    FileSystem.FileSystem.WritePerlaConfig(?config = _fileConfig)
     runPipeline ()
 
 
