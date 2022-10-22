@@ -5,3 +5,5 @@ Giraffe
 Argu
 Microsoft.Playwright
 Thoth.Json.Net
+Serilog.AspNetCore
+Serilog.Sinks.Console

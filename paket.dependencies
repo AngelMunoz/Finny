@@ -12,6 +12,7 @@ nuget FSharp.SystemCommandLine >= 0.13.0-beta4 prerelease
 nuget AngleSharp 0.17.1
 nuget Flurl.Http 3.2.4
 nuget CliWrap 3.5.0
+nuget Serilog.AspNetCore
 nuget Spectre.Console 0.45.0
 nuget LiteDB 5.0.12
 nuget Scriban 5.5.0

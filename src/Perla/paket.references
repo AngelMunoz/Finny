@@ -16,3 +16,5 @@ Scriban
 Zio
 Yarp.ReverseProxy
 Hellang.Middleware.SpaFallback
+Serilog.Sinks.Console
+Serilog.AspNetCore
