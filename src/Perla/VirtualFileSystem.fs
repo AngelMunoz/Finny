@@ -159,7 +159,9 @@ module VirtualFileSystem =
 
       let extension = globPath.GetExtensionWithDot()
 
-      if not (Plugins.HasPluginsForExtension extension) then
+      let isInFableMdules = globPath.FullName.Contains("fable_modules")
+
+      if not (Plugins.HasPluginsForExtension extension) || isInFableMdules then
         return
           copyFileWithoutPlugins pathInfo memoryFileSystem physicalFileSystem
       else
@@ -222,10 +224,14 @@ module VirtualFileSystem =
         }
         |> Async.AwaitTask
 
-      let! transform =
-        Plugins.ApplyPlugins(file, IO.Path.GetExtension(UMX.untag event.path))
+      let extension = IO.Path.GetExtension(UMX.untag event.path)
 
-      return (event, transform)
+      if extension = ".js" then
+        return event, { content = file; extension = ".js" }
+      else
+        let! transform = Plugins.ApplyPlugins(file, extension)
+
+        return (event, transform)
     }
 
   let internal copyToDisk
@@ -245,11 +251,11 @@ module VirtualFileSystem =
     =
     let fullUserPath = UMX.untag event.userPath |> IO.Path.GetFullPath
 
+
     let serverFullPath =
       let filePath = (UMX.untag event.path) |> IO.Path.GetFullPath
 
       filePath.Replace(fullUserPath, UMX.untag event.serverPath)
-      |> IO.Path.GetDirectoryName
       |> serverFs.ConvertPathFromInternal
 
     serverFs.CreateDirectory(serverFullPath.GetDirectory())
@@ -281,7 +287,8 @@ module VirtualFileSystem =
       event.path
       |> UMX.untag
       |> IO.Path.GetExtension
-      |> Plugins.HasPluginsForExtension
+      |> (fun extension ->
+        Plugins.HasPluginsForExtension extension || extension = ".js")
 
     normalizeEventStream (stream, withFilter, withReadFile)
     |> Observable.map (updateInVirtualFs withFs)
@@ -322,10 +329,6 @@ module VirtualFileSystem =
     |> Observable.throttle (TimeSpan.FromMilliseconds(450))
 
   let TryResolveFile (url: string<ServerUrl>) =
-    serverPaths.Value.EnumeratePaths("/", "*.*", IO.SearchOption.AllDirectories)
-    |> Seq.toList
-    |> printfn "%A"
-
     try
       serverPaths.Value.ReadAllText $"{url}" |> Some
     with _ ->

@@ -214,7 +214,7 @@ type Esbuild =
   static member GetPlugin(config: EsbuildConfig) : PluginInfo =
     let shouldTransform: FilePredicate =
       fun extension ->
-        [ ".jsx"; ".tsx"; ".ts"; ".js"; ".css" ] |> List.contains extension
+        [ ".jsx"; ".tsx"; ".ts"; ".css" ] |> List.contains extension
 
     let transform: TransformTask =
       fun args ->
