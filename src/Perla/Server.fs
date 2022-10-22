@@ -20,6 +20,7 @@ open Microsoft.AspNetCore.Http
 open Microsoft.Extensions.DependencyInjection
 open Microsoft.Extensions.Logging
 open Microsoft.Extensions.Primitives
+open Microsoft.Extensions.Hosting
 open Microsoft.AspNetCore.StaticFiles
 open Microsoft.Net.Http.Headers
 
@@ -43,6 +44,9 @@ open Perla.VirtualFs
 open FSharp.UMX
 
 open Hellang.Middleware.SpaFallback
+
+open Serilog
+open Serilog.Events
 
 module Types =
 
@@ -71,6 +75,7 @@ module Types =
       | CompileError err -> $"event:compile-err\ndata:{err}\n\n"
 
 open Types
+open Microsoft.Extensions.Hosting
 
 [<AutoOpen>]
 module Extensions =
@@ -309,9 +314,8 @@ document.head.appendChild(style).innerHTML=`{content}`;"""
 
   let SendScript (script: PerlaScript) (ctx: HttpContext) =
     task {
-      let logger = ctx.GetLogger("Perla:")
 
-      logger.LogInformation($"Sending Script %A{script}")
+      Logger.log ($"Sending Script %A{script}", target = PrefixKind.Serve)
 
       match script with
       | PerlaScript.LiveReload ->
@@ -330,13 +334,19 @@ document.head.appendChild(style).innerHTML=`{content}`;"""
               "text/javascript"
             )
         | None ->
-          logger.LogWarning(
-            "An env file was requested but no env variables were found"
+          Logger.log (
+            "An env file was requested but no env variables were found",
+            target = PrefixKind.Serve
           )
 
           let message =
             """If you want to use env variables, remember to prefix them with 'PERLA_' e.g.
 'PERLA_myApiKey' or 'PERLA_CLIENT_SECRET', then you will be able to import them via the env file"""
+
+          Logger.logCustom (
+            $"[bold red]Env Content not found[/][bold yellow]{message}[/]",
+            escape = false
+          )
 
           return Results.NotFound({| message = message |})
     }
@@ -509,10 +519,23 @@ type Server =
       new FileExtensionContentTypeProvider())
     |> ignore
 
+    builder.Host.UseSerilog(fun hostingContext configureLogger ->
+      configureLogger
+        .MinimumLevel
+        .Override("Microsoft.AspNetCore", LogEventLevel.Warning)
+        .MinimumLevel.Information()
+        .Enrich.FromLogContext()
+        .WriteTo.Console()
+      |> ignore)
+    |> ignore
+
     let app = builder.Build()
 
     app.Urls.Add(http)
     app.Urls.Add(https)
+
+
+    app.UseSerilogRequestLogging() |> ignore
 
     if enableEnv then
       app.MapGet(
@@ -573,8 +596,16 @@ type Server =
       |> ignore
     | true -> ()
 
-    app.Use(
-      Func<HttpContext, RequestDelegate, Task>(Middleware.ResolveFile config)
+    app.UseWhen(
+      Func<HttpContext, bool>(fun ctx ->
+        not (ctx.Request.Path.StartsWithSegments(PathString("/~perla~")))),
+      (fun app ->
+        app.Use(
+          Func<HttpContext, RequestDelegate, Task>(
+            Middleware.ResolveFile config
+          )
+        )
+        |> ignore)
     )
     |> ignore
 
