@@ -13,7 +13,20 @@
             "args": [
                 "serve"
             ],
-            "cwd": "${workspaceFolder}/src/App",
+            "cwd": "${workspaceFolder}/sample",
+            "stopAtEntry": false,
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Perla build",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build",
+            "program": "${workspaceFolder}/src/Perla/bin/Debug/net6.0/Perla.dll",
+            "args": [
+                "build"
+            ],
+            "cwd": "${workspaceFolder}/sample",
             "stopAtEntry": false,
             "console": "integratedTerminal"
         },
@@ -85,19 +98,6 @@
                 "@shoelace-style/shoelace"
             ],
             "cwd": "${workspaceFolder}/docs",
-            "stopAtEntry": false,
-            "console": "integratedTerminal"
-        },
-        {
-            "name": "Build App",
-            "type": "coreclr",
-            "request": "launch",
-            "preLaunchTask": "build",
-            "program": "${workspaceFolder}/src/Perla/bin/Debug/net6.0/Perla.dll",
-            "args": [
-                "build"
-            ],
-            "cwd": "${workspaceFolder}/sample",
             "stopAtEntry": false,
             "console": "integratedTerminal"
         },
