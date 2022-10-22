@@ -27,8 +27,8 @@ const rows = [
       content: (
         <>
           <p>
-            Perla uses <b>.NET</b> and <b>Go</b> under the hood for a blazing
-            fast development experience!
+            Perla uses <b>.NET</b> and <b>Go</b> under the hood for a performant
+            development experience!
           </p>
         </>
       ),
