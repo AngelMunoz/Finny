@@ -1,30 +1,39 @@
 {
-  "$schema": "../../perla.schema.json",
-  "index": "./index.html",
+  "$schema": "../perla.schema.json",
+  "provider": "jspm",
   "fable": {
     "project": "./src/App.fsproj",
-    "extension": ".fs.js"
+    "extension": ".js",
+    "outDir": "./fable_output"
   },
-  "devServer": {
-    "mountDirectories": {
-      "./assets": "/assets",
-      "./src": "/src"
-    },
-    "liveReload": true
+  "mountDirectories": {
+    "/src": "./src",
+    "/fable_output": "./fable_output",
+    "/assets": "./assets"
   },
   "build": {
-    "copyPaths": {
-      "includes": [
-        "./src/translations.json"
-      ]
-    },
-    "minify": false,
-    "emitEnvFile": true
+    "includes": [
+      "assets/favicon.ico",
+      "assets/manifest.webmanifest"
+    ]
   },
-  "packages": {
-    "fsharp-components": "https://cdn.skypack.dev/pin/fsharp-components@v0.0.4-vrcdq1fAiAHCYER7N99I/mode=imports/optimized/fsharp-components.js",
-    "lit": "https://ga.jspm.io/npm:lit@2.1.1/index.js",
-    "lit-html": "https://ga.jspm.io/npm:lit-html@1.4.1/lit-html.js",
-    "rxjs": "https://ga.jspm.io/npm:rxjs@7.5.2/dist/esm5/index.js"
-  }
+  "dependencies": [
+    {
+      "name": "fsharp-components",
+      "version": "0.0.4"
+    },
+    {
+      "name": "lit",
+      "version": "2.4.0"
+    },
+    {
+      "name": "lit-html",
+      "version": "2.4.0"
+    },
+    {
+      "name": "rxjs",
+      "version": "7.5.7"
+    }
+  ],
+  "devDependencies": []
 }
