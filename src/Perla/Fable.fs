@@ -55,7 +55,6 @@ module Fable =
 
     Cli
       .Wrap(execBinName)
-      .WithEnvironmentVariables(fun env -> env.Set("CI", "1") |> ignore)
       .WithArguments(fun args ->
         args.Add("fable")
         |> addWatch isWatch

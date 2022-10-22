@@ -685,11 +685,9 @@ module Handlers =
       match config.fable with
       | Some fable ->
         do!
-          Logger.spinner (
-            "Running Fable...",
-            Fable.Start(fable, false, cancellationToken = cts.Token)
-          )
-          :> Task
+          backgroundTask {
+            do! Fable.Start(fable, false, cancellationToken = cts.Token) :> Task
+          }
       | None ->
         Logger.log (
           "No Fable configuration provided, skipping fable",
@@ -865,6 +863,36 @@ module Handlers =
         Logger.log "Got it, see you around!..."
         cts.Cancel())
 
+      let mutable urls = None
+
+      match config.fable with
+      | Some fable ->
+        backgroundTask {
+          let logger msg =
+            Logger.log msg
+            let msg = msg.ToLowerInvariant()
+
+            if
+              msg.Contains("watching") || msg.Contains("compilation finished")
+            then
+
+              let urls =
+                match urls with
+                | Some urls ->
+                  urls |> Seq.fold (fun current next -> $"{current}\n{next}") ""
+                | None ->
+                  $"http://{config.devServer.host}:{config.devServer.port - 1}\nhttps://{config.devServer.host}:{config.devServer.port}"
+
+              Logger.log $"Server Ready at:"
+              Logger.log $"{urls}"
+
+          do!
+            Fable.Start(fable, true, logger, cancellationToken = cts.Token)
+            :> Task
+        }
+        |> ignore
+      | None -> ()
+
       do!
         backgroundTask {
           do! FileSystem.SetupEsbuild(config.esbuild.version, cts.Token)
@@ -874,6 +902,7 @@ module Handlers =
 
       do! VirtualFileSystem.Mount(config)
 
+
       let fileChangeEvents =
         VirtualFileSystem.GetFileChangeStream config.mountDirectories
         |> VirtualFileSystem.ApplyVirtualOperations
@@ -882,30 +911,10 @@ module Handlers =
       let compilerErrors = Observable.empty
 
       let app = Server.GetServerApp(config, fileChangeEvents, compilerErrors)
+
+      urls <- Some app.Urls
+
       do! app.StartAsync(cts.Token)
-
-      match config.fable with
-      | Some fable ->
-        backgroundTask {
-          let logger msg =
-            Logger.log msg
-
-            if msg.ToLowerInvariant().Contains("watching") then
-              let urls =
-                app.Urls
-                |> Seq.fold (fun current next -> $"{current}\n{next}") ""
-
-              Logger.log $"Server Ready at {urls}"
-
-              app.StartAsync(cts.Token) |> Async.AwaitTask |> Async.Start
-
-          do!
-            Fable.Start(fable, true, logger, cancellationToken = cts.Token)
-            :> Task
-        }
-        |> ignore
-      | None -> ()
-
 
       Console.CancelKeyPress.Add(fun _ ->
         app.StopAsync() |> Async.AwaitTask |> Async.RunSynchronously)
