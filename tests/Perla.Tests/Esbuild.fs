@@ -31,8 +31,8 @@ type Esbuild() =
     Assert.True(plugin.shouldProcessFile.Value ".jsx")
     Assert.True(plugin.shouldProcessFile.Value ".tsx")
     Assert.True(plugin.shouldProcessFile.Value ".ts")
-    Assert.True(plugin.shouldProcessFile.Value ".js")
     Assert.True(plugin.shouldProcessFile.Value ".css")
+    Assert.False(plugin.shouldProcessFile.Value ".js")
 
   [<Fact>]
   member _.``Esbuild Plugin should process JSX``() =

@@ -2,15 +2,6 @@
 
 open Xunit
 open Perla.Types
-open Perla.CliOptions
-
-module Init =
-
-  [<Fact>]
-  let ``Init should be able to be converted from string`` () =
-    Assert.Equal(Init.Full, Init.FromString "full")
-    Assert.Equal(Init.Simple, Init.FromString "simple")
-    Assert.Equal(Init.Simple, Init.FromString "3895746789345789cdsvdfsbthert")
 
 module RunConfiguration =
 
