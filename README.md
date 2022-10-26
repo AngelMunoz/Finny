@@ -23,6 +23,35 @@ This project is in development, current goals at this point are:
 
 For more information check the Issues tab.
 
+```
+Description:
+  The Perla Dev Server!
+
+Usage:
+  Perla [command] [options]
+
+Options:
+  --version       Show version information
+  -?, -h, --help  Show help and usage information
+  --info <info>   Brings the Help dialog []
+
+Commands:
+  serve                                              My Command
+  build                                              Builds the SPA application for distribution
+  init                                               Initialized a given directory or perla itself
+  search <package> <page>                            Search a package name in the Skypack api, this will bring potential results []
+  show <package>                                     Shows information about a package if the name matches an existing one
+  remove <package>                                   removes a package from the
+  add <package>                                      Shows information about a package if the name matches an existing one
+  list                                               Lists the current dependencies in a table or an npm style json string
+  restore                                            Restore the import map based on the selected mode, defaults to production
+  templates:add <templateRepositoryName> <banch>     Adds a new template from a particular repository
+  templates:update <templateRepositoryName> <banch>  Updates an existing template in the templates database
+  templates:list <simple|table>                      My Command []
+  templates:delete <templateRepositoryName>          Removes a template from the templates database
+  new <name> <templateName>                          Creates a new project based on the selected template if it exists
+```
+
 ## Existing tools
 
 If you actually use and like nodejs, then you would be better taking a look at the tools that inspired this repository
