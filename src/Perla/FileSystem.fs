@@ -28,6 +28,7 @@ open FsToolkit.ErrorHandling
 
 open Fake.IO.Globbing
 open Fake.IO.Globbing.Operators
+open Spectre.Console
 
 [<RequireQualifiedAccess>]
 module FileSystem =
@@ -44,11 +45,16 @@ module FileSystem =
   let CurrentWorkingDirectory () : string<SystemPath> =
     UMX.tag<SystemPath> Environment.CurrentDirectory
 
+  let PerlaArtifactsRoot: string<SystemPath> =
+    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData)
+    / Constants.ArtifactsDirectoryname
+    |> UMX.tag<SystemPath>
+
   let Database: string<SystemPath> =
-    (UMX.untag AssemblyRoot) / Constants.TemplatesDatabase |> UMX.tag
+    (UMX.untag PerlaArtifactsRoot) / Constants.TemplatesDatabase |> UMX.tag
 
   let Templates: string<SystemPath> =
-    (UMX.untag AssemblyRoot) / Constants.TemplatesDirectory |> UMX.tag
+    (UMX.untag PerlaArtifactsRoot) / Constants.TemplatesDirectory |> UMX.tag
 
   let rec findConfigFile (directory: string, fileName: string) =
     let config = directory / fileName
@@ -102,31 +108,39 @@ module FileSystem =
 
     content
 
-  let ExtractTemplateZip (name: string<SystemPath>) stream =
-    let path = Path.Combine(UMX.untag Templates, UMX.untag name)
+  let ExtractTemplateZip
+    (username: string, repository: string, branch: string)
+    stream
+    =
+    let targetPath =
+      Path.Combine(UMX.untag Templates, $"{username}-{repository}-{branch}")
 
     try
-      Directory.Delete(path)
-    with _ ->
-      ()
+      Directory.Delete(targetPath, true)
+    with ex ->
+      Logger.log ex.Message
 
-    Directory.CreateDirectory(path) |> ignore
     use zip = new ZipArchive(stream)
-    zip.ExtractToDirectory path
+    zip.ExtractToDirectory(UMX.untag Templates, true)
 
-  let RemoveTemplateDirectory (name: string<SystemPath>) =
-    let path = Path.Combine(UMX.untag Templates, UMX.untag name)
+    Directory.Move(
+      Path.Combine(UMX.untag Templates, $"{repository}-{branch}"),
+      targetPath
+    )
 
+    UMX.tag<SystemPath> targetPath
+
+  let RemoveTemplateDirectory (path: string<SystemPath>) =
     try
-      Directory.Delete(path)
-    with _ ->
-      ()
+      Directory.Delete(UMX.untag path)
+    with ex ->
+      Logger.log (ex.Message)
 
   let EsbuildBinaryPath () : string<SystemPath> =
     let bin = if Env.IsWindows then "" else "bin"
     let exec = if Env.IsWindows then ".exe" else ""
 
-    (UMX.untag AssemblyRoot) / "package" / bin / $"esbuild{exec}"
+    (UMX.untag PerlaArtifactsRoot) / "package" / bin / $"esbuild{exec}"
     |> Path.GetFullPath
     |> UMX.tag
 
@@ -143,7 +157,7 @@ module FileSystem =
       cancellationToken: CancellationToken option
     ) : Task<string option> =
     let binString = $"esbuild-{Env.PlatformString}-{Env.ArchString}"
-    let compressedFile = (UMX.untag AssemblyRoot) / "esbuild.tgz"
+    let compressedFile = (UMX.untag PerlaArtifactsRoot) / "esbuild.tgz"
 
     let url =
       $"https://registry.npmjs.org/{binString}/-/{binString}-{esbuildVersion}.tgz"
@@ -238,12 +252,25 @@ module FileSystem =
     let opts = EnumerationOptions()
     opts.RecurseSubdirectories <- true
 
-    DirectoryInfo(UMX.untag path)
-      .EnumerateFiles("*.*", SearchOption.AllDirectories)
-    |> Seq.filter (fun file -> file.Extension <> ".fsx")
-    |> Seq.fold
-         foldFilesAndTemplates
-         (List.empty<FileInfo>, List.empty<FileInfo>)
+    try
+      DirectoryInfo(UMX.untag path)
+        .EnumerateFiles("*.*", SearchOption.AllDirectories)
+      |> Seq.filter (fun file -> file.Extension <> ".fsx")
+      |> Seq.fold
+           foldFilesAndTemplates
+           (List.empty<FileInfo>, List.empty<FileInfo>)
+    with :? DirectoryNotFoundException ->
+      Logger.log (
+        "[bold red]While the repository was found, the chosen template was not[/]",
+        escape = false
+      )
+
+      Logger.log (
+        $"Please ensure you chose the correct template and [bold red]{DirectoryInfo(UMX.untag path).Name}[/] exists",
+        escape = false
+      )
+
+      (List.empty, List.empty)
 
 type FileSystem =
   static member PerlaConfigText(?fromDirectory: string<SystemPath>) =
@@ -293,28 +320,38 @@ type FileSystem =
 
   static member WritePerlaConfig(?config: JsonObject, ?fromDirectory) =
     let path = FileSystem.GetConfigPath Constants.PerlaConfigName fromDirectory
+
     match config with
     | Some config ->
       try
-        File.WriteAllText(UMX.untag path, config.ToJsonString(Json.DefaultJsonOptions()))
+        File.WriteAllText(
+          UMX.untag path,
+          config.ToJsonString(Json.DefaultJsonOptions())
+        )
       with ex ->
         Logger.log (
           $"[bold red]Unable to write file at[/][bold yellow]{path}[/]",
           ex = ex,
           escape = false
         )
+
         exit (1)
     | None -> ()
 
   static member PathForTemplate
     (
-      name: string,
+      username: string,
+      repository: string,
       branch: string,
       ?tplName: string
     ) =
     let tplName = defaultArg tplName ""
 
-    Path.Combine(UMX.untag FileSystem.Templates, $"{name}-{branch}", tplName)
+    Path.Combine(
+      UMX.untag FileSystem.Templates,
+      $"{username}-{repository}-{branch}",
+      tplName
+    )
 
   static member SetupEsbuild
     (
@@ -349,12 +386,19 @@ type FileSystem =
 
   static member GetTemplateScriptContent
     (
-      name: string,
+      username: string,
+      repository: string,
       branch: string,
-      tplname: string
+      ?tplName: string
     ) =
     let readTemplateScript =
-      let templateScriptPath = FileSystem.PathForTemplate(name, branch, tplname)
+      let templateScriptPath =
+        FileSystem.PathForTemplate(
+          username,
+          repository,
+          branch,
+          ?tplName = tplName
+        )
 
       try
         File.ReadAllText(
@@ -365,7 +409,8 @@ type FileSystem =
         None
 
     let readRepoScript () =
-      let repositoryScriptPath = FileSystem.PathForTemplate(name, branch)
+      let repositoryScriptPath =
+        FileSystem.PathForTemplate(username, repository, branch)
 
       try
         File.ReadAllText(
@@ -388,19 +433,22 @@ type FileSystem =
 
     let (files, templates) = FileSystem.collectRepositoryFiles origin
 
-    let compileFiles (payload: obj option) (file: string) =
-      let tpl = Scriban.Template.Parse(file)
-      tpl.Render(payload |> Option.toObj)
 
-    let copyFiles () =
+    let copyFiles (ctx: ProgressTask) =
       files
       |> Array.ofList
       |> Array.Parallel.iter (fun file ->
         file.Directory.Create()
         let target = file.FullName.Replace(originDirectory, targetDirectory)
-        file.CopyTo(target, true) |> ignore)
+        Directory.CreateDirectory(Path.GetDirectoryName target) |> ignore
+        file.CopyTo(target, true) |> ignore
+        ctx.Increment(1.))
 
-    let copyTemplates () =
+    let copyTemplates (ctx: ProgressTask) =
+      let compileFiles (payload: obj option) (file: string) =
+        let tpl = Scriban.Template.Parse(file)
+        tpl.Render(payload |> Option.toObj)
+
       templates
       |> Array.ofList
       |> Array.Parallel.iter (fun file ->
@@ -414,42 +462,29 @@ type FileSystem =
 
         let content = compileFiles payload (File.ReadAllText file.FullName)
 
-        File.WriteAllText(target, content))
+        File.WriteAllText(target, content)
+        ctx.Increment(1.))
 
     DirectoryInfo(UMX.untag target).Create()
-    copyFiles ()
-    copyTemplates ()
+    let progress = AnsiConsole.Progress()
 
-  static member GenerateSimpleFable(path: string<SystemPath>) =
-    let getDotnet () =
-      let ext = if Env.IsWindows then ".exe" else ""
-      Cli.Wrap($"dotnet{ext}")
+    progress.Start(fun ctx ->
+      let copyTask =
+        ctx.AddTask(
+          "Copy Files",
+          ProgressTaskSettings(AutoStart = true, MaxValue = files.Length)
+        )
 
-    let newManifest () =
-      getDotnet()
-        .WithArguments("new tool-manifest")
-        .WithValidation(CommandResultValidation.ZeroExitCode)
-        .ExecuteAsync()
 
-    let addFableToManifest () =
-      getDotnet()
-        .WithArguments("tool instal fable")
-        .WithValidation(CommandResultValidation.ZeroExitCode)
-        .ExecuteAsync()
+      copyFiles (copyTask)
+      copyTask.StopTask()
 
-    let createFableLib () =
-      getDotnet()
-        .WithArguments($"new classlib -lang F# -o {path} -n App")
-        .WithValidation(CommandResultValidation.ZeroExitCode)
-        .ExecuteAsync()
+      if templates.Length > 0 then
+        let processTemplates =
+          ctx.AddTask(
+            "Process Templates",
+            ProgressTaskSettings(AutoStart = true, MaxValue = templates.Length)
+          )
 
-    async {
-      try
-        do! newManifest().Task |> Async.AwaitTask |> Async.Ignore
-        do! addFableToManifest().Task |> Async.AwaitTask |> Async.Ignore
-      with :? Exceptions.CommandExecutionException ->
-        Logger.log
-          "We could not add the Fable tool to the local tools manifest, you will have to do this yourself."
-
-      do! createFableLib().Task |> Async.AwaitTask |> Async.Ignore
-    }
+        copyTemplates (processTemplates)
+        processTemplates.StopTask())

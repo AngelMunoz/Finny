@@ -17,6 +17,7 @@ module FileSystem =
         val inline (/): a: string -> b: string -> string
 
     val AssemblyRoot: string<SystemPath>
+    val PerlaArtifactsRoot: string<SystemPath>
     val Database: string<SystemPath>
     val Templates: string<SystemPath>
     val PerlaConfigPath: string<SystemPath>
@@ -24,8 +25,11 @@ module FileSystem =
     val WorkerScript: Lazy<string>
     val CurrentWorkingDirectory: unit -> string<SystemPath>
     val GetConfigPath: fileName: string -> fromDirectory: string<SystemPath> option -> string<SystemPath>
-    val ExtractTemplateZip: name: string<SystemPath> -> stream: Stream -> unit
-    val RemoveTemplateDirectory: name: string<SystemPath> -> unit
+
+    val ExtractTemplateZip:
+        username: string * repository: string * branch: string -> stream: Stream -> string<SystemPath>
+
+    val RemoveTemplateDirectory: path: string<SystemPath> -> unit
     val EsbuildBinaryPath: unit -> string<SystemPath>
     val TryReadTsConfig: unit -> string option
     val GetTempDir: unit -> string
@@ -40,10 +44,10 @@ type FileSystem =
         esbuildVersion: string<Semver> * [<Optional>] ?cancellationToken: CancellationToken -> Task<unit>
     static member WriteImportMap: map: ImportMap * ?fromDirectory: string<SystemPath> -> ImportMap
     static member WritePerlaConfig: ?config: JsonObject * ?fromDirectory: string<SystemPath> -> unit
-    static member PathForTemplate: name: string * branch: string * ?tplName: string -> string
+    static member PathForTemplate: username: string * repository: string * branch: string * ?tplName: string -> string
     static member WriteTplRepositoryToDisk:
         origin: string<SystemPath> * target: string<UserPath> * ?payload: obj -> unit
-    static member GetTemplateScriptContent: name: string * branch: string * tplname: string -> string option
+    static member GetTemplateScriptContent:
+        username: string * repository: string * branch: string * ?tplName: string -> string option
     static member IndexFile: fromConfig: string<SystemPath> -> string
     static member PluginFiles: unit -> (string * string) array
-    static member GenerateSimpleFable: path: string<SystemPath> -> Async<unit>

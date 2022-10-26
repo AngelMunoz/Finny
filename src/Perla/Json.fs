@@ -144,8 +144,7 @@ module ConfigDecoders =
   let DependencyDecoder: Decoder<Dependency> =
     Decode.object (fun get ->
       { name = get.Required.Field "name" Decode.string
-        version =
-          get.Optional.Field "version" Decode.string
+        version = get.Optional.Field "version" Decode.string
         alias = get.Optional.Field "alias" Decode.string })
 
   let PerlaDecoder: Decoder<DecodedPerlaConfig> =

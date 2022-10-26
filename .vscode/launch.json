@@ -31,15 +31,15 @@
             "console": "integratedTerminal"
         },
         {
-            "name": "Perla init simple",
+            "name": "Perla templates:add default repo",
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build",
             "program": "${workspaceFolder}/src/Perla/bin/Debug/net6.0/Perla.dll",
             "args": [
-                "init",
-                "-k",
-                "simple"
+                "templates:add",
+                "AngelMunoz/perla-templates",
+                "main"
             ],
             "cwd": "${workspaceFolder}",
             "stopAtEntry": false,

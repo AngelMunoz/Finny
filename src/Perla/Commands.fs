@@ -37,12 +37,6 @@ open Perla.PackageManager.Types
 
 
 module CliOptions =
-
-  [<Struct; RequireQualifiedAccess>]
-  type Init =
-    | Full
-    | Simple
-
   [<Struct; RequireQualifiedAccess>]
   type ListFormat =
     | HumanReadable
@@ -58,11 +52,7 @@ module CliOptions =
     { mode: RunConfiguration option
       disablePreloads: bool }
 
-  type InitOptions =
-    { path: DirectoryInfo
-      useFable: bool
-      mode: Init
-      yes: bool }
+  type SetupOptions = { skipPrompts: bool }
 
   type SearchOptions = { package: string; page: int }
 
@@ -85,8 +75,8 @@ module CliOptions =
 
   type TemplateRepositoryOptions =
     { fullRepositoryName: string
-      yes: bool
-      branch: string }
+      branch: string
+      yes: bool }
 
   type ProjectOptions =
     { projectName: string
@@ -95,14 +85,6 @@ module CliOptions =
   type RestoreOptions =
     { source: Provider option
       mode: RunConfiguration option }
-
-  type Init with
-
-    static member FromString(value: string) =
-      match value.ToLowerInvariant() with
-      | "full" -> Init.Full
-      | "simple"
-      | _ -> Init.Simple
 
 open CliOptions
 
@@ -119,20 +101,20 @@ module Handlers =
     (context: StatusContext)
     =
     context.Status <-
-      $"Download and extracting template {template.fullName}/{branch}"
+      $"Download and extracting template {template.ToFullNameWithBranch}"
 
     Templates.Update({ template with branch = branch })
 
   let private addTemplate
-    (simpleName: string)
-    (fullName: string)
+    (user: string)
+    (repository: string)
     (branch: string)
-    (path: string)
     (context: StatusContext)
     =
-    context.Status <- $"Download and extracting template {fullName}/{branch}"
+    context.Status <-
+      $"Download and extracting template {user}/{repository}:{branch}"
 
-    Templates.Add(simpleName, fullName, branch, path)
+    Templates.Add(user, repository, branch)
 
   let runListTemplates (options: ListTemplatesOptions) =
     let results = Templates.List()
@@ -161,24 +143,28 @@ module Handlers =
 
         let children =
           let names =
-            FileSystem.PathForTemplate(
-              result.fullName,
-              result.branch,
-              result.name
-            )
-            |> Seq.map (fun d -> $"[green]{d}[/]")
+            let basePath =
+              FileSystem.PathForTemplate(
+                result.username,
+                result.repository,
+                result.branch
+              )
+
+            DirectoryInfo(basePath).EnumerateDirectories()
+            |> Seq.map (fun d -> $"[green]{d.Name}[/]")
 
           String.Join("\n", names) |> Markup
 
         let path =
-          let path = TextPath(result.path)
-          path.LeafStyle <- Style(Color.Green)
-          path.StemStyle <- Style(Color.Yellow)
-          path.SeparatorStyle <- Style(Color.Blue)
-          path
+          TextPath(
+            UMX.untag result.path,
+            LeafStyle = Style(Color.Green),
+            StemStyle = Style(Color.Yellow),
+            SeparatorStyle = Style(Color.Blue)
+          )
 
         table.AddRow(
-          Markup($"[yellow]{result.fullName}[/]"),
+          Markup($"[yellow]{result.ToFullName}[/]"),
           children,
           Markup(result.branch),
           Markup(printedDate),
@@ -190,28 +176,64 @@ module Handlers =
       0
     | ListFormat.TextOnly ->
       for result in results do
-        Logger.log $"[bold green]{result.fullName}[/] - {result.branch}"
+        Logger.log
+          $"[bold green]{result.ToFullName}[/]:[bold yellow]{result.branch}[/]"
 
-        let path = TextPath(result.path).StemColor(Color.Blue)
+        let path = TextPath(UMX.untag result.path).StemColor(Color.Blue)
         AnsiConsole.Write path
 
       0
 
   let runAddTemplate (opts: TemplateRepositoryOptions) =
-    taskResult {
+    task {
       let autoContinue = opts.yes
 
-      let! simpleName =
-        getRepositoryName opts.fullRepositoryName
-        |> Result.mapError (fun err ->
-          err.AsString |> FailedToParseNameException)
+      let mutable chosen = parseFullRepositoryName opts.fullRepositoryName
+
+      while chosen |> Option.isNone do
+        chosen <-
+          AnsiConsole.Ask(
+            "that doesn't feel right, please tell us the  username/repository:branch github repository to look for templates"
+          )
+          |> parseFullRepositoryName
+
+        match chosen with
+        | None -> ()
+        | parsed -> chosen <- parsed
+
+      let (username, repository, branch) = chosen.Value
 
       let template =
-        opts.fullRepositoryName |> NameKind.FullName |> Templates.FindOne
+        TemplateSearchKind.FullName(username, repository) |> Templates.FindOne
 
-      match template with
-      | Some template ->
-        if autoContinue then
+      match template, autoContinue with
+      | Some template, true ->
+        match!
+          Logger.spinner (
+            "Updating Templates",
+            updateTemplate template opts.branch
+          )
+        with
+        | true ->
+          Logger.log
+            $"{opts.fullRepositoryName} - {opts.branch} updated correctly"
+
+          return 0
+        | false ->
+          Logger.log
+            $"{opts.fullRepositoryName} - {opts.branch} was not updated"
+
+          return 1
+      | Some template, false ->
+        let prompt =
+          SelectionPrompt<string>(
+            Title =
+              $"\"{opts.fullRepositoryName}\" already exists, Do you want to update it?"
+          )
+            .AddChoices([ "Yes"; "No" ])
+
+        match AnsiConsole.Prompt(prompt) with
+        | "Yes" ->
           match!
             Logger.spinner (
               "Updating Templates",
@@ -228,52 +250,32 @@ module Handlers =
               $"{opts.fullRepositoryName} - {opts.branch} was not updated"
 
             return 1
-        else
-          let prompt = SelectionPrompt<string>().AddChoices([ "Yes"; "No" ])
+        | _ ->
+          Logger.log $"Template {template.ToFullNameWithBranch} was not updated"
 
-          prompt.Title <-
-            $"\"{opts.fullRepositoryName}\" already exists, Do you want to update it?"
-
-          match AnsiConsole.Prompt(prompt) with
-          | "Yes" ->
-            match!
-              Logger.spinner (
-                "Updating Templates",
-                updateTemplate template opts.branch
-              )
-            with
-            | true ->
-              Logger.log
-                $"{opts.fullRepositoryName} - {opts.branch} updated correctly"
-
-              return 0
-            | false ->
-              Logger.log
-                $"{opts.fullRepositoryName} - {opts.branch} was not updated"
-
-              return 1
-          | _ ->
-            Logger.log $"Template {template.fullName} was not updated"
-            return 0
-      | None ->
-        let path =
-          Path.Combine(
-            UMX.untag FileSystem.Templates,
-            opts.fullRepositoryName,
-            opts.branch
-          )
+          return 0
+      | None, _ ->
 
         let! tplId =
           Logger.spinner (
             "Adding new templates",
-            addTemplate simpleName opts.fullRepositoryName opts.branch path
+            addTemplate username repository opts.branch
           )
 
-        match Templates.FindOne(tplId) with
+        match Templates.FindOne(TemplateSearchKind.Id tplId) with
         | Some template ->
-          Logger.log
-            $"Successfully added {template.fullName} at {template.path}"
+          Logger.log $"Successfully added {template.ToFullNameWithBranch}"
 
+          let path =
+            TextPath(
+              UMX.untag template.path,
+              LeafStyle = Style(Color.Green),
+              StemStyle = Style(Color.Yellow),
+              SeparatorStyle = Style(Color.Blue)
+            )
+
+          AnsiConsole.Write("Template at path: ")
+          AnsiConsole.Write(path)
           return 0
         | None ->
           Logger.log
@@ -283,74 +285,163 @@ module Handlers =
 
     }
 
-  let runInit (options: InitOptions) =
-    taskResult {
-      let initKind = options.mode
+  let runNew (opts: ProjectOptions) =
+    Logger.log "Creating new project..."
+    let user, template, child = getTemplateAndChild opts.templateName
 
-      match initKind with
-      | Init.Full ->
-        Logger.log "Perla will set up the following resources:"
-        Logger.log "- Esbuild"
-        Logger.log "- Default Templates"
+    option {
+      let! template =
+        match user, child with
+        | Some user, _ ->
+          Templates.FindOne(TemplateSearchKind.FullName(user, template))
+        | None, _ -> Templates.FindOne(TemplateSearchKind.Repository template)
 
-        Logger.log
-          "After that you should be able to run 'perla build' or 'perla new'"
+      Logger.log (
+        $"Using [bold yellow]{template.ToFullNameWithBranch}[/]",
+        escape = false
+      )
 
-        let canContinue =
-          match options.yes with
-          | true -> true
-          | _ ->
-            let prompt = SelectionPrompt<string>().AddChoices([ "Yes"; "No" ])
+      let templatePath =
+        FileSystem.PathForTemplate(
+          template.username,
+          template.repository,
+          template.branch,
+          ?tplName = child
+        )
 
-            prompt.Title <- $"Can we Start?"
+      let targetPath = opts.projectName
 
-            match AnsiConsole.Prompt(prompt) with
-            | "Yes" -> true
-            | _ -> false
+      let content =
+        FileSystem.GetTemplateScriptContent(
+          template.username,
+          template.repository,
+          template.branch,
+          ?tplName = child
+        )
+        |> Option.map Scaffolding.getConfigurationFromScript
+        |> Option.flatten
 
-        if not <| canContinue then
-          Logger.log "Nothing to do, finishing here"
-          return 0
-        else
-          do! FileSystem.SetupEsbuild(UMX.tag Constants.Esbuild_Version)
+      Logger.log $"Creating structure..."
 
-          let! res =
-            runAddTemplate
-              { branch = Constants.Default_Templates_Repository_Branch
-                yes = true
-                fullRepositoryName = Constants.Default_Templates_Repository }
+      FileSystem.WriteTplRepositoryToDisk(
+        UMX.tag<SystemPath> templatePath,
+        UMX.tag<UserPath> targetPath,
+        ?payload = content
+      )
 
-          if res <> 0 then
-            return res
-          else
-            Logger.log (
-              "[bold green]esbuild[/] and [bold yellow]templates[/] have been setup!",
-              escape = false
-            )
+      Logger.log (
+        $"Your ptoject is ready at [bold green]{targetPath}[/]",
+        escape = false
+      )
 
-            runListTemplates { format = ListFormat.HumanReadable } |> ignore
-            Logger.log "Feel free to create a new perla project"
+      Logger.log ($"cd {targetPath}", escape = false)
+      Logger.log ($"[bold green]perla serve[/]", escape = false)
 
-            Logger.log (
-              "[bold yellow]perla[/] [bold blue]new -t[/] [bold green]perla-templates/<TEMPLATE_NAME>[/] [bold blue]-n <PROJECT_NAME>[/]",
-              escape = false
-            )
+      return 0
+    }
+    |> function
+      | None ->
+        Logger.log $"Template [{opts.templateName}] was not found"
+        1
+      | Some n -> n
 
-            return 0
-      | Init.Simple ->
-        match options.useFable with
-        | true ->
-          Configuration.WriteFieldsToFile(
-            [ PerlaWritableField.Fable [ Project Constants.FableProject ] ]
+  let runInit (options: SetupOptions) =
+    task {
+      Logger.log "Perla will set up the following resources:"
+      Logger.log "- Esbuild"
+      Logger.log "- Default Templates"
+
+      Logger.log
+        "After that you should be able to run 'perla build' or 'perla new'"
+
+      do! FileSystem.SetupEsbuild(UMX.tag Constants.Esbuild_Version)
+      Logger.log ("[bold green]esbuild[/] has been setup!", escape = false)
+
+
+      if options.skipPrompts then
+        let (username, repository, branch) =
+          PerlaTemplateRepository.DefaultTemplatesRepository
+
+        match
+          TemplateSearchKind.FullName(username, repository) |> Templates.FindOne
+        with
+        | Some template ->
+          Logger.log (
+            $"{template.ToFullName} is already set up, updating from {template.branch}"
           )
 
-          do!
-            FileSystem.GenerateSimpleFable(
-              UMX.tag<SystemPath> options.path.FullName
-            )
-        | false -> ()
+          let! result = Templates.Update(template)
 
-        return 0
+          if not result then
+            Logger.log (
+              "We were unable to update the existing [bold red]templates[/].",
+              escape = false
+            )
+
+            return 1
+          else
+            runListTemplates { format = ListFormat.HumanReadable } |> ignore
+
+            Logger.log (
+              "[bold yellow]perla[/] [bold blue]new [/] [bold green]perla-templates/<TEMPLATE_NAME>[/] [bold blue] <PROJECT_NAME>[/]",
+              escape = false
+            )
+
+            Logger.log "Feel  free to create a new perla project"
+            return 0
+        | None ->
+          let! _ =
+            Logger.spinner (
+              "Adding default templates",
+              addTemplate username repository branch
+            )
+
+          runListTemplates { format = ListFormat.HumanReadable } |> ignore
+
+          Logger.log (
+            "[bold yellow]perla[/] [bold blue]new [/] [bold green]perla-templates/<TEMPLATE_NAME>[/] [bold blue] <PROJECT_NAME>[/]",
+            escape = false
+          )
+
+          return 0
+      else
+        let chosen =
+          AnsiConsole.Ask(
+            "Tell us the Username/repository:branch github repository to look for templates",
+            $"{Constants.Default_Templates_Repository}:main"
+          )
+
+        let mutable chosen = parseFullRepositoryName chosen
+
+        while chosen |> Option.isNone do
+          chosen <-
+            AnsiConsole.Ask(
+              "Tell us the Username/repository:branch github repository to look for templates",
+              $"{Constants.Default_Templates_Repository}:main"
+            )
+            |> parseFullRepositoryName
+
+          match chosen with
+          | None -> ()
+          | parsed -> chosen <- parsed
+
+        let (username, repository, branch) = chosen.Value
+
+        let! tplId = Templates.Add(username, repository, branch)
+
+        match Templates.FindOne(TemplateSearchKind.Id tplId) with
+        | Some template ->
+          Logger.log
+            $"Successfully added {template.ToFullNameWithBranch} at {template.path}"
+
+          runListTemplates { format = ListFormat.HumanReadable } |> ignore
+          return 0
+        | None ->
+          Logger.log
+            $"Template may have been downloaded but for some reason we can't find it, this is likely a bug"
+
+          return 1
+
     }
 
   let runSearch (options: SearchOptions) =
@@ -409,63 +500,13 @@ module Handlers =
       return 0
     }
 
-  let runNew (opts: ProjectOptions) =
-    Logger.log "Creating new project..."
-    let user, template, child = getTemplateAndChild opts.templateName
-
-    option {
-      let! repository =
-        match user, child with
-        | Some user, Some _ ->
-          Templates.FindOne(NameKind.FullName $"{user}/{template}")
-        | Some _, None -> Templates.FindOne(NameKind.FullName opts.templateName)
-        | None, _ -> Templates.FindOne(NameKind.Name template)
-
-      Logger.log (
-        $"Using [bold yellow]{repository.name}:{repository.branch}[/]",
-        escape = false
-      )
-
-      let templatePath =
-        FileSystem.PathForTemplate(
-          repository.fullName,
-          repository.branch,
-          tplName = repository.name
-        )
-
-      let targetPath = $"./{templatePath}"
-
-      let content =
-        FileSystem.GetTemplateScriptContent(
-          repository.fullName,
-          repository.branch,
-          repository.name
-        )
-        |> Option.map Scaffolding.getConfigurationFromScript
-        |> Option.flatten
-
-      Logger.log $"Creating structure..."
-
-      FileSystem.WriteTplRepositoryToDisk(
-        UMX.tag<SystemPath> templatePath,
-        UMX.tag<UserPath> targetPath,
-        ?payload = content
-      )
-
-      return 0
-    }
-    |> function
-      | None ->
-        Logger.log $"Template [{opts.templateName}] was not found"
-        1
-      | Some n -> n
-
   let runRemoveTemplate (name: string) =
     let deleteOperation =
       option {
-        let! repo = Templates.FindOne(NameKind.FullName name)
-        UMX.tag<SystemPath> repo.fullName |> FileSystem.RemoveTemplateDirectory
-        return Templates.Delete repo.fullName
+        let! (username, repository, _) = parseFullRepositoryName name
+
+        return
+          Templates.Delete(TemplateSearchKind.FullName(username, repository))
       }
 
     match deleteOperation with
@@ -492,33 +533,40 @@ module Handlers =
       1
 
   let runUpdateTemplate (opts: TemplateRepositoryOptions) =
-    taskResult {
-
-      match Templates.FindOne(NameKind.FullName opts.fullRepositoryName) with
-      | Some template ->
-        match!
-          Logger.spinner (
-            "Updating Template",
-            updateTemplate template opts.branch
-          )
+    task {
+      match parseFullRepositoryName opts.fullRepositoryName with
+      | Some (username, repository, branch) ->
+        match
+          Templates.FindOne(TemplateSearchKind.FullName(username, repository))
         with
-        | true ->
-          Logger.log (
-            $"[bold green]{opts.fullRepositoryName}[/] - [yellow]{opts.branch}[/] updated correctly",
-            escape = false
-          )
+        | Some template ->
+          match!
+            Logger.spinner ("Updating Template", updateTemplate template branch)
+          with
+          | true ->
+            Logger.log (
+              $"[bold green]{opts.fullRepositoryName}[/] - [yellow]{branch}[/] updated correctly",
+              escape = false
+            )
 
-          return 0
-        | _ ->
+            return 0
+          | _ ->
+            Logger.log (
+              $"[bold red]{opts.fullRepositoryName}[/] - [yellow]{branch}[/] failed to update",
+              escape = false
+            )
+
+            return 1
+        | None ->
           Logger.log (
-            $"[bold red]{opts.fullRepositoryName}[/] - [yellow]{opts.branch}[/] failed to update",
+            $"[bold red]{opts.fullRepositoryName}[/] - [yellow]{branch}[/] failed to update",
             escape = false
           )
 
           return 1
       | None ->
         Logger.log (
-          $"[bold red]{opts.fullRepositoryName}[/] - [yellow]{opts.branch}[/] failed to update",
+          $"[bold red]{opts.fullRepositoryName}[/] Was not found in the templates",
           escape = false
         )
 
@@ -1071,46 +1119,18 @@ module Commands =
     }
 
   let Init =
-    let mode =
-      Input.ArgumentWithStrings(
-        "mode",
-        [ "simple"; "full" ],
-        description =
-          "Selects if we are initializing a project, or perla itself"
-      )
-
-    let path =
-      Input.ArgumentMaybe<DirectoryInfo>(
-        "path",
-        "Choose what directory to initialize"
-      )
-
-    let yes = Input.ArgumentMaybe<bool>("yes", "Accept all of the prompts")
-
-    let fable =
+    let skipPrompts =
       Input.OptionMaybe<bool>(
-        [ "--with-fable"; "-wf" ],
-        "The project will use fable"
+        [ "--skip-prompts"; "-y"; "--yes"; "-sp" ],
+        "Skip prompts"
       )
 
-    let buildArgs
-      (
-        mode: string option,
-        path: DirectoryInfo option,
-        yes: bool option,
-        fable: bool option
-      ) : InitOptions =
-      { mode =
-          mode |> Option.map Init.FromString |> Option.defaultValue Init.Simple
-        path =
-          path
-          |> Option.defaultWith (fun _ -> DirectoryInfo(Path.GetFullPath "./"))
-        yes = yes |> Option.defaultValue false
-        useFable = fable |> Option.defaultValue false }
+    let buildArgs (yes: bool option) : SetupOptions =
+      { skipPrompts = yes |> Option.defaultValue false }
 
     command "init" {
       description "Initialized a given directory or perla itself"
-      inputs (mode, path, yes, fable)
+      inputs skipPrompts
       setHandler (buildArgs >> Handlers.runInit)
     }
 

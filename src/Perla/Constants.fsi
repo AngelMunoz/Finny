@@ -44,3 +44,6 @@ val TemplatingScriptName: string = "templating.fsx"
 
 [<Literal>]
 val JsonSchemaUrl: string = "https://raw.githubusercontent.com/AngelMunoz/Perla/main/perla.schema.json"
+
+[<Literal>]
+val ArtifactsDirectoryname: string = "perla"

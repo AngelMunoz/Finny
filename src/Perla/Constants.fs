@@ -10,6 +10,9 @@ let Esbuild_Target = "es2020"
 let Default_Templates_Repository = "AngelMunoz/perla-templates"
 
 [<Literal>]
+let ArtifactsDirectoryname = "perla"
+
+[<Literal>]
 let Default_Templates_Repository_Branch = "main"
 
 [<Literal>]
