@@ -161,7 +161,7 @@ module VirtualFileSystem =
 
       let isInFableMdules = globPath.FullName.Contains("fable_modules")
 
-      if not (Plugins.HasPluginsForExtension extension) || isInFableMdules then
+      if not (HasPluginsForExtension extension) || isInFableMdules then
         return
           copyFileWithoutPlugins pathInfo memoryFileSystem physicalFileSystem
       else
