@@ -1,5 +1,7 @@
 ﻿// Learn more about F# at http://docs.microsoft.com/dotnet/fsharp
 open System.CommandLine.Invocation
+open System.CommandLine.Help
+open System.CommandLine.Builder
 open FSharp.SystemCommandLine
 open Perla
 open System.Threading.Tasks
@@ -17,6 +19,10 @@ let main argv =
     inputs (Input.Context(), maybeHelp)
     setHandler handler
 
+    usePipeline (fun pipeline ->
+      // don't replace leading @ strings e.g. @lit-labs/task
+      pipeline.UseTokenReplacer(fun _ _ _ -> false) |> ignore)
+
     addCommands
       [ Commands.Serve
         Commands.Build
@@ -31,7 +37,8 @@ let main argv =
         Commands.UpdateTemplate
         Commands.ListTemplates
         Commands.RemoveTemplate
-        Commands.NewProject ]
+        Commands.NewProject
+        Commands.Test ]
   }
   |> Async.AwaitTask
   |> Async.RunSynchronously

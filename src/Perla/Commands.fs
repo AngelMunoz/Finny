@@ -1,10 +1,13 @@
 ﻿namespace Perla
 
 open System
+open System.CommandLine.Invocation
 open System.IO
 
 open System.Threading
 open System.Threading.Tasks
+open System.Reactive.Threading.Tasks
+open Microsoft.Playwright
 open Spectre.Console
 
 open FSharp.Control
@@ -34,6 +37,7 @@ open Perla.Plugins.Extensibility
 open Perla.PackageManager
 open Perla.PackageManager.Types
 
+open Perla.Testing
 
 
 module CliOptions =
@@ -85,6 +89,12 @@ module CliOptions =
   type RestoreOptions =
     { source: Provider option
       mode: RunConfiguration option }
+
+  type TestingOptions =
+    { files: string seq
+      browsers: Browser seq
+      headless: bool
+      watch: bool }
 
 open CliOptions
 
@@ -201,7 +211,7 @@ module Handlers =
         | None -> ()
         | parsed -> chosen <- parsed
 
-      let (username, repository, branch) = chosen.Value
+      let username, repository, branch = chosen.Value
 
       let template =
         TemplateSearchKind.FullName(username, repository) |> Templates.FindOne
@@ -330,12 +340,12 @@ module Handlers =
       )
 
       Logger.log (
-        $"Your ptoject is ready at [bold green]{targetPath}[/]",
+        $"Your project is ready at [bold green]{targetPath}[/]",
         escape = false
       )
 
       Logger.log ($"cd {targetPath}", escape = false)
-      Logger.log ($"[bold green]perla serve[/]", escape = false)
+      Logger.log ("[bold green]perla serve[/]", escape = false)
 
       return 0
     }
@@ -359,16 +369,16 @@ module Handlers =
 
 
       if options.skipPrompts then
-        let (username, repository, branch) =
+        let username, repository, branch =
           PerlaTemplateRepository.DefaultTemplatesRepository
 
         match
           TemplateSearchKind.FullName(username, repository) |> Templates.FindOne
         with
         | Some template ->
-          Logger.log (
+          Logger.log
             $"{template.ToFullName} is already set up, updating from {template.branch}"
-          )
+
 
           let! result = Templates.Update(template)
 
@@ -425,7 +435,7 @@ module Handlers =
           | None -> ()
           | parsed -> chosen <- parsed
 
-        let (username, repository, branch) = chosen.Value
+        let username, repository, branch = chosen.Value
 
         let! tplId = Templates.Add(username, repository, branch)
 
@@ -467,13 +477,13 @@ module Handlers =
           escape = false
         )
 
-        let prodtable =
+        let prodTable =
           dependencyTable (config.dependencies, "Production Dependencies")
 
         let devTable =
           dependencyTable (config.devDependencies, "Development Dependencies")
 
-        AnsiConsole.Write(prodtable)
+        AnsiConsole.Write(prodTable)
         AnsiConsole.WriteLine()
         AnsiConsole.Write(devTable)
 
@@ -503,7 +513,7 @@ module Handlers =
   let runRemoveTemplate (name: string) =
     let deleteOperation =
       option {
-        let! (username, repository, _) = parseFullRepositoryName name
+        let! username, repository, _ = parseFullRepositoryName name
 
         return
           Templates.Delete(TemplateSearchKind.FullName(username, repository))
@@ -719,22 +729,16 @@ module Handlers =
       return 0
     }
 
-  let runBuild (args: BuildOptions) =
+  let runBuild (cancel: CancellationToken, args: BuildOptions) =
     task {
-
       Configuration.UpdateFromCliArgs(?runConfig = args.mode)
       let config = Configuration.CurrentConfig
-      use cts = new CancellationTokenSource()
-
-      Console.CancelKeyPress.Add(fun _ ->
-        Logger.log "Got it, see you around!..."
-        cts.Cancel())
 
       match config.fable with
       | Some fable ->
         do!
           backgroundTask {
-            do! Fable.Start(fable, false, cancellationToken = cts.Token) :> Task
+            do! Fable.Start(fable, false, cancellationToken = cancel) :> Task
           }
       | None ->
         Logger.log (
@@ -743,7 +747,7 @@ module Handlers =
         )
 
       if not <| File.Exists($"{FileSystem.EsbuildBinaryPath}") then
-        do! FileSystem.SetupEsbuild(config.esbuild.version, cts.Token)
+        do! FileSystem.SetupEsbuild(config.esbuild.version, cancel)
 
       let outDir = UMX.untag config.build.outDir
 
@@ -799,7 +803,7 @@ module Handlers =
               let tsk =
                 Esbuild
                   .ProcessCss(path, config.esbuild, targetPath)
-                  .ExecuteAsync(cts.Token)
+                  .ExecuteAsync(cancel)
 
               do! tsk.Task :> Task
           },
@@ -817,7 +821,7 @@ module Handlers =
               let tsk =
                 Esbuild
                   .ProcessJS(path, config.esbuild, targetPath, externals)
-                  .ExecuteAsync(cts.Token)
+                  .ExecuteAsync(cancel)
 
               do! tsk.Task :> Task
           }
@@ -885,7 +889,21 @@ module Handlers =
       return 0
     }
 
-  let runServe (options: ServeOptions) =
+  let private getFableLogger (config: PerlaConfig) =
+    fun msg ->
+      Logger.log msg
+      let msg = msg.ToLowerInvariant()
+
+      if msg.Contains("watching") || msg.Contains("compilation finished") then
+        let config = config.devServer
+
+        let http, https =
+          Server.GetServerURLs config.host config.port config.useSSL
+
+        Logger.log $"Server Ready at:"
+        Logger.log $"{http}\n{https}"
+
+  let runServe (cancel: CancellationToken, options: ServeOptions) =
     task {
       let cliArgs =
         [ match options.port with
@@ -905,45 +923,20 @@ module Handlers =
 
       let config = Configuration.CurrentConfig
 
-      use cts = new CancellationTokenSource()
-
-      Console.CancelKeyPress.Add(fun _ ->
-        Logger.log "Got it, see you around!..."
-        cts.Cancel())
-
-      let mutable urls = None
-
       match config.fable with
       | Some fable ->
+        let logger = getFableLogger config
+
         backgroundTask {
-          let logger msg =
-            Logger.log msg
-            let msg = msg.ToLowerInvariant()
-
-            if
-              msg.Contains("watching") || msg.Contains("compilation finished")
-            then
-
-              let urls =
-                match urls with
-                | Some urls ->
-                  urls |> Seq.fold (fun current next -> $"{current}\n{next}") ""
-                | None ->
-                  $"http://{config.devServer.host}:{config.devServer.port - 1}\nhttps://{config.devServer.host}:{config.devServer.port}"
-
-              Logger.log $"Server Ready at:"
-              Logger.log $"{urls}"
-
           do!
-            Fable.Start(fable, true, logger, cancellationToken = cts.Token)
-            :> Task
+            Fable.Start(fable, true, logger, cancellationToken = cancel) :> Task
         }
         |> ignore
       | None -> ()
 
       do!
         backgroundTask {
-          do! FileSystem.SetupEsbuild(config.esbuild.version, cts.Token)
+          do! FileSystem.SetupEsbuild(config.esbuild.version, cancel)
         }
 
       Plugins.LoadPlugins(config.esbuild)
@@ -960,17 +953,154 @@ module Handlers =
 
       let app = Server.GetServerApp(config, fileChangeEvents, compilerErrors)
 
-      urls <- Some app.Urls
-
-      do! app.StartAsync(cts.Token)
+      do! app.StartAsync(cancel)
 
       Console.CancelKeyPress.Add(fun _ ->
         app.StopAsync() |> Async.AwaitTask |> Async.RunSynchronously)
 
-      while not cts.IsCancellationRequested do
+      while not cancel.IsCancellationRequested do
         do! Async.Sleep(TimeSpan.FromSeconds(1.))
 
       return 0
+    }
+
+
+  let runTesting (cancel: CancellationToken, options: TestingOptions) =
+    task {
+      let config = Configuration.CurrentConfig
+      Testing.SetupPlaywright()
+      let logger = getFableLogger config
+
+      match config.fable, options.watch with
+      | Some fable, true ->
+        backgroundTask {
+          do!
+            Fable.Start(
+              fable,
+              options.watch,
+              logger,
+              cancellationToken = cancel
+            )
+            :> Task
+        }
+        |> ignore
+      | Some fable, false ->
+        do!
+          backgroundTask {
+            return!
+              Fable.Start(
+                fable,
+                options.watch,
+                logger,
+                cancellationToken = cancel
+              )
+              :> Task
+          }
+      | None, _ -> ()
+
+      do! FileSystem.SetupEsbuild(config.esbuild.version, cancel)
+
+      let! dependencies =
+        Logger.spinner (
+          "Resolving Static dependencies and import map...",
+          Dependencies.GetMapAndDependencies(
+            [ yield! config.dependencies; yield! config.devDependencies ]
+            |> Seq.map (fun d -> d.AsVersionedString),
+            config.provider
+          )
+        )
+
+      let dependencies =
+        dependencies
+        |> Result.defaultWith (fun _ -> (Seq.empty, FileSystem.ImportMap()))
+
+      Plugins.LoadPlugins(config.esbuild)
+
+      let mountedDirs =
+        config.mountDirectories
+        |> Map.add (UMX.tag<ServerUrl> "/tests") (UMX.tag<UserPath> "./tests")
+
+      do!
+        VirtualFileSystem.Mount({ config with mountDirectories = mountedDirs })
+
+      let fileChangeEvents =
+        VirtualFileSystem.GetFileChangeStream config.mountDirectories
+        |> VirtualFileSystem.ApplyVirtualOperations
+
+      // TODO: Grab these from esbuild
+      let compilerErrors = Observable.empty
+
+      let config =
+        { config with
+            devServer = { config.devServer with liveReload = options.watch } }
+
+      let events = Subject<TestEvent>.broadcast
+
+      let app =
+        Server.GetTestingApp(
+          config,
+          dependencies,
+          events,
+          fileChangeEvents,
+          compilerErrors,
+          options.files
+        )
+
+      do! app.StartAsync(cancel)
+
+      use! pl = Playwright.CreateAsync()
+
+      use! browser =
+        Testing.GetBrowser(options.browsers |> Seq.head, options.headless, pl)
+
+      let! page = browser.NewPageAsync()
+
+      let http, _ =
+        Server.GetServerURLs
+          config.devServer.host
+          config.devServer.port
+          config.devServer.useSSL
+
+      do! page.GotoAsync(http) :> Task
+
+
+      page.Console
+      |> Observable.add (fun e ->
+        match e.Type with
+        | Debug -> Logger.log $"[bold blue]Browser:[/] {e.Text.EscapeMarkup()}"
+        | Info ->
+          Logger.log
+            $"[bold cyan]Browser:[/] [bold cyan]{e.Text.EscapeMarkup()}[/]"
+        | Err -> Logger.log $"[bold red]Browser:[/]{e.Text.EscapeMarkup()}"
+        | Warning ->
+          Logger.log $"[bold orange]Browser:[/]{e.Text.EscapeMarkup()}"
+        | Clear ->
+          Logger.log
+            $"[yellow]Browser:[/] Browser Console cleared at: [link]{e.Location}[/]"
+        | _ -> Logger.log $"[bold yellow]Browser:[/] {e.Text.EscapeMarkup()}"
+
+        AnsiConsole.Write(
+          Rule(
+            $"[dim blue]{e.Location}[/]",
+            Style = Style.Parse("dim"),
+            Alignment = Justify.Right
+          )
+        ))
+
+      if not config.devServer.liveReload then
+        events
+        |> Observable.toEnumerable
+        |> Testing.BuildReport
+        |> Testing.Print.Report
+
+        return 0
+      else
+        use _ = events |> Testing.PrintReportLive
+
+        while not cancel.IsCancellationRequested do
+          do! Async.Sleep(TimeSpan.FromSeconds(1.))
+
+        return 0
     }
 
 
@@ -996,6 +1126,24 @@ module Commands =
           Opt<string option>(
             aliases |> Array.ofSeq,
             getDefaultValue = (fun _ -> defaultValue),
+            ?description = description
+          )
+
+        match values with
+        | Some values -> option.FromAmong(values |> Array.ofSeq)
+        | None -> option
+        |> HandlerInput.OfOption
+
+      static member OptionWithMultipleStrings
+        (
+          aliases: string seq,
+          ?values: string seq,
+          ?description
+        ) =
+        let option =
+          Opt<string[]>(
+            aliases |> Array.ofSeq,
+            getDefaultValue = (fun _ -> Array.empty),
             ?description = description
           )
 
@@ -1062,20 +1210,22 @@ module Commands =
 
     let buildArgs
       (
+        context: InvocationContext,
         runAsDev: bool option,
         disablePreloads: bool option
-      ) : BuildOptions =
-      { mode =
-          runAsDev
-          |> Option.map (fun runAsDev ->
-            match runAsDev with
-            | true -> RunConfiguration.Development
-            | false -> RunConfiguration.Production)
-        disablePreloads = defaultArg disablePreloads false }
+      ) =
+      (context.GetCancellationToken(),
+       { mode =
+           runAsDev
+           |> Option.map (fun runAsDev ->
+             match runAsDev with
+             | true -> RunConfiguration.Development
+             | false -> RunConfiguration.Production)
+         disablePreloads = defaultArg disablePreloads false })
 
     command "build" {
       description "Builds the SPA application for distribution"
-      inputs (runAsDev, disablePreloads)
+      inputs (Input.Context(), runAsDev, disablePreloads)
       setHandler (buildArgs >> Handlers.runBuild)
     }
 
@@ -1098,23 +1248,25 @@ module Commands =
 
     let buildArgs
       (
+        context: InvocationContext,
         mode: bool option,
         port: int option,
         host: string option,
         ssl: bool option
-      ) : ServeOptions =
-      { mode =
-          mode
-          |> Option.map (fun runAsDev ->
-            match runAsDev with
-            | true -> RunConfiguration.Development
-            | false -> RunConfiguration.Production)
-        port = port
-        host = host
-        ssl = ssl }
+      ) =
+      (context.GetCancellationToken(),
+       { mode =
+           mode
+           |> Option.map (fun runAsDev ->
+             match runAsDev with
+             | true -> RunConfiguration.Development
+             | false -> RunConfiguration.Production)
+         port = port
+         host = host
+         ssl = ssl })
 
     command "serve" {
-      inputs (runAsDev, port, host, ssl)
+      inputs (Input.Context(), runAsDev, port, host, ssl)
       setHandler (buildArgs >> Handlers.runServe)
     }
 
@@ -1424,4 +1576,54 @@ module Commands =
 
       inputs (name, templateName)
       setHandler (buildArgs >> Handlers.runNew)
+    }
+
+  let Test =
+    let files =
+      Input.Option(
+        [ "--tests"; "-t" ],
+        None,
+        "Specify a glob of tests to run. e.g '**/featureA/*.test.js' or 'tests/my-test.test.js'"
+      )
+
+    let browsers =
+      Input.OptionWithMultipleStrings(
+        [ "--browser"; "-b" ],
+        [ "chromium"; "edge"; "chrome"; "webkit"; "firefox" ],
+        "Which browsers to run the tests on, defaults to 'chromium'"
+      )
+
+    let headless =
+      Input.Option(
+        [ "--headless"; "-hl" ],
+        "Turn on or off the Headless mode and open the browser (useful for debugging tests)"
+      )
+
+    let watch =
+      Input.Option(
+        [ "--watch"; "-w" ],
+        "Start the server and keep watching for file changes"
+      )
+
+    let buildArgs
+      (
+        ctx: InvocationContext,
+        files: string array option,
+        browsers: string array,
+        headless: bool option,
+        watch: bool option
+      ) =
+      ctx.GetCancellationToken(),
+      { files = files |> Option.defaultValue Array.empty
+        browsers =
+          if browsers.Length = 0 then [| "chromium" |] else browsers
+          |> Array.map Browser.FromString
+          |> set
+        headless = headless |> Option.defaultValue true
+        watch = watch |> Option.defaultValue false }
+
+    command "test" {
+      description "Runs client side tests in a headless browser"
+      inputs (Input.Context(), files, browsers, headless, watch)
+      setHandler (buildArgs >> Handlers.runTesting)
     }
