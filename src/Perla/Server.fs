@@ -7,6 +7,8 @@ open System.IO
 open System.Net
 open System.Net.Http
 open System.Net.NetworkInformation
+open System.Reactive.Subjects
+open System.Runtime.InteropServices
 open System.Text
 open System.Threading.Tasks
 open System.Runtime.CompilerServices
@@ -15,15 +17,16 @@ open AngleSharp
 open AngleSharp.Html.Parser
 open AngleSharp.Io
 
+open Fake.IO
 open Microsoft.AspNetCore.Builder
 open Microsoft.AspNetCore.Http
 open Microsoft.Extensions.DependencyInjection
 open Microsoft.Extensions.Logging
 open Microsoft.Extensions.Primitives
-open Microsoft.Extensions.Hosting
 open Microsoft.AspNetCore.StaticFiles
 open Microsoft.Net.Http.Headers
 
+open Perla.PackageManager.Types
 open Yarp.ReverseProxy
 open Yarp.ReverseProxy.Forwarder
 
@@ -47,6 +50,7 @@ open Hellang.Middleware.SpaFallback
 
 open Serilog
 open Serilog.Events
+open Spectre.Console
 
 module Types =
 
@@ -61,6 +65,8 @@ module Types =
     | LiveReload
     | Worker
     | Env
+    | TestingHelpers
+    | MochaTestRunner
 
   [<RequireQualifiedAccess>]
   type ReloadEvents =
@@ -75,7 +81,6 @@ module Types =
       | CompileError err -> $"event:compile-err\ndata:{err}\n\n"
 
 open Types
-open Microsoft.Extensions.Hosting
 
 [<AutoOpen>]
 module Extensions =
@@ -135,7 +140,7 @@ module Extensions =
     /// <param name="value">The value to be set. Non string values will be converted to a string using the object's ToString() method.</param>
     [<Extension>]
     static member SetHttpHeader(ctx: HttpContext, key: string, value: obj) =
-      ctx.Response.Headers.[key] <- StringValues(value.ToString())
+      ctx.Response.Headers[ key ] <- StringValues(value.ToString())
 
     /// <summary>
     /// Sets the Content-Type HTTP header in the response.
@@ -247,7 +252,7 @@ module Middleware =
       $"""const style=document.createElement('style');style.setAttribute("filename", "{url}");
 document.head.appendChild(style).innerHTML=`{content}`;"""
 
-    let processJsonAsJs (content) = $"""export default {content};"""
+    let processJsonAsJs content = $"""export default {content};"""
 
     match mimeType, requestedAs with
     | "application/json", RequestedAs.JS ->
@@ -263,15 +268,13 @@ document.head.appendChild(style).innerHTML=`{content}`;"""
     | mimeType, ModuleAssertion
     | mimeType, Normal -> setContentAndWrite (mimeType, content)
     | mimeType, value ->
-      Logger.log (
+      Logger.log
         $"Requested %A{value} - {mimeType} - {reqPath} as JS, this file type is not supported as JS, sending default content"
-      )
+
 
       setContentAndWrite (mimeType, content)
 
-  let ResolveFile
-    (config: PerlaConfig)
-    : HttpContext -> RequestDelegate -> Task =
+  let ResolveFile: HttpContext -> RequestDelegate -> Task =
     fun ctx next ->
       task {
         match
@@ -311,8 +314,26 @@ document.head.appendChild(style).innerHTML=`{content}`;"""
       }
       :> Task
 
+  let ProcessTestEvent (testEvents: ISubject<TestEvent>) (ctx: HttpContext) =
+    task {
+      use content = new StreamReader(ctx.Request.Body, Encoding.UTF8)
+      let! toDecode = content.ReadToEndAsync()
 
-  let SendScript (script: PerlaScript) (ctx: HttpContext) =
+      Json.TestEventFromJson toDecode
+      |> Result.teeError (fun err ->
+        Logger.log $"[bold red]{err.EscapeMarkup()}[/]")
+      |> Result.iter (fun event ->
+        match event with
+        | TestEvent.TestRunFinished as ev ->
+          testEvents.OnNext ev
+          testEvents.OnCompleted()
+        | otherEvents -> testEvents.OnNext otherEvents)
+
+      return Results.Ok()
+    }
+    :> Task
+
+  let SendScript (script: PerlaScript) (_: HttpContext) =
     task {
 
       Logger.log ($"Sending Script %A{script}", target = PrefixKind.Serve)
@@ -324,7 +345,12 @@ document.head.appendChild(style).innerHTML=`{content}`;"""
 
       | PerlaScript.Worker ->
         return Results.Text(FileSystem.WorkerScript.Value, "text/javascript")
-
+      | PerlaScript.TestingHelpers ->
+        return
+          Results.Text(FileSystem.TestingHelpersScript.Value, "text/javascript")
+      | PerlaScript.MochaTestRunner ->
+        return
+          Results.Text(FileSystem.MochaRunnerScript.Value, "text/javascript")
       | PerlaScript.Env ->
         match Env.GetEnvContent() with
         | Some content ->
@@ -404,20 +430,63 @@ document.head.appendChild(style).innerHTML=`{content}`;"""
       return Results.Ok()
     }
 
-  let IndexHandler (config: PerlaConfig) (ctx: HttpContext) =
-    let logger = ctx.GetLogger("Perla")
+  let IndexHandler (config: PerlaConfig) (_: HttpContext) =
     let content = FileSystem.IndexFile(config.index)
     let map = FileSystem.ImportMap()
 
-    let context = BrowsingContext.New(Configuration.Default)
+    use context = BrowsingContext.New(Configuration.Default)
 
     let parser = context.GetService<IHtmlParser>()
-    let doc = parser.ParseDocument content
+    use doc = parser.ParseDocument content
 
     let script = doc.CreateElement "script"
     script.SetAttribute("type", "importmap")
     script.TextContent <- Json.ToText map
     doc.Head.AppendChild script |> ignore
+
+    if config.devServer.liveReload then
+      let liveReload = doc.CreateElement "script"
+      liveReload.SetAttribute("type", MimeTypeNames.DefaultJavaScript)
+      liveReload.SetAttribute("src", "/~perla~/livereload.js")
+      doc.Body.AppendChild liveReload |> ignore
+
+    Results.Text(doc.ToHtml(), MimeTypeNames.Html)
+
+  let TestingIndex
+    config
+    (dependencies: string seq * ImportMap)
+    (_: HttpContext)
+    =
+    let content = FileSystem.IndexFile(config.index)
+    let dependencies, map = dependencies
+
+    use context = BrowsingContext.New(Configuration.Default)
+
+    let parser = context.GetService<IHtmlParser>()
+    use doc = parser.ParseDocument content
+
+    // remove any existing entry points, we don't need them in the tests
+    doc.QuerySelectorAll("[data-entry-point][type=module]")
+    |> Seq.iter (fun f -> f.Remove())
+
+    doc.QuerySelectorAll("[data-entry-point][rel=stylesheet]")
+    |> Seq.iter (fun f -> f.Remove())
+
+    for dependencyUrl in dependencies do
+      let link = doc.CreateElement("link")
+      link.SetAttribute("rel", "modulepreload")
+      link.SetAttribute("href", dependencyUrl)
+      doc.Head.AppendChild(link) |> ignore
+
+    let script = doc.CreateElement "script"
+    script.SetAttribute("type", "importmap")
+    script.TextContent <- Json.ToText map
+    doc.Head.AppendChild script |> ignore
+
+    let runnerScript = doc.CreateElement "script"
+    script.SetAttribute("type", "module")
+    script.TextContent <- FileSystem.MochaRunnerScript.Value
+    doc.Body.AppendChild runnerScript |> ignore
 
     if config.devServer.liveReload then
       let liveReload = doc.CreateElement "script"
@@ -462,6 +531,21 @@ module Server =
     else
       false
 
+  let GetServerURLs host port useSSL =
+    match isAddressPortOccupied host port with
+    | false ->
+      if useSSL then
+        $"http://{host}:{port - 1}", $"https://{host}:{port}"
+      else
+        $"http://{host}:{port}", $"https://{host}:{port + 1}"
+    | true ->
+      Logger.log (
+        $"Address {host}:{port} is busy, selecting a dynamic port.",
+        target = PrefixKind.Serve
+      )
+
+      $"http://{host}:{0}", $"https://{host}:{0}"
+
   let getHttpClientAndForwarder () =
     let socketsHandler = new SocketsHttpHandler()
     socketsHandler.UseProxy <- false
@@ -475,84 +559,28 @@ module Server =
 
     client, reqConfig
 
+  let addProxy proxy (app: WebApplication) =
+    match proxy |> Map.isEmpty with
+    | false ->
+      app
+        .UseRouting()
+        .UseEndpoints(fun endpoints ->
+          let client, reqConfig = getHttpClientAndForwarder ()
 
-type Server =
-  static member GetServerApp
-    (
-      config: PerlaConfig,
-      fileChangedEvents: IObservable<FileChangedEvent * FileTransform>,
-      compileErrorEvents: IObservable<string option>
-    ) =
-
-    let builder = WebApplication.CreateBuilder()
-
-    let proxy = config.devServer.proxy
-
-    let host = config.devServer.host
-    let port = config.devServer.port
-    let useSSL = config.devServer.useSSL
-    let liveReload = config.devServer.liveReload
-    let enableEnv = config.enableEnv
-    let envPath = config.envPath
-
-    let http, https =
-      match Server.isAddressPortOccupied host port with
-      | false ->
-        if useSSL then
-          $"http://{host}:{port - 1}", $"https://{host}:{port}"
-        else
-          $"http://{host}:{port}", $"https://{host}:{port + 1}"
-      | true ->
-        Logger.log (
-          $"Address {host}:{port} is busy, selecting a dynamic port.",
-          target = PrefixKind.Serve
-        )
-
-        $"http://{host}:{0}", $"https://{host}:{0}"
-
-    if proxy |> Map.isEmpty |> not then
-      builder.Services.AddHttpForwarder() |> ignore
-
-    builder.Services.AddSpaFallback() |> ignore
-
-    builder.Services.AddSingleton<FileExtensionContentTypeProvider>(fun _ ->
-      new FileExtensionContentTypeProvider())
-    |> ignore
-
-    builder.Host.UseSerilog(fun hostingContext configureLogger ->
-      configureLogger
-        .MinimumLevel
-        .Override("Microsoft.AspNetCore", LogEventLevel.Warning)
-        .MinimumLevel.Information()
-        .Enrich.FromLogContext()
-        .WriteTo.Console()
-      |> ignore)
-    |> ignore
-
-    let app = builder.Build()
-
-    app.Urls.Add(http)
-    app.Urls.Add(https)
-
-
-    app.UseSerilogRequestLogging() |> ignore
-
-    if enableEnv then
-      app.MapGet(
-        UMX.untag envPath,
-        Func<HttpContext, Task<IResult>>(Middleware.SendScript PerlaScript.Env)
-      )
+          for from, target in proxy |> Map.toSeq do
+            let handler = Middleware.getProxyHandler target client reqConfig
+            endpoints.Map(from, handler) |> ignore)
       |> ignore
+    | true -> ()
 
-    app.MapGet("/", Func<HttpContext, IResult>(Middleware.IndexHandler config))
-    |> ignore
+    app
 
-    app.MapGet(
-      "/index.html",
-      Func<HttpContext, IResult>(Middleware.IndexHandler config)
-    )
-    |> ignore
-
+  let addLiveReload
+    liveReload
+    fileChangedEvents
+    compileErrorEvents
+    (app: WebApplication)
+    =
     if liveReload then
       app.MapGet(
         "/~perla~/sse",
@@ -578,35 +606,203 @@ type Server =
       )
       |> ignore
 
-    if useSSL then
-      app.UseHsts().UseHttpsRedirection() |> ignore
+    app
 
-    app.UseSpaFallback() |> ignore
-
-    match proxy |> Map.isEmpty with
-    | false ->
-      app
-        .UseRouting()
-        .UseEndpoints(fun endpoints ->
-          let client, reqConfig = Server.getHttpClientAndForwarder ()
-
-          for from, target in proxy |> Map.toSeq do
-            let handler = Middleware.getProxyHandler target client reqConfig
-            endpoints.Map(from, handler) |> ignore)
+  let addEnv enableEnv envPath (app: WebApplication) =
+    if enableEnv then
+      app.MapGet(
+        envPath,
+        Func<HttpContext, Task<IResult>>(Middleware.SendScript PerlaScript.Env)
+      )
       |> ignore
-    | true -> ()
 
+    app
+
+  let addResolveFile (app: WebApplication) =
     app.UseWhen(
       Func<HttpContext, bool>(fun ctx ->
         not (ctx.Request.Path.StartsWithSegments(PathString("/~perla~")))),
       (fun app ->
         app.Use(
-          Func<HttpContext, RequestDelegate, Task>(
-            Middleware.ResolveFile config
-          )
+          Func<HttpContext, RequestDelegate, Task>(Middleware.ResolveFile)
         )
         |> ignore)
     )
     |> ignore
 
     app
+
+  let addCommonServices proxy (builder: WebApplicationBuilder) =
+    if proxy |> Map.isEmpty |> not then
+      builder.Services.AddHttpForwarder() |> ignore
+
+    builder.Services.AddSpaFallback() |> ignore
+
+    builder.Services.AddSingleton<FileExtensionContentTypeProvider>(fun _ ->
+      FileExtensionContentTypeProvider())
+    |> ignore
+
+    builder.Host.UseSerilog(fun hostingContext configureLogger ->
+      configureLogger
+        .MinimumLevel
+        .Override("Microsoft.AspNetCore", LogEventLevel.Warning)
+        .MinimumLevel.Information()
+        .Enrich.FromLogContext()
+        .WriteTo.Console()
+      |> ignore)
+    |> ignore
+
+  let addCommonMiddleware host port useSSL (app: WebApplication) =
+    let http, https = GetServerURLs host port useSSL
+    app.Urls.Add(http)
+    app.Urls.Add(https)
+
+    if useSSL then
+      app.UseHsts().UseHttpsRedirection() |> ignore
+
+    app.UseSerilogRequestLogging().UseSpaFallback() |> ignore
+
+
+
+  module DevApp =
+    let addIndexHandler config (app: WebApplication) =
+      app.MapGet(
+        "/",
+        Func<HttpContext, IResult>(Middleware.IndexHandler config)
+      )
+      |> ignore
+
+      app.MapGet(
+        "/index.html",
+        Func<HttpContext, IResult>(Middleware.IndexHandler config)
+      )
+      |> ignore
+
+      app
+
+  module TestApp =
+    let addIndexHandler config dependencies (app: WebApplication) =
+      app.MapGet(
+        "/",
+        Func<HttpContext, IResult>(Middleware.TestingIndex config dependencies)
+      )
+      |> ignore
+
+      app.MapGet(
+        "/index.html",
+        Func<HttpContext, IResult>(Middleware.TestingIndex config dependencies)
+      )
+      |> ignore
+
+      app
+
+    let addTestingHandlers
+      (files: string seq option)
+      (mochaConfig: Map<string, obj> option)
+      testingEvents
+      (app: WebApplication)
+      =
+      app.MapPost(
+        "/~perla~/testing/events",
+        Func<HttpContext, Task>(Middleware.ProcessTestEvent testingEvents)
+      )
+      |> ignore
+
+      app.MapGet(
+        "/~perla~/testing/files",
+        Func<HttpContext, IResult>(fun _ ->
+          let glob: Globbing.LazyGlobbingPattern =
+            { BaseDirectory = "./tests"
+              Excludes = [ "**/bin/**"; "**/obj/**"; "**/*.fs"; "**/*.fsproj" ]
+              Includes =
+                match files with
+                | Some files ->
+                  if files |> Seq.isEmpty then
+                    [ "**/*.test.js"; "**/*.spec.js" ]
+                  else
+                    files |> Seq.toList
+                | None -> [ "**/*.test.js"; "**/*.spec.js" ] }
+
+          Results.Ok(
+            [| for file in glob do
+                 let systemPath =
+                   (Path.GetFullPath file)
+                     .Replace(Path.DirectorySeparatorChar, '/')
+
+                 let index = systemPath.IndexOf("/tests/")
+                 systemPath.Substring(index) |]
+          ))
+      )
+      |> ignore
+
+      app.MapGet(
+        "/~perla~/testing/settings",
+        Func<HttpContext, IResult>(fun _ ->
+          Results.Ok(mochaConfig |> Option.defaultValue Map.empty))
+      )
+      |> ignore
+
+      app
+
+type Server =
+  static member GetServerApp
+    (
+      config: PerlaConfig,
+      fileChangedEvents: IObservable<FileChangedEvent * FileTransform>,
+      compileErrorEvents: IObservable<string option>
+    ) =
+
+    let builder = WebApplication.CreateBuilder()
+
+    let proxy = config.devServer.proxy
+
+    let host = config.devServer.host
+    let port = config.devServer.port
+    let useSSL = config.devServer.useSSL
+    let liveReload = config.devServer.liveReload
+    let enableEnv = config.enableEnv
+    let envPath = config.envPath
+
+    Server.addCommonServices proxy builder
+    let app = builder.Build()
+
+    Server.addCommonMiddleware host port useSSL app
+
+    Server.DevApp.addIndexHandler config app
+    |> Server.addProxy proxy
+    |> Server.addLiveReload liveReload fileChangedEvents compileErrorEvents
+    |> Server.addEnv enableEnv (UMX.untag envPath)
+    |> Server.addResolveFile
+
+  static member GetTestingApp
+    (
+      config: PerlaConfig,
+      dependencies: string seq * ImportMap,
+      testEvents: ISubject<TestEvent>,
+      fileChangedEvents: IObservable<FileChangedEvent * FileTransform>,
+      compileErrorEvents: IObservable<string option>,
+      [<Optional>] ?fileGlobs: string seq,
+      [<Optional>] ?mochaOptions: Map<string, obj>
+    ) =
+
+    let builder = WebApplication.CreateBuilder()
+    let host = config.devServer.host
+    let port = config.devServer.port
+    let proxy = config.devServer.proxy
+    let useSSL = config.devServer.useSSL
+    let liveReload = config.devServer.liveReload
+
+    let enableEnv = config.enableEnv
+    let envPath = config.envPath
+
+    Server.addCommonServices proxy builder
+
+    let app = builder.Build()
+    Server.addCommonMiddleware host port useSSL app
+
+    Server.TestApp.addIndexHandler config dependencies app
+    |> Server.addProxy proxy
+    |> Server.addLiveReload liveReload fileChangedEvents compileErrorEvents
+    |> Server.addEnv enableEnv (UMX.untag envPath)
+    |> Server.TestApp.addTestingHandlers fileGlobs mochaOptions testEvents
+    |> Server.addResolveFile

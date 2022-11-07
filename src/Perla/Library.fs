@@ -103,3 +103,25 @@ module Lib =
         parts.[0], version
       else
         name, None
+
+  let (|Log|Debug|Info|Err|Warning|Clear|) level =
+    match level with
+    | "assert"
+    | "debug" -> Debug
+    | "info" -> Info
+    | "error" -> Err
+    | "warning" -> Warning
+    | "clear" -> Clear
+    | "log"
+    | "dir"
+    | "dirxml"
+    | "table"
+    | "trace"
+    | "startGroup"
+    | "startGroupCollapsed"
+    | "endGroup"
+    | "profile"
+    | "profileEnd"
+    | "count"
+    | "timeEnd"
+    | _ -> Log
