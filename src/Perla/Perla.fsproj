@@ -38,10 +38,11 @@
     <Compile Include="Scaffolding.fs" />
     <Compile Include="Library.fsi" />
     <Compile Include="Library.fs" />
-    <Compile Include="Server.fsi" />
-    <Compile Include="Server.fs" />
+    <Compile Include="Testing.fs" />
     <Compile Include="Dependencies.fsi" />
     <Compile Include="Dependencies.fs" />
+    <Compile Include="Server.fsi" />
+    <Compile Include="Server.fs" />
     <Compile Include="Configuration.fsi" />
     <Compile Include="Configuration.fs" />
     <Compile Include="Commands.fs" />
@@ -52,6 +53,12 @@
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
     <None Include="worker.js">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Include="testing-helpers.js">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Include="mocha-runner.js">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
   </ItemGroup>
