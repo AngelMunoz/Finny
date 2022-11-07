@@ -1,4 +1,5 @@
 namespace Perla
+open System
 
 module Units =
     [<Measure>]
@@ -78,6 +79,45 @@ module Types =
           envPath: string<ServerUrl>
           dependencies: Dependency seq
           devDependencies: Dependency seq }
+
+    type Test =
+        { body: string
+          duration: float option
+          fullTitle: string
+          id: string
+          pending: bool
+          speed: string option
+          state: string option
+          title: string
+          ``type``: string }
+
+    type Suite =
+        { id: string
+          title: string
+          fullTitle: string
+          root: bool
+          parent: string option
+          pending: bool
+          tests: Test list }
+
+    type TestStats =
+        { suites: int
+          tests: int
+          passes: int
+          pending: int
+          failures: int
+          start: DateTime
+          ``end``: DateTime option }
+
+    type TestEvent =
+        | SessionStart of stats: TestStats * totalTests: int
+        | SessionEnd of stats: TestStats
+        | SuiteStart of stats: TestStats * suite: Suite
+        | SuiteEnd of stats: TestStats * suite: Suite
+        | TestPass of stats: TestStats * test: Test
+        | TestFailed of stats: TestStats * test: Test * message: string * stack: string
+        | TestImportFailed of message: string * stack: string
+        | TestRunFinished
 
     exception CommandNotParsedException of string
     exception HelpRequestedException

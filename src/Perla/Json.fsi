@@ -59,6 +59,20 @@ module ConfigDecoders =
 
     val PerlaDecoder: Decoder<DecodedPerlaConfig>
 
+[<RequireQualifiedAccess>]
+module internal TestDecoders =
+    val TestStats: Decoder<TestStats>
+    val Test: Decoder<Test>
+    val Suite: Decoder<Suite>
+
+[<RequireQualifiedAccess>]
+module internal EventDecoders =
+    val SessionStart: Decoder<TestStats * int>
+    val SessionEnd: Decoder<TestStats>
+    val SuiteEvent: Decoder<TestStats * Suite>
+    val TestPass: Decoder<TestStats * Test>
+    val TestFailed: Decoder<TestStats * Test * string * string>
+
 open ConfigDecoders
 
 [<RequireQualifiedAccess; Struct>]
@@ -81,3 +95,4 @@ type Json =
     static member ToText: value: 'a * ?minify: bool -> string
     static member ToNode: value: 'a -> JsonNode
     static member FromConfigFile: string -> Result<DecodedPerlaConfig, string>
+    static member TestEventFromJson: string -> Result<TestEvent, string>

@@ -153,9 +153,9 @@ module ConfigDecoders =
         Decode.string
         |> Decode.andThen (function
           | "dev"
-          | "development" -> Decode.succeed (RunConfiguration.Development)
+          | "development" -> Decode.succeed RunConfiguration.Development
           | "prod"
-          | "production" -> Decode.succeed (RunConfiguration.Production)
+          | "production" -> Decode.succeed RunConfiguration.Production
           | value -> Decode.fail $"{value} is not a valid run configuration")
 
       let providerDecoder =
@@ -196,6 +196,75 @@ module ConfigDecoders =
           get.Optional.Field "devDependencies" (Decode.list DependencyDecoder)
           |> Option.map Seq.ofList })
 
+[<RequireQualifiedAccess>]
+module internal TestDecoders =
+
+  let TestStats: Decoder<TestStats> =
+    Decode.object (fun get ->
+      { suites = get.Required.Field "suites" Decode.int
+        tests = get.Required.Field "tests" Decode.int
+        passes = get.Required.Field "passes" Decode.int
+        pending = get.Required.Field "pending" Decode.int
+        failures = get.Required.Field "failures" Decode.int
+        start = get.Required.Field "start" Decode.datetime
+        ``end`` = get.Optional.Field "end" Decode.datetime })
+
+  let Test: Decoder<Test> =
+    Decode.object (fun get ->
+      { body = get.Required.Field "body" Decode.string
+        duration = get.Optional.Field "duration" Decode.float
+        fullTitle = get.Required.Field "fullTitle" Decode.string
+        id = get.Required.Field "id" Decode.string
+        pending = get.Required.Field "pending" Decode.bool
+        speed = get.Optional.Field "speed" Decode.string
+        state = get.Optional.Field "state" Decode.string
+        title = get.Required.Field "title" Decode.string
+        ``type`` = get.Required.Field "type" Decode.string })
+
+  let Suite: Decoder<Suite> =
+    Decode.object (fun get ->
+      { id = get.Required.Field "id" Decode.string
+        title = get.Required.Field "title" Decode.string
+        fullTitle = get.Required.Field "fullTitle" Decode.string
+        root = get.Required.Field "root" Decode.bool
+        parent = get.Optional.Field "parent" Decode.string
+        pending = get.Required.Field "pending" Decode.bool
+        tests = get.Required.Field "tests" (Decode.list Test) })
+
+[<RequireQualifiedAccess>]
+module internal EventDecoders =
+
+  let SessionStart: Decoder<TestStats * int> =
+    Decode.object (fun get ->
+      get.Required.Field "stats" TestDecoders.TestStats,
+      get.Required.Field "totalTests" Decode.int)
+
+  let SessionEnd: Decoder<TestStats> =
+    Decode.object (fun get -> get.Required.Field "stats" TestDecoders.TestStats)
+
+  let SuiteEvent: Decoder<TestStats * Suite> =
+    Decode.object (fun get ->
+      get.Required.Field "stats" TestDecoders.TestStats,
+      get.Required.Field "suite" TestDecoders.Suite)
+
+  let TestPass: Decoder<TestStats * Test> =
+    Decode.object (fun get ->
+      get.Required.Field "stats" TestDecoders.TestStats,
+      get.Required.Field "test" TestDecoders.Test)
+
+  let TestFailed: Decoder<TestStats * Test * string * string> =
+    Decode.object (fun get ->
+      get.Required.Field "stats" TestDecoders.TestStats,
+      get.Required.Field "test" TestDecoders.Test,
+      get.Required.Field "message" Decode.string,
+      get.Required.Field "stack" Decode.string)
+
+  let ImportFailed: Decoder<string * string> =
+    Decode.object (fun get ->
+      get.Required.Field "message" Decode.string,
+      get.Required.Field "stack" Decode.string)
+
+
 type Json =
   static member ToBytes value =
     JsonSerializer.SerializeToUtf8Bytes(value, DefaultJsonOptions())
@@ -214,3 +283,42 @@ type Json =
 
   static member FromConfigFile(content: string) =
     Decode.fromString ConfigDecoders.PerlaDecoder content
+
+  static member TestEventFromJson(value: string) =
+    // test events
+    // { event: string
+    //   stats: TestingStats
+    //   suite?: Suite
+    //   test?: Test
+    //   // message and stack are the error
+    //   message?: string
+    //   stack?: string }
+    result {
+      match! Decode.fromString (Decode.field "event" Decode.string) value with
+      | "session-start" ->
+        return!
+          Decode.fromString EventDecoders.SessionStart value
+          |> Result.map SessionStart
+      | "suite-start"
+      | "suite-end" ->
+        return!
+          Decode.fromString EventDecoders.SuiteEvent value
+          |> Result.map SuiteStart
+      | "test-pass" ->
+        return!
+          Decode.fromString EventDecoders.TestPass value |> Result.map TestPass
+      | "test-failed" ->
+        return!
+          Decode.fromString EventDecoders.TestFailed value
+          |> Result.map TestFailed
+      | "session-end" ->
+        return!
+          Decode.fromString EventDecoders.SessionEnd value
+          |> Result.map SessionEnd
+      | "test-import-failed" ->
+        return!
+          Decode.fromString EventDecoders.ImportFailed value
+          |> Result.map TestImportFailed
+      | "test-run-finished" -> return TestRunFinished
+      | unknown -> return! Error($"'{unknown}' is not a known event")
+    }
