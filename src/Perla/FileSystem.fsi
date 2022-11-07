@@ -23,6 +23,8 @@ module FileSystem =
     val PerlaConfigPath: string<SystemPath>
     val LiveReloadScript: Lazy<string>
     val WorkerScript: Lazy<string>
+    val TestingHelpersScript: Lazy<string>
+    val MochaRunnerScript: Lazy<string>
     val CurrentWorkingDirectory: unit -> string<SystemPath>
     val GetConfigPath: fileName: string -> fromDirectory: string<SystemPath> option -> string<SystemPath>
 

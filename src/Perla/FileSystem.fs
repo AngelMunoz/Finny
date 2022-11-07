@@ -4,7 +4,6 @@ open System
 open System.IO
 open System.IO.Compression
 open System.Text.Json.Nodes
-open System.Text.Json.Serialization
 open System.Threading
 open System.Threading.Tasks
 open System.Runtime.InteropServices
@@ -12,7 +11,6 @@ open System.Runtime.InteropServices
 open FSharp.UMX
 
 open Perla
-open Perla.Types
 open Perla.Units
 open Perla.Json
 open Perla.Logger
@@ -37,7 +35,6 @@ module FileSystem =
     let inline (/) a b = Path.Combine(a, b)
 
   open Operators
-  open Units
 
   let AssemblyRoot: string<SystemPath> =
     UMX.tag<SystemPath> AppContext.BaseDirectory
@@ -89,10 +86,16 @@ module FileSystem =
     GetConfigPath Constants.PerlaConfigName None
 
   let LiveReloadScript =
-    lazy (File.ReadAllText((UMX.untag AssemblyRoot) / "livereload.js"))
+    lazy File.ReadAllText((UMX.untag AssemblyRoot) / "livereload.js")
 
   let WorkerScript =
-    lazy (File.ReadAllText((UMX.untag AssemblyRoot) / "worker.js"))
+    lazy File.ReadAllText((UMX.untag AssemblyRoot) / "worker.js")
+
+  let TestingHelpersScript =
+    lazy File.ReadAllText((UMX.untag AssemblyRoot) / "testing-helpers.js")
+
+  let MochaRunnerScript =
+    lazy File.ReadAllText((UMX.untag AssemblyRoot) / "mocha-runner.js")
 
   let ensureFileContent<'T> (path: string<SystemPath>) (content: 'T) =
     try
@@ -104,7 +107,7 @@ module FileSystem =
         escape = false
       )
 
-      exit (1)
+      exit 1
 
     content
 
@@ -134,7 +137,7 @@ module FileSystem =
     try
       Directory.Delete(UMX.untag path)
     with ex ->
-      Logger.log (ex.Message)
+      Logger.log ($"There was an error removing: {path}", ex = ex)
 
   let EsbuildBinaryPath () : string<SystemPath> =
     let bin = if Env.IsWindows then "" else "bin"
@@ -326,7 +329,7 @@ type FileSystem =
       try
         File.WriteAllText(
           UMX.untag path,
-          config.ToJsonString(Json.DefaultJsonOptions())
+          config.ToJsonString(DefaultJsonOptions())
         )
       with ex ->
         Logger.log (
@@ -335,7 +338,7 @@ type FileSystem =
           escape = false
         )
 
-        exit (1)
+        exit 1
     | None -> ()
 
   static member PathForTemplate
@@ -431,7 +434,7 @@ type FileSystem =
     let originDirectory = UMX.cast origin |> Path.GetFullPath
     let targetDirectory = UMX.cast target |> Path.GetFullPath
 
-    let (files, templates) = FileSystem.collectRepositoryFiles origin
+    let files, templates = FileSystem.collectRepositoryFiles origin
 
 
     let copyFiles (ctx: ProgressTask) =
@@ -476,7 +479,7 @@ type FileSystem =
         )
 
 
-      copyFiles (copyTask)
+      copyFiles copyTask
       copyTask.StopTask()
 
       if templates.Length > 0 then
@@ -486,5 +489,5 @@ type FileSystem =
             ProgressTaskSettings(AutoStart = true, MaxValue = templates.Length)
           )
 
-        copyTemplates (processTemplates)
+        copyTemplates processTemplates
         processTemplates.StopTask())
