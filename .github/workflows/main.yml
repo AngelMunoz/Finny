@@ -22,4 +22,6 @@ jobs:
       - name: Install local tools
         run: dotnet tool restore
       - name: Build
-        run: dotnet fsi ./build.fsx -t SimpleBuild
+        run: dotnet fsi tools.fsx
+      - name: Test
+        run: dotnet fsi tools.fsx -- test
