@@ -20,6 +20,7 @@ type Build =
         [<Optional>] ?staticDependencies: string seq *
         [<Optional>] ?minify: bool ->
             string
+
     static member GetEntryPoints: document: IHtmlDocument -> string<ServerUrl> seq * string<ServerUrl> seq
 
     static member GetExternals: config: PerlaConfig -> string seq
