@@ -21,6 +21,8 @@ jobs:
           dotnet-version: 6.0.x
       - name: Install local tools
         run: dotnet tool restore
+      - name: Restore Paket
+        run: dotnet paket restore
       - name: Build
         run: dotnet fsi tools.fsx
       - name: Test
