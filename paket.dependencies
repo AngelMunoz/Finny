@@ -25,12 +25,12 @@ nuget Fake.IO.FileSystem 5.23.0
 nuget System.CommandLine >= 2.0.0-beta4.22272.1 prerelease
 nuget Microsoft.Extensions.Logging 6.0.0
 nuget Yarp.ReverseProxy 1.1.1
+nuget Microsoft.Playwright 1.27.2
 
 # Experiments specific packages
 
 nuget Argu 6.1.1
 nuget Giraffe 6.0.0
-nuget Microsoft.Playwright 1.25.0
 
 group Samples
     source https://api.nuget.org/v3/index.json
@@ -42,7 +42,7 @@ group Samples
 group Tests
     source https://api.nuget.org/v3/index.json
 
-    nuget Microsoft.NET.Test.Sdk 17.3.2 
-    nuget xunit 2.4.2 
+    nuget Microsoft.NET.Test.Sdk 17.3.2
+    nuget xunit 2.4.2
     nuget xunit.runner.visualstudio 2.4.5
     nuget coverlet.collector 3.1.2

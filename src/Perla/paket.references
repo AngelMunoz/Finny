@@ -18,3 +18,4 @@ Yarp.ReverseProxy
 Hellang.Middleware.SpaFallback
 Serilog.Sinks.Console
 Serilog.AspNetCore
+Microsoft.Playwright
