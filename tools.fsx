@@ -73,7 +73,7 @@ module Steps =
     let installTools =
         Step.create "Install Tools" { do! Operations.dotnet "tool restore" }
 
-    let restore = Step.create "Restore" { do! Operations.dotnet "paket restore" }
+    let restore = Step.create "Restore" { do! Operations.dotnet "paket install" }
 
     let clean = Step.create "Clean" { do! Operations.cleanDist }
 
