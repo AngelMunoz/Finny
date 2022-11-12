@@ -681,15 +681,15 @@ module Handlers =
           let config =
             match config.runConfiguration with
             | RunConfiguration.Development ->
-              { config with devDependencies = [ yield! config.devDependencies; newDep ] }
+              { config with
+                  devDependencies = [ yield! config.devDependencies; newDep ] }
             | RunConfiguration.Production ->
-              { config with dependencies = [ yield! config.dependencies; newDep ] }
+              { config with
+                  dependencies = [ yield! config.dependencies; newDep ] }
 
           let deps, devDeps =
-            Dependencies.LocateDependenciesFromMapAndConfig(
-              map,
-              config
-            )
+            Dependencies.LocateDependenciesFromMapAndConfig(map, config)
+
           PerlaWritableField.Dependencies deps,
           PerlaWritableField.DevDependencies devDeps
 

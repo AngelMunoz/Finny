@@ -373,7 +373,7 @@ type Configuration() =
       |> fromFile _fileConfig
       |> fromCli _runConfig _provider _serverOptions
 
-  member  _.CurrentConfig = _configContents
+  member _.CurrentConfig = _configContents
 
   member _.UpdateFromCliArgs
     (

@@ -11,14 +11,18 @@ open Perla.Units
 open Perla.Configuration
 open Perla.Esbuild
 
-type Esbuild() =
-
-  do
+[<Collection "Esbuild">]
+module EsbuildHelper =
+  [<Fact>]
+  let ``Just ensure Esbuild Downloads`` () =
     Perla.FileSystem.FileSystem.SetupEsbuild(
       UMX.tag Constants.Esbuild_Version
     )
     |> Async.AwaitTask
     |> Async.RunSynchronously
+
+[<Collection "Esbuild">]
+type Esbuild() =
 
   [<Fact>]
   member _.``GetPlugin should provide an esbuild plugin``() =
