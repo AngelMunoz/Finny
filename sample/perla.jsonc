@@ -35,5 +35,10 @@
       "version": "7.5.7"
     }
   ],
-  "devDependencies": []
+  "devDependencies": [
+    {
+      "name": "@esm-bundle/chai",
+      "version": "4.3.4"
+    }
+  ]
 }
