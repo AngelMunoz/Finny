@@ -14,12 +14,11 @@ open Perla.Esbuild
 type Esbuild() =
 
   do
-    let result =
-      Perla.FileSystem.FileSystem.SetupEsbuild(
-        UMX.tag Constants.Esbuild_Version
-      )
-
-    result.GetAwaiter().GetResult()
+    Perla.FileSystem.FileSystem.SetupEsbuild(
+      UMX.tag Constants.Esbuild_Version
+    )
+    |> Async.AwaitTask
+    |> Async.RunSynchronously
 
   [<Fact>]
   member _.``GetPlugin should provide an esbuild plugin``() =
