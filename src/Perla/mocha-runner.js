@@ -1,4 +1,6 @@
-﻿import {
+﻿// TODO: figure out how to better expose the mocha version, test config maybe?
+import 'https://unpkg.com/mocha/mocha.js'
+import {
     postEvent,
     getFileList,
     getTestSettings,
@@ -19,7 +21,7 @@ const {
     EVENT_TEST_PASS,
     EVENT_SUITE_BEGIN,
     EVENT_SUITE_END,
-} = Mocha.Runner.constants;
+} = Mocha.Runner.constants
 
 
 function serializeTest(test) {
@@ -64,13 +66,13 @@ function MyReporter(runner, options) {
             })
         })
         .on(EVENT_SUITE_BEGIN, function notifySuiteStart(suite) {
-            postEvent(PERLA_SUITE_START, getSuiteAndStats(this.stats, suite));
+            postEvent(PERLA_SUITE_START, getSuiteAndStats(this.stats, suite))
         })
         .on(EVENT_SUITE_END, function notifySuiteEnd(suite) {
-            postEvent(PERLA_SUITE_END, getSuiteAndStats(this.stats, suite));
+            postEvent(PERLA_SUITE_END, getSuiteAndStats(this.stats, suite))
         })
         .on(EVENT_TEST_PASS, function notifyPass(test) {
-            postEvent(PERLA_TEST_PASS, {stats: {...this.stats}, test: serializeTest(test)});
+            postEvent(PERLA_TEST_PASS, {stats: {...this.stats}, test: serializeTest(test)})
         })
         .on(EVENT_TEST_FAIL, function notifyFail(test, err) {
             postEvent(PERLA_TEST_FAILED, {
@@ -78,17 +80,17 @@ function MyReporter(runner, options) {
                 test: serializeTest(test),
                 message: err.message,
                 stack: err.stack
-            });
+            })
         })
         .once(EVENT_RUN_END, function notifyEnd() {
             postEvent(PERLA_SESSION_END, {stats: {...this.stats}})
-        });
+        })
 }
 
-Mocha.utils.inherits(MyReporter, Mocha.reporters.HTML);
+Mocha.utils.inherits(MyReporter, Mocha.reporters.HTML)
 
 const settings = await getTestSettings()
-const files = await getFileList();
+const files = await getFileList()
 
 mocha.setup({
     ui: 'bdd',
@@ -103,8 +105,8 @@ mocha.setup({
 for (const file of files) {
     try {
         await import(file);
-    } catch(err) {
-        await postEvent(PERLA_TEST_IMPORT_FAILED, { stack: err.stack, message: err.message });
+    } catch (err) {
+        await postEvent(PERLA_TEST_IMPORT_FAILED, {stack: err.stack, message: err.message});
     }
 }
 
