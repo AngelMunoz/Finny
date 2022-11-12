@@ -238,7 +238,7 @@ let fromCli
     Defaults.DevServerConfig.liveReload,
     Defaults.DevServerConfig.useSSL
 
-  let (port, host, liveReload, useSSL) =
+  let port, host, liveReload, useSSL =
     serverOptions
     |> Seq.fold
          (fun (port, host, liveReload, useSSL) next ->
@@ -373,7 +373,7 @@ type Configuration() =
       |> fromFile _fileConfig
       |> fromCli _runConfig _provider _serverOptions
 
-  member val CurrentConfig = _configContents
+  member  _.CurrentConfig = _configContents
 
   member _.UpdateFromCliArgs
     (

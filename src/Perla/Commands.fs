@@ -672,18 +672,24 @@ module Handlers =
 
       match map with
       | Ok map ->
+        let newDep =
+          { name = package
+            version = packageVersion
+            alias = options.alias }
+
         let dependencies, devDependencies =
+          let config =
+            match config.runConfiguration with
+            | RunConfiguration.Development ->
+              { config with devDependencies = [ yield! config.devDependencies; newDep ] }
+            | RunConfiguration.Production ->
+              { config with dependencies = [ yield! config.dependencies; newDep ] }
+
           let deps, devDeps =
             Dependencies.LocateDependenciesFromMapAndConfig(
               map,
-              { config with
-                  dependencies =
-                    [ yield! config.dependencies
-                      { name = package
-                        version = packageVersion
-                        alias = options.alias } ] }
+              config
             )
-
           PerlaWritableField.Dependencies deps,
           PerlaWritableField.DevDependencies devDeps
 

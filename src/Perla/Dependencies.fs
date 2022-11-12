@@ -361,12 +361,12 @@ type Dependencies =
           else
             None
         | None -> None)
-      |> List.map (fun (provider, name, version) ->
+      |> List.map (fun (_, name, version) ->
         { name = name
           version = Some version
           alias = None })
 
-    let (deps, devDeps) =
+    let deps, devDeps =
       fromImportMap
       |> List.fold
            (fun (current: Set<Dependency> * Set<Dependency>) (next: Dependency) ->

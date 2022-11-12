@@ -42,6 +42,11 @@
       "commandName": "Project",
       "commandLineArgs": "add rxjs",
       "workingDirectory": "$(ProjectDir)/../../sample"
+    },
+    "Add Dev Package ": {
+      "commandName": "Project",
+      "commandLineArgs": "add @esm-bundle/chai -d",
+      "workingDirectory": "$(ProjectDir)/../../sample"
     }
   }
 }
