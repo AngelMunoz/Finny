@@ -1,27 +1,11 @@
 ﻿namespace Perla.Tests
 
-open System
 
 open Xunit
-
-open FSharp.UMX
-
 open Perla
-open Perla.Units
 open Perla.Configuration
 open Perla.Esbuild
 
-[<Collection "Esbuild">]
-module EsbuildHelper =
-  [<Fact>]
-  let ``Just ensure Esbuild Downloads`` () =
-    Perla.FileSystem.FileSystem.SetupEsbuild(
-      UMX.tag Constants.Esbuild_Version
-    )
-    |> Async.AwaitTask
-    |> Async.RunSynchronously
-
-[<Collection "Esbuild">]
 type Esbuild() =
 
   [<Fact>]

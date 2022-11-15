@@ -25,5 +25,7 @@ jobs:
         run: dotnet paket restore
       - name: Build
         run: dotnet fsi tools.fsx
+      - name: Prepare Esbuild
+        run: dotnet fsi esbuild-ci.fsx
       - name: Test
         run: dotnet fsi tools.fsx -- test
