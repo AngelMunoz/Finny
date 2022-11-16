@@ -6,12 +6,14 @@ open System.IO
 
 open System.Threading
 open System.Threading.Tasks
-open System.Reactive.Threading.Tasks
+
 open Microsoft.Playwright
+open Perla.Plugins
 open Spectre.Console
 
 open FSharp.Control
 open FSharp.Control.Reactive
+
 open FSharp.UMX
 open FsToolkit.ErrorHandling
 
@@ -211,7 +213,7 @@ module Handlers =
         | None -> ()
         | parsed -> chosen <- parsed
 
-      let username, repository, branch = chosen.Value
+      let username, repository, _ = chosen.Value
 
       let template =
         TemplateSearchKind.FullName(username, repository) |> Templates.FindOne
@@ -590,7 +592,7 @@ module Handlers =
       Logger.log ($"Removing: [red]{name}[/]", escape = false)
       let config = Configuration.CurrentConfig
 
-      let map = FileSystem.ImportMap()
+      let map = FileSystem.GetImportMap()
 
       let dependencies, devDependencies =
         let deps, devDeps =
@@ -656,7 +658,7 @@ module Handlers =
         | Some version -> $"@{version}"
         | None -> ""
 
-      let importMap = FileSystem.ImportMap()
+      let importMap = FileSystem.GetImportMap()
       Logger.log "Updating Import Map..."
 
       let! map =
@@ -735,22 +737,23 @@ module Handlers =
       return 0
     }
 
-  let runBuild (cancel: CancellationToken, args: BuildOptions) =
+  let maybeFable (config: PerlaConfig, cancel: CancellationToken) =
     task {
-      Configuration.UpdateFromCliArgs(?runConfig = args.mode)
-      let config = Configuration.CurrentConfig
-
       match config.fable with
-      | Some fable ->
-        do!
-          backgroundTask {
-            do! Fable.Start(fable, false, cancellationToken = cancel) :> Task
-          }
+      | Some fable -> do! Fable.Start(fable, cancellationToken = cancel) :> Task
       | None ->
         Logger.log (
           "No Fable configuration provided, skipping fable",
           target = PrefixKind.Build
         )
+    }
+
+  let runBuild (cancel: CancellationToken, args: BuildOptions) =
+    task {
+      Configuration.UpdateFromCliArgs(?runConfig = args.mode)
+      let config = Configuration.CurrentConfig
+
+      do! maybeFable (config, cancel)
 
       if not <| File.Exists($"{FileSystem.EsbuildBinaryPath}") then
         do! FileSystem.SetupEsbuild(config.esbuild.version, cancel)
@@ -763,7 +766,7 @@ module Handlers =
       with _ ->
         ()
 
-      Plugins.LoadPlugins(config.esbuild)
+      LoadPlugins(config.esbuild)
 
       do!
         Logger.spinner (
@@ -866,7 +869,7 @@ module Handlers =
             Logger.log
               $"We were unable to update static dependencies and import map: {err}, falling back to the map in disk"
 
-            let map = FileSystem.ImportMap()
+            let map = FileSystem.GetImportMap()
             return Build.GetIndexFile(document, css, js, map)
         }
 
@@ -909,6 +912,50 @@ module Handlers =
         Logger.log $"Server Ready at:"
         Logger.log $"{http}\n{https}"
 
+  let private firstCompileFinished (observable: IObservable<FableEvent>) =
+    observable
+    |> Observable.choose (function
+      | FableEvent.WaitingForChanges -> Some()
+      | _ -> None)
+    |> Observable.first
+    |> AsyncSeq.ofObservableBuffered
+    |> AsyncSeq.iter ignore
+
+  let private getFileChanges
+    (
+      index: string,
+      mountDirectories,
+      perlaFilesChanges
+    ) =
+    let perlaFilesChanges =
+      perlaFilesChanges
+      |> Observable.map (fun event ->
+        let name, path, extension =
+          match event with
+          | PerlaFileChange.Index ->
+            (Path.GetFileName index, Path.GetFullPath index, ".html")
+          | PerlaFileChange.PerlaConfig ->
+            (Constants.PerlaConfigName,
+             UMX.untag FileSystem.PerlaConfigPath,
+             ".jsonc")
+          | PerlaFileChange.ImportMap ->
+            (Constants.ImportMapName,
+             UMX.untag (FileSystem.GetConfigPath Constants.ImportMapName None),
+             ".importmap")
+
+        { serverPath = UMX.tag "/"
+          userPath = UMX.tag "/"
+          oldPath = None
+          oldName = None
+          changeType = ChangeKind.Changed
+          path = UMX.tag path
+          name = UMX.tag name },
+        { content = ""; extension = extension })
+
+    VirtualFileSystem.GetFileChangeStream mountDirectories
+    |> VirtualFileSystem.ApplyVirtualOperations
+    |> Observable.merge perlaFilesChanges
+
   let runServe (cancel: CancellationToken, options: ServeOptions) =
     task {
       let cliArgs =
@@ -929,40 +976,54 @@ module Handlers =
 
       let config = Configuration.CurrentConfig
 
-      match config.fable with
-      | Some fable ->
-        let logger = getFableLogger config
+      let fableEvents =
+        match config.fable with
+        | Some fable -> Fable.Observe(fable, cancellationToken = cancel)
+        | None -> Observable.single FableEvent.WaitingForChanges
 
-        backgroundTask {
-          do!
-            Fable.Start(fable, true, logger, cancellationToken = cancel) :> Task
-        }
-        |> ignore
-      | None -> ()
+      use _ =
+        fableEvents
+        |> Observable.subscribeSafe (fun events ->
+          match events with
+          | FableEvent.Log msg -> Logger.log (msg.EscapeMarkup())
+          | FableEvent.ErrLog msg ->
+            Logger.log $"[bold red]{msg.EscapeMarkup()}[/]"
+          | FableEvent.WaitingForChanges -> ())
 
-      do!
-        backgroundTask {
-          do! FileSystem.SetupEsbuild(config.esbuild.version, cancel)
-        }
+      do! firstCompileFinished fableEvents
 
-      Plugins.LoadPlugins(config.esbuild)
+      do! FileSystem.SetupEsbuild(config.esbuild.version, cancel)
+
+      LoadPlugins(config.esbuild)
 
       do! VirtualFileSystem.Mount(config)
 
+      let perlaChanges =
+        FileSystem.ObservePerlaFiles(UMX.untag config.index, cancel)
 
-      let fileChangeEvents =
-        VirtualFileSystem.GetFileChangeStream config.mountDirectories
-        |> VirtualFileSystem.ApplyVirtualOperations
+      let fileChanges =
+        getFileChanges (
+          UMX.untag config.index,
+          config.mountDirectories,
+          perlaChanges
+        )
 
       // TODO: Grab these from esbuild
       let compilerErrors = Observable.empty
 
-      let app = Server.GetServerApp(config, fileChangeEvents, compilerErrors)
-
+      let mutable app = Server.GetServerApp(config, fileChanges, compilerErrors)
       do! app.StartAsync(cancel)
 
-      Console.CancelKeyPress.Add(fun _ ->
-        app.StopAsync() |> Async.AwaitTask |> Async.RunSynchronously)
+      perlaChanges
+      |> Observable.choose (function
+        | PerlaFileChange.PerlaConfig -> Some()
+        | _ -> None)
+      |> Observable.map (fun _ -> app.StopAsync() |> Async.AwaitTask)
+      |> Observable.switchAsync
+      |> Observable.add (fun _ ->
+        Configuration.UpdateFromFile()
+        app <- Server.GetServerApp(config, fileChanges, compilerErrors)
+        app.StartAsync(cancel) |> ignore)
 
       while not cancel.IsCancellationRequested do
         do! Async.Sleep(TimeSpan.FromSeconds(1.))
@@ -975,34 +1036,22 @@ module Handlers =
     task {
       let config = Configuration.CurrentConfig
       Testing.SetupPlaywright()
-      let logger = getFableLogger config
 
-      match config.fable, options.watch with
-      | Some fable, true ->
-        backgroundTask {
-          do!
-            Fable.Start(
-              fable,
-              options.watch,
-              logger,
-              cancellationToken = cancel
-            )
-            :> Task
-        }
-        |> ignore
-      | Some fable, false ->
-        do!
-          backgroundTask {
-            return!
-              Fable.Start(
-                fable,
-                options.watch,
-                logger,
-                cancellationToken = cancel
-              )
-              :> Task
-          }
-      | None, _ -> ()
+      let fableEvents =
+        match config.fable with
+        | Some fable -> Fable.Observe(fable, options.watch)
+        | None -> Observable.single FableEvent.WaitingForChanges
+
+      use _ =
+        fableEvents
+        |> Observable.subscribeSafe (fun events ->
+          match events with
+          | FableEvent.Log msg -> Logger.log (msg.EscapeMarkup())
+          | FableEvent.ErrLog msg ->
+            Logger.log $"[bold red]{msg.EscapeMarkup()}[/]"
+          | FableEvent.WaitingForChanges -> ())
+
+      do! firstCompileFinished fableEvents
 
       do! FileSystem.SetupEsbuild(config.esbuild.version, cancel)
 
@@ -1018,9 +1067,9 @@ module Handlers =
 
       let dependencies =
         dependencies
-        |> Result.defaultWith (fun _ -> (Seq.empty, FileSystem.ImportMap()))
+        |> Result.defaultWith (fun _ -> (Seq.empty, FileSystem.GetImportMap()))
 
-      Plugins.LoadPlugins(config.esbuild)
+      LoadPlugins(config.esbuild)
 
       let mountedDirs =
         config.mountDirectories
@@ -1029,10 +1078,15 @@ module Handlers =
       do!
         VirtualFileSystem.Mount({ config with mountDirectories = mountedDirs })
 
-      let fileChangeEvents =
-        VirtualFileSystem.GetFileChangeStream config.mountDirectories
-        |> VirtualFileSystem.ApplyVirtualOperations
+      let perlaChanges =
+        FileSystem.ObservePerlaFiles(UMX.untag config.index, cancel)
 
+      let fileChanges =
+        getFileChanges (
+          UMX.untag config.index,
+          config.mountDirectories,
+          perlaChanges
+        )
       // TODO: Grab these from esbuild
       let compilerErrors = Observable.empty
 
@@ -1042,12 +1096,12 @@ module Handlers =
 
       let events = Subject<TestEvent>.broadcast
 
-      let app =
+      let mutable app =
         Server.GetTestingApp(
           config,
           dependencies,
           events,
-          fileChangeEvents,
+          fileChanges,
           compilerErrors,
           options.files
         )
@@ -1066,6 +1120,24 @@ module Handlers =
           config.devServer.host
           config.devServer.port
           config.devServer.useSSL
+
+      perlaChanges
+      |> Observable.choose (function
+        | PerlaFileChange.PerlaConfig -> Some()
+        | _ -> None)
+      |> Observable.map (fun _ -> app.StopAsync() |> Async.AwaitTask)
+      |> Observable.switchAsync
+      |> Observable.add (fun _ ->
+        Configuration.UpdateFromFile()
+        app <- Server.GetServerApp(config, fileChanges, compilerErrors)
+
+        task {
+          do! app.StartAsync(cancel)
+          do! page.GotoAsync(http) :> Task
+        }
+        |> Async.AwaitTask
+        |> Async.Start)
+
 
       do! page.GotoAsync(http) :> Task
 

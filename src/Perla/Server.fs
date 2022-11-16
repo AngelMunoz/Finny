@@ -197,7 +197,7 @@ module LiveReload =
       Json.ToText(
         {| oldName = event.oldName
            name = event.name |},
-        true
+        false
       )
 
     Logger.log ($"LiveReload: File Changed: {event.name}", target = Serve)
@@ -432,7 +432,7 @@ document.head.appendChild(style).innerHTML=`{content}`;"""
 
   let IndexHandler (config: PerlaConfig) (_: HttpContext) =
     let content = FileSystem.IndexFile(config.index)
-    let map = FileSystem.ImportMap()
+    let map = FileSystem.GetImportMap()
 
     use context = BrowsingContext.New(Configuration.Default)
 

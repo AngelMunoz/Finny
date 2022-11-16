@@ -8,13 +8,7 @@ open System.Threading
 open System.Threading.Tasks
 open System.Runtime.InteropServices
 
-open FSharp.UMX
-
-open Perla
-open Perla.Units
-open Perla.Json
-open Perla.Logger
-open Perla.PackageManager.Types
+open Spectre.Console
 
 open CliWrap
 
@@ -22,11 +16,29 @@ open Flurl.Http
 
 open ICSharpCode.SharpZipLib.GZip
 open ICSharpCode.SharpZipLib.Tar
+
+open FSharp.UMX
+
 open FsToolkit.ErrorHandling
+
+open FSharp.Control.Reactive
 
 open Fake.IO.Globbing
 open Fake.IO.Globbing.Operators
-open Spectre.Console
+
+open Perla
+open Perla.Units
+open Perla.Json
+open Perla.Logger
+open Perla.PackageManager.Types
+
+[<RequireQualifiedAccess>]
+type PerlaFileChange =
+  | Index
+  | PerlaConfig
+  | ImportMap
+
+
 
 [<RequireQualifiedAccess>]
 module FileSystem =
@@ -275,7 +287,25 @@ module FileSystem =
 
       (List.empty, List.empty)
 
+  let getPerlaFilesMonitor () =
+    let fsw =
+      new FileSystemWatcher(
+        UMX.untag PerlaConfigPath |> Path.GetDirectoryName |> Path.GetFullPath,
+        "*",
+        IncludeSubdirectories = false,
+        NotifyFilter =
+          (NotifyFilters.Size
+           ||| NotifyFilters.LastWrite
+           ||| NotifyFilters.FileName),
+        EnableRaisingEvents = true
+      )
+
+    fsw.Filters.Add(".html")
+    fsw.Filters.Add(".jsonc")
+    fsw
+
 type FileSystem =
+
   static member PerlaConfigText(?fromDirectory: string<SystemPath>) =
 
     let path = FileSystem.GetConfigPath Constants.PerlaConfigName fromDirectory
@@ -292,7 +322,7 @@ type FileSystem =
     |> Path.GetFullPath
     |> Directory.SetCurrentDirectory
 
-  static member ImportMap(?fromDirectory: string<SystemPath>) =
+  static member GetImportMap(?fromDirectory: string<SystemPath>) =
     let path = FileSystem.GetConfigPath Constants.ImportMapName fromDirectory
 
     try
@@ -340,6 +370,35 @@ type FileSystem =
 
         exit 1
     | None -> ()
+
+
+  static member ObservePerlaFiles
+    (
+      indexPath: string,
+      [<Optional>] ?cancellationToken: CancellationToken
+    ) =
+    let notifier = FileSystem.getPerlaFilesMonitor ()
+
+    match cancellationToken with
+    | Some cancel ->
+      cancel.UnsafeRegister((fun _ -> notifier.Dispose()), ()) |> ignore
+    | None -> ()
+
+    [ notifier.Changed :> IObservable<FileSystemEventArgs>; notifier.Created ]
+    |> Observable.mergeSeq
+    |> Observable.throttle (TimeSpan.FromMilliseconds(400))
+    |> Observable.filter (fun event ->
+      indexPath.ToLowerInvariant().Contains(event.Name)
+      || event.Name.Contains(Constants.PerlaConfigName)
+      || event.Name.Contains(Constants.ImportMapName))
+    |> Observable.map (fun event ->
+      match event.Name.ToLowerInvariant() with
+      | value when value.Contains(Constants.PerlaConfigName) ->
+        PerlaFileChange.PerlaConfig
+      | value when value.Contains(Constants.ImportMapName) ->
+        PerlaFileChange.ImportMap
+      | _ -> PerlaFileChange.Index)
+
 
   static member PathForTemplate
     (

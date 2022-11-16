@@ -1,5 +1,10 @@
 ﻿namespace Perla.Fable
 
+open System
+open System.Threading
+open System.Threading.Tasks
+open System.Runtime.InteropServices
+
 open CliWrap
 
 open Perla
@@ -7,19 +12,16 @@ open Perla.Types
 open Perla.Units
 open Perla.Logger
 
+open FSharp.Control.Reactive
 open FSharp.UMX
-open System.Threading
+
+[<RequireQualifiedAccess>]
+type FableEvent =
+  | Log of string
+  | ErrLog of string
+  | WaitingForChanges
 
 module Fable =
-  let mutable activeFable: int option = None
-
-  let killActiveProcess pid =
-    try
-      let activeProcess = System.Diagnostics.Process.GetProcessById pid
-
-      activeProcess.Kill()
-    with ex ->
-      Logger.log ($"Failed to kill process with PID: [{pid}]", ex)
 
   let addProject
     (project: string<SystemPath>)
@@ -48,8 +50,8 @@ module Fable =
     (
       config: FableConfig,
       isWatch: bool,
-      stdout: (string -> unit),
-      stderr: (string -> unit)
+      stdout: Action<string>,
+      stderr: Action<string>
     ) =
     let execBinName = if Env.IsWindows then "dotnet.exe" else "dotnet"
 
@@ -62,37 +64,78 @@ module Fable =
         |> addOutDir config.outDir
         |> addExtension config.extension
         |> ignore)
-      .WithStandardErrorPipe(PipeTarget.ToDelegate(stdout))
-      .WithStandardOutputPipe(PipeTarget.ToDelegate(stderr))
+      .WithStandardErrorPipe(PipeTarget.ToDelegate(stderr))
+      .WithStandardOutputPipe(PipeTarget.ToDelegate(stdout))
 
 type Fable =
-  static member FablePid = Fable.activeFable
-
-  static member Stop() =
-    match Fable.activeFable with
-    | Some pid -> Fable.killActiveProcess pid
-    | None -> Logger.log "No active Fable found"
 
   static member Start
     (
       config: FableConfig,
-      isWatch: bool,
       ?stdout: string -> unit,
       ?stderr: string -> unit,
       ?cancellationToken: CancellationToken
     ) =
     task {
-      let stdout = defaultArg stdout (printfn "Fable: %s")
-      let stderr = defaultArg stderr (eprintfn "Fable: %s")
+      let stdout =
+        let stdout = stdout |> Option.map (fun log -> Action<string>(log))
+        defaultArg stdout (Action<string>(printfn "Fable: %s"))
+
+      let stderr =
+        let stderr = stderr |> Option.map (fun log -> Action<string>(log))
+        defaultArg stderr (Action<string>(eprintfn "Fable: %s"))
 
       let cmdResult =
         Fable
-          .fableCmd(config, isWatch, stdout, stderr)
+          .fableCmd(config, false, stdout, stderr)
           .ExecuteAsync(?cancellationToken = cancellationToken)
-
-      Fable.activeFable <- Some cmdResult.ProcessId
 
       Logger.log $"Starting Fable with pid: [{cmdResult.ProcessId}]"
 
       return! cmdResult.Task
     }
+
+  static member Observe
+    (
+      config: FableConfig,
+      [<Optional>] ?isWatch: bool,
+      [<Optional>] ?stdout: string -> unit,
+      [<Optional>] ?stderr: string -> unit,
+      [<Optional>] ?cancellationToken: CancellationToken
+    ) : IObservable<FableEvent> =
+    let sub = Subject.replay
+
+    let EmitFableEvent (value: string) =
+      if value.ToLowerInvariant().Contains("watching") then
+        sub.OnNext(FableEvent.WaitingForChanges)
+      else
+        sub.OnNext(FableEvent.Log value)
+
+    let stdout =
+      match stdout with
+      | None -> Action<string>(fun e -> EmitFableEvent e)
+      | Some stdout ->
+        Action.Combine(Action<string>(stdout), Action<string>(EmitFableEvent))
+        :?> Action<string>
+
+    let stderr =
+      let stderr = stderr |> Option.map (fun stderr -> Action<string>(stderr))
+      defaultArg stderr (Action<string>(eprintfn "%s"))
+
+    let cmdResult =
+      Fable.fableCmd (config, defaultArg isWatch true, stdout, stderr)
+
+    async {
+      try
+        let cmdResult =
+          cmdResult.ExecuteAsync(?cancellationToken = cancellationToken)
+
+        Logger.log $"Starting Fable with pid: [{cmdResult.ProcessId}]"
+        do! cmdResult.Task :> Task |> Async.AwaitTask
+        sub.OnCompleted()
+      with ex ->
+        sub.OnError(ex)
+    }
+    |> Async.Start
+
+    sub

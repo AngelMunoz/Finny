@@ -11,6 +11,14 @@ open Perla.Types
 open Perla.Units
 open Perla.PackageManager.Types
 
+
+[<RequireQualifiedAccess>]
+type PerlaFileChange =
+    | Index
+    | PerlaConfig
+    | ImportMap
+
+
 [<RequireQualifiedAccess>]
 module FileSystem =
     module Operators =
@@ -41,7 +49,7 @@ module FileSystem =
 type FileSystem =
     static member PerlaConfigText: ?fromDirectory: string<SystemPath> -> string option
     static member SetCwdToPerlaRoot: ?fromPath: string<SystemPath> -> unit
-    static member ImportMap: ?fromDirectory: string<SystemPath> -> ImportMap
+    static member GetImportMap: ?fromDirectory: string<SystemPath> -> ImportMap
     static member SetupEsbuild:
         esbuildVersion: string<Semver> * [<Optional>] ?cancellationToken: CancellationToken -> Task<unit>
     static member WriteImportMap: map: ImportMap * ?fromDirectory: string<SystemPath> -> ImportMap
@@ -53,3 +61,5 @@ type FileSystem =
         username: string * repository: string * branch: string * ?tplName: string -> string option
     static member IndexFile: fromConfig: string<SystemPath> -> string
     static member PluginFiles: unit -> (string * string) array
+    static member ObservePerlaFiles:
+        indexPath: string * [<Optional>] ?cancellationToken: CancellationToken -> IObservable<PerlaFileChange>

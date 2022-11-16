@@ -35,7 +35,8 @@ function connectToSource() {
     })
 
     source.addEventListener("reload", function(event) {
-        console.log("Reloading, file changed: ", event.data);
+        const eventData = tryParse(event.data)
+        console.log("Reloading, file changed: ", eventData?.name);
         self.postMessage({
             event: 'reload'
         });
