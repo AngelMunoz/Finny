@@ -1,6 +1,5 @@
 source https://api.nuget.org/v3/index.json
 
-nuget FSharp.Core
 nuget FSharp.UMX 1.1.0
 nuget FSharp.Compiler.Service 41.0.6
 nuget FSharp.Control.AsyncSeq 3.2.1

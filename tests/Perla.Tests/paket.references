@@ -1,8 +1,6 @@
-FSharp.Core
 FSharp.Control.AsyncSeq
 FSharp.Control.Reactive
 FSharp.SystemCommandLine
-FsToolkit.ErrorHandling
 FsToolkit.ErrorHandling.TaskResult
 FSharp.UMX
 Thoth.Json.Net
@@ -16,9 +14,8 @@ Scriban
 Zio
 Yarp.ReverseProxy
 Hellang.Middleware.SpaFallback
-
 group Tests
-    Microsoft.NET.Test.Sdk
-    xunit
-    xunit.runner.visualstudio
-    coverlet.collector
+Microsoft.NET.Test.Sdk
+xunit
+xunit.runner.visualstudio
+coverlet.collector
