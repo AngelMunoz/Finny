@@ -12,7 +12,7 @@ type DictionaryExtensions =
 
   [<Extension>]
   static member ToSeq(dictionary: Dictionary<'TKey, 'TValue>) =
-    seq { for KeyValue (key, value) in dictionary -> key, value }
+    seq { for KeyValue(key, value) in dictionary -> key, value }
 
 module Types =
 
@@ -40,7 +40,7 @@ module Types =
         match scopes with
         | Some scopes ->
           seq {
-            for KeyValue (scopeKey, scopeValue) in scopes ->
+            for KeyValue(scopeKey, scopeValue) in scopes ->
               scopeKey, scopeValue.ToSeq() |> Map.ofSeq
           }
           |> Map.ofSeq
@@ -142,7 +142,7 @@ module TypeExtensions =
         match scopes with
         | Some scopes ->
           seq {
-            for KeyValue (scopeKey, scopeValue) in scopes ->
+            for KeyValue(scopeKey, scopeValue) in scopes ->
               scopeKey, scopeValue.ToSeq() |> Map.ofSeq
           }
           |> Map.ofSeq

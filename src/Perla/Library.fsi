@@ -1,4 +1,5 @@
 namespace Perla
+
 open System.Text.RegularExpressions
 
 [<AutoOpen>]

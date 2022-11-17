@@ -547,7 +547,7 @@ module Handlers =
   let runUpdateTemplate (opts: TemplateRepositoryOptions) =
     task {
       match parseFullRepositoryName opts.fullRepositoryName with
-      | Some (username, repository, branch) ->
+      | Some(username, repository, branch) ->
         match
           Templates.FindOne(TemplateSearchKind.FullName(username, repository))
         with
@@ -861,7 +861,7 @@ module Handlers =
               Dependencies.GetMapAndDependencies(dependencies, config.provider)
             )
           with
-          | Ok (deps, map) ->
+          | Ok(deps, map) ->
             FileSystem.WriteImportMap(map) |> ignore
             let deps = if args.disablePreloads then Seq.empty else deps
             return Build.GetIndexFile(document, css, js, map, deps)
@@ -1030,7 +1030,6 @@ module Handlers =
 
       return 0
     }
-
 
   let runTesting (cancel: CancellationToken, options: TestingOptions) =
     task {

@@ -140,7 +140,7 @@ module Extensions =
     /// <param name="value">The value to be set. Non string values will be converted to a string using the object's ToString() method.</param>
     [<Extension>]
     static member SetHttpHeader(ctx: HttpContext, key: string, value: obj) =
-      ctx.Response.Headers[ key ] <- StringValues(value.ToString())
+      ctx.Response.Headers[key] <- StringValues(value.ToString())
 
     /// <summary>
     /// Sets the Content-Type HTTP header in the response.

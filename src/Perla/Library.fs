@@ -18,14 +18,18 @@ module Lib =
 
   let ExtractDependencyInfoFromUrl url =
     match url with
-    | ParseRegex (Regex (@"https://cdn.skypack.dev/pin/(@?[^@]+)@v([\d.]+)"))
-                 [ name; version ] -> Some(Provider.Skypack, name, version)
-    | ParseRegex (Regex (@"https://cdn.jsdelivr.net/npm/(@?[^@]+)@([\d.]+)"))
-                 [ name; version ] -> Some(Provider.Jsdelivr, name, version)
-    | ParseRegex (Regex (@"https://ga.jspm.io/npm:(@?[^@]+)@([\d.]+)"))
-                 [ name; version ] -> Some(Provider.Jspm, name, version)
-    | ParseRegex (Regex (@"https://unpkg.com/(@?[^@]+)@([\d.]+)"))
-                 [ name; version ] -> Some(Provider.Unpkg, name, version)
+    | ParseRegex (Regex(@"https://cdn.skypack.dev/pin/(@?[^@]+)@v([\d.]+)")) [ name
+                                                                               version ] ->
+      Some(Provider.Skypack, name, version)
+    | ParseRegex (Regex(@"https://cdn.jsdelivr.net/npm/(@?[^@]+)@([\d.]+)")) [ name
+                                                                               version ] ->
+      Some(Provider.Jsdelivr, name, version)
+    | ParseRegex (Regex(@"https://ga.jspm.io/npm:(@?[^@]+)@([\d.]+)")) [ name
+                                                                         version ] ->
+      Some(Provider.Jspm, name, version)
+    | ParseRegex (Regex(@"https://unpkg.com/(@?[^@]+)@([\d.]+)")) [ name
+                                                                    version ] ->
+      Some(Provider.Unpkg, name, version)
     | _ -> None
 
   let parseFullRepositoryName (value: string) =

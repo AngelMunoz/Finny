@@ -104,7 +104,7 @@ module Scaffolding =
         | TemplateSearchKind.Id id -> tplRepository._id = id
         | TemplateSearchKind.Username name -> tplRepository.username = name
         | TemplateSearchKind.Repository name -> tplRepository.repository = name
-        | TemplateSearchKind.FullName (username, repository) ->
+        | TemplateSearchKind.FullName(username, repository) ->
           tplRepository.username = username
           && tplRepository.repository = repository)
 
@@ -132,7 +132,7 @@ module Scaffolding =
             .Query()
             .Where(fun tplRepo -> tplRepo.repository = repository)
             .SingleOrDefault()
-        | TemplateSearchKind.FullName (username, repository) ->
+        | TemplateSearchKind.FullName(username, repository) ->
           templates
             .Query()
             .Where(fun tplRepo ->

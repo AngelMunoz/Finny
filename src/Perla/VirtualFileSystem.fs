@@ -190,7 +190,7 @@ module VirtualFileSystem =
     async {
       let cwd = FileSystem.CurrentWorkingDirectory()
 
-      for KeyValue (url, path) in directories do
+      for KeyValue(url, path) in directories do
         Logger.log ($"Mounting {path} into {url}...")
 
         do!
@@ -316,7 +316,7 @@ module VirtualFileSystem =
     =
     let cwd = FileSystem.CurrentWorkingDirectory() |> UMX.untag
 
-    [ for KeyValue (url, path) in mountedDirectories ->
+    [ for KeyValue(url, path) in mountedDirectories ->
         IO.Path.Combine(cwd, UMX.untag path) |> observablesForPath url path ]
     |> Observable.mergeSeq
     |> Observable.filter (fun event ->
