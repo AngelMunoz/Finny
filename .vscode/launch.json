@@ -31,6 +31,47 @@
             "console": "integratedTerminal"
         },
         {
+            "name": "Perla test watch",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build",
+            "program": "${workspaceFolder}/src/Perla/bin/Debug/net6.0/Perla.dll",
+            "args": [
+                "test",
+                "-w"
+            ],
+            "cwd": "${workspaceFolder}/sample",
+            "stopAtEntry": false,
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Perla test headless",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build",
+            "program": "${workspaceFolder}/src/Perla/bin/Debug/net6.0/Perla.dll",
+            "args": [
+                "test",
+                "--headless"
+            ],
+            "cwd": "${workspaceFolder}/sample",
+            "stopAtEntry": false,
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Perla test",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build",
+            "program": "${workspaceFolder}/src/Perla/bin/Debug/net6.0/Perla.dll",
+            "args": [
+                "test"
+            ],
+            "cwd": "${workspaceFolder}/sample",
+            "stopAtEntry": false,
+            "console": "integratedTerminal"
+        },
+        {
             "name": "Perla templates:add default repo",
             "type": "coreclr",
             "request": "launch",

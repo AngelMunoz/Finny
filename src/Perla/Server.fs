@@ -140,7 +140,7 @@ module Extensions =
     /// <param name="value">The value to be set. Non string values will be converted to a string using the object's ToString() method.</param>
     [<Extension>]
     static member SetHttpHeader(ctx: HttpContext, key: string, value: obj) =
-      ctx.Response.Headers[key] <- StringValues(value.ToString())
+      ctx.Response.Headers[ key ] <- StringValues(value.ToString())
 
     /// <summary>
     /// Sets the Content-Type HTTP header in the response.
@@ -324,9 +324,7 @@ document.head.appendChild(style).innerHTML=`{content}`;"""
         Logger.log $"[bold red]{err.EscapeMarkup()}[/]")
       |> Result.iter (fun event ->
         match event with
-        | TestEvent.TestRunFinished as ev ->
-          testEvents.OnNext ev
-          testEvents.OnCompleted()
+        | TestEvent.TestRunFinished -> testEvents.OnCompleted()
         | otherEvents -> testEvents.OnNext otherEvents)
 
       return Results.Ok()
@@ -478,15 +476,31 @@ document.head.appendChild(style).innerHTML=`{content}`;"""
       link.SetAttribute("href", dependencyUrl)
       doc.Head.AppendChild(link) |> ignore
 
-    let script = doc.CreateElement "script"
+    let mochaStyles: Dom.IElement = doc.CreateElement "link"
+    mochaStyles.SetAttribute("href", "https://unpkg.com/mocha/mocha.css")
+    mochaStyles.SetAttribute("rel", "stylesheet")
+    mochaStyles.SetAttribute("type", MimeTypeNames.Css)
+    doc.Head.AppendChild mochaStyles |> ignore
+
+    let script: Dom.IElement = doc.CreateElement "script"
     script.SetAttribute("type", "importmap")
     script.TextContent <- Json.ToText map
     doc.Head.AppendChild script |> ignore
 
+    let mochaScript = doc.CreateElement "script"
+    mochaScript.SetAttribute("type", MimeTypeNames.DefaultJavaScript)
+    mochaScript.SetAttribute("src", "https://unpkg.com/mocha/mocha.js")
+    doc.Body.AppendChild mochaScript |> ignore
+
+    let mochaDiv = doc.CreateElement "div"
+    mochaDiv.SetAttribute("id", "mocha")
+    doc.Body.AppendChild mochaDiv |> ignore
+
     let runnerScript = doc.CreateElement "script"
-    script.SetAttribute("type", "module")
-    script.TextContent <- FileSystem.MochaRunnerScript.Value
+    runnerScript.SetAttribute("type", "module")
+    runnerScript.TextContent <- FileSystem.MochaRunnerScript.Value
     doc.Body.AppendChild runnerScript |> ignore
+
 
     if config.devServer.liveReload then
       let liveReload = doc.CreateElement "script"
@@ -702,6 +716,15 @@ module Server =
       testingEvents
       (app: WebApplication)
       =
+
+      app.MapGet(
+        "/~perla~/testing/helpers.js",
+        Func<HttpContext, Task<IResult>>(
+          Middleware.SendScript PerlaScript.TestingHelpers
+        )
+      )
+      |> ignore
+
       app.MapPost(
         "/~perla~/testing/events",
         Func<HttpContext, Task>(Middleware.ProcessTestEvent testingEvents)

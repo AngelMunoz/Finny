@@ -547,7 +547,7 @@ module Handlers =
   let runUpdateTemplate (opts: TemplateRepositoryOptions) =
     task {
       match parseFullRepositoryName opts.fullRepositoryName with
-      | Some(username, repository, branch) ->
+      | Some (username, repository, branch) ->
         match
           Templates.FindOne(TemplateSearchKind.FullName(username, repository))
         with
@@ -861,7 +861,7 @@ module Handlers =
               Dependencies.GetMapAndDependencies(dependencies, config.provider)
             )
           with
-          | Ok(deps, map) ->
+          | Ok (deps, map) ->
             FileSystem.WriteImportMap(map) |> ignore
             let deps = if args.disablePreloads then Seq.empty else deps
             return Build.GetIndexFile(document, css, js, map, deps)
@@ -912,12 +912,12 @@ module Handlers =
         Logger.log $"Server Ready at:"
         Logger.log $"{http}\n{https}"
 
-  let private firstCompileFinished (observable: IObservable<FableEvent>) =
+  let private firstCompileFinished isWatch (observable: IObservable<FableEvent>) =
     observable
     |> Observable.choose (function
       | FableEvent.WaitingForChanges -> Some()
       | _ -> None)
-    |> Observable.first
+    |> (fun obs -> if isWatch then Observable.first obs else Observable.takeLast 1 obs)
     |> AsyncSeq.ofObservableBuffered
     |> AsyncSeq.iter ignore
 
@@ -979,7 +979,10 @@ module Handlers =
       let fableEvents =
         match config.fable with
         | Some fable -> Fable.Observe(fable, cancellationToken = cancel)
-        | None -> Observable.single FableEvent.WaitingForChanges
+        | None ->
+          let sub = Subject.replay
+          sub.OnNext(FableEvent.WaitingForChanges)
+          sub
 
       use _ =
         fableEvents
@@ -990,7 +993,7 @@ module Handlers =
             Logger.log $"[bold red]{msg.EscapeMarkup()}[/]"
           | FableEvent.WaitingForChanges -> ())
 
-      do! firstCompileFinished fableEvents
+      do! firstCompileFinished true fableEvents
 
       do! FileSystem.SetupEsbuild(config.esbuild.version, cancel)
 
@@ -1050,7 +1053,7 @@ module Handlers =
             Logger.log $"[bold red]{msg.EscapeMarkup()}[/]"
           | FableEvent.WaitingForChanges -> ())
 
-      do! firstCompileFinished fableEvents
+      do! firstCompileFinished options.watch fableEvents
 
       do! FileSystem.SetupEsbuild(config.esbuild.version, cancel)
 
@@ -1095,6 +1098,12 @@ module Handlers =
 
       let events = Subject<TestEvent>.broadcast
 
+      let http, _ =
+        Server.GetServerURLs
+          config.devServer.host
+          config.devServer.port
+          config.devServer.useSSL
+
       let mutable app =
         Server.GetTestingApp(
           config,
@@ -1112,13 +1121,8 @@ module Handlers =
       use! browser =
         Testing.GetBrowser(options.browsers |> Seq.head, options.headless, pl)
 
-      let! page = browser.NewPageAsync()
-
-      let http, _ =
-        Server.GetServerURLs
-          config.devServer.host
-          config.devServer.port
-          config.devServer.useSSL
+      let! page =
+        browser.NewPageAsync(BrowserNewPageOptions(IgnoreHTTPSErrors = true))
 
       perlaChanges
       |> Observable.choose (function
@@ -1137,6 +1141,8 @@ module Handlers =
         |> Async.AwaitTask
         |> Async.Start)
 
+
+      use _ = Testing.PrintReportLive events
 
       do! page.GotoAsync(http) :> Task
 
@@ -1164,7 +1170,7 @@ module Handlers =
           )
         ))
 
-      if not config.devServer.liveReload then
+      if not options.watch then
         events
         |> Observable.toEnumerable
         |> Testing.BuildReport
@@ -1172,7 +1178,6 @@ module Handlers =
 
         return 0
       else
-        use _ = events |> Testing.PrintReportLive
 
         while not cancel.IsCancellationRequested do
           do! Async.Sleep(TimeSpan.FromSeconds(1.))
@@ -1687,8 +1692,8 @@ module Commands =
         ctx: InvocationContext,
         files: string array option,
         browsers: string array,
-        headless: bool option,
-        watch: bool option
+        headless: bool,
+        watch: bool
       ) =
       ctx.GetCancellationToken(),
       { files = files |> Option.defaultValue Array.empty
@@ -1696,8 +1701,8 @@ module Commands =
           if browsers.Length = 0 then [| "chromium" |] else browsers
           |> Array.map Browser.FromString
           |> set
-        headless = headless |> Option.defaultValue true
-        watch = watch |> Option.defaultValue false }
+        headless = headless
+        watch = watch }
 
     command "test" {
       description "Runs client side tests in a headless browser"

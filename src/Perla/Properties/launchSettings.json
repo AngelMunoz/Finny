@@ -18,6 +18,42 @@
         "PERLA_SOME_TOKEN": "much secret, so wow :3"
       }
     },
+    "Test App Watch": {
+      "commandName": "Project",
+      "commandLineArgs": "test --watch",
+      "workingDirectory": "$(ProjectDir)/../../sample",
+      "environmentVariables": {
+        "PERLA_envValue": "this is my value",
+        "PERLA_SOME_TOKEN": "much secret, so wow :3"
+      }
+    },
+    "Test App Headless": {
+      "commandName": "Project",
+      "commandLineArgs": "test --headless",
+      "workingDirectory": "$(ProjectDir)/../../sample",
+      "environmentVariables": {
+        "PERLA_envValue": "this is my value",
+        "PERLA_SOME_TOKEN": "much secret, so wow :3"
+      }
+    },
+    "Test App Headless Watch": {
+      "commandName": "Project",
+      "commandLineArgs": "test --headless --watch",
+      "workingDirectory": "$(ProjectDir)/../../sample",
+      "environmentVariables": {
+        "PERLA_envValue": "this is my value",
+        "PERLA_SOME_TOKEN": "much secret, so wow :3"
+      }
+    },
+    "Test App": {
+      "commandName": "Project",
+      "commandLineArgs": "test",
+      "workingDirectory": "$(ProjectDir)/../../sample",
+      "environmentVariables": {
+        "PERLA_envValue": "this is my value",
+        "PERLA_SOME_TOKEN": "much secret, so wow :3"
+      }
+    },
     "Serve Docs": {
       "commandName": "Project",
       "commandLineArgs": "serve",

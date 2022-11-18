@@ -11,4 +11,4 @@ class MySampleEl extends LitElement {
   }
 }
 
-window.customElements.define('my-sample-el', MySampleEl)
+window.customElements.define("my-sample-el", MySampleEl);

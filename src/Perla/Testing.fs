@@ -208,19 +208,19 @@ module Testing =
       events
       |> Seq.choose (fun event ->
         match event with
-        | SuiteEnd(_, suite) -> Some suite
+        | SuiteEnd (_, suite) -> Some suite
         | _ -> None)
 
     let errors =
       events
       |> Seq.choose (fun event ->
         match event with
-        | TestFailed(_, test, message, stack) ->
+        | TestFailed (_, test, message, stack) ->
           Some
             { test = Some test
               message = message
               stack = stack }
-        | TestImportFailed(message, stack) ->
+        | TestImportFailed (message, stack) ->
           Some
             { test = None
               message = message
@@ -246,10 +246,9 @@ module Testing =
 
 
   let private startNotifications
-    (tasks:
-      {| allTask: ProgressTask
-         failedTask: ProgressTask
-         passedTask: ProgressTask |})
+    (tasks: {| allTask: ProgressTask
+               failedTask: ProgressTask
+               passedTask: ProgressTask |})
     totalTests
     =
     tasks.allTask.MaxValue <- totalTests
@@ -258,29 +257,26 @@ module Testing =
     tasks.allTask.IsIndeterminate <- true
 
   let private endSession
-    (tasks:
-      {| allTask: ProgressTask
-         failedTask: ProgressTask
-         passedTask: ProgressTask |})
+    (tasks: {| allTask: ProgressTask
+               failedTask: ProgressTask
+               passedTask: ProgressTask |})
     =
     tasks.failedTask.StopTask()
     tasks.passedTask.StopTask()
     tasks.allTask.StopTask()
 
   let private passTest
-    (tasks:
-      {| allTask: ProgressTask
-         failedTask: ProgressTask
-         passedTask: ProgressTask |})
+    (tasks: {| allTask: ProgressTask
+               failedTask: ProgressTask
+               passedTask: ProgressTask |})
     =
     tasks.passedTask.Increment(1)
     tasks.allTask.Increment(1)
 
   let private failTest
-    (tasks:
-      {| allTask: ProgressTask
-         failedTask: ProgressTask
-         passedTask: ProgressTask |})
+    (tasks: {| allTask: ProgressTask
+               failedTask: ProgressTask
+               passedTask: ProgressTask |})
     (errors: ResizeArray<_>)
     (test, message, stack)
     =
@@ -307,6 +303,7 @@ module Testing =
     (suites: _ seq)
     (errors: _ seq)
     =
+    Console.Clear()
     AnsiConsole.Clear()
     Print.Report(overallStats, suites, errors)
 
@@ -330,20 +327,20 @@ module Testing =
         let failImport = failImport errors
 
         events
-        |> Observable.subscribe (fun value ->
+        |> Observable.subscribeSafe (fun value ->
           match value with
-          | SessionStart(_, totalTests) -> startNotifications totalTests
+          | SessionStart (_, totalTests) -> startNotifications totalTests
           | SessionEnd stats ->
             overallStats <- stats
             endSession tasks
           | TestPass _ -> passTest tasks
-          | TestFailed(_, test, message, stack) ->
+          | TestFailed (_, test, message, stack) ->
             failTest (test, message, stack)
-          | SuiteStart(stats, _) -> overallStats <- stats
-          | SuiteEnd(stats, suite) ->
+          | SuiteStart (stats, _) -> overallStats <- stats
+          | SuiteEnd (stats, suite) ->
             overallStats <- stats
             endSuite suite
-          | TestImportFailed(message, stack) -> failImport (message, stack)
+          | TestImportFailed (message, stack) -> failImport (message, stack)
           | TestRunFinished -> signalEnd overallStats suites errors))
 
 type Testing =
