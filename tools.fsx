@@ -1,6 +1,7 @@
 #r "nuget: FsMake, 0.6.1"
 
 open FsMake
+open System
 open System.IO
 open System.IO.Compression
 
@@ -15,6 +16,8 @@ let runtimes =
 let projects = [ "Perla" ]
 
 let libraries = [ "Perla.PackageManager"; "Perla.Plugins" ]
+
+let NugetApiKey = EnvVar.getOrFail "NUGET_DEPLOY_KEY"
 
 [<Literal>]
 let PackageVersion = "1.0.0-beta-001"
@@ -65,6 +68,19 @@ module Operations =
 
     let dotnet (args: string) =
         Cmd.createWithArgs "dotnet" (args.Split(' ') |> List.ofArray) |> Cmd.run
+
+    let nugetPush (nupkg: string, apiKey) =
+        Cmd.createWithArgs
+            "dotnet"
+            [ "nuget"
+              "push"
+              nupkg
+              "--skip-duplicate"
+              "-s"
+              "https://api.nuget.org/v3/index.json"
+              "-k" ]
+        |> Cmd.argSecret apiKey
+        |> Cmd.run
 
     let buildBinaries (project: string) (runtime: string) =
         let cmd =
@@ -146,6 +162,15 @@ module Steps =
     let test =
         Step.create "tests" { do! Operations.dotnet "test tests/Perla.Tests --no-restore" }
 
+    let pushNugets =
+        Step.create "nuget" {
+            let! apiKey = NugetApiKey
+
+            for library in projects @ libraries do
+                let nupkName = $"./dist/{library}.{PackageVersion}.nupkg"
+                do! Operations.nugetPush (nupkName, apiKey)
+        }
+
 module Pipelines =
 
     let cleanDist = Pipeline.create "clean:dist" { run Steps.clean }
@@ -163,6 +188,8 @@ module Pipelines =
             run Steps.clean
             run Steps.packNugets
         }
+
+    let pushNugets = Pipeline.createFrom packNuget "push:nuget" { run Steps.pushNugets }
 
     let buildRelease =
         Pipeline.createFrom packNuget "build:release" {
@@ -182,6 +209,7 @@ Pipelines.create {
     add Pipelines.restore
     add Pipelines.format
     add Pipelines.packNuget
+    add Pipelines.pushNugets
     add Pipelines.buildRelease
     add Pipelines.buildRuntime
     add Pipelines.build

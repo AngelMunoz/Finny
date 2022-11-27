@@ -12,7 +12,7 @@
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
         <WarnOn>3390;$(WarnOn)</WarnOn>
     </PropertyGroup>
-        <ItemGroup>
+    <ItemGroup>
         <None Include="$(MSBuildThisFileDirectory)\..\LICENSE" Pack="true" Visible="false" PackagePath=""/>
         <None Include="$(MSBuildThisFileDirectory)\..\README.md" Pack="true" Visible="false" PackagePath=""/>
     </ItemGroup>
