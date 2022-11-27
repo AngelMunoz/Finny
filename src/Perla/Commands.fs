@@ -1,819 +1,524 @@
 ﻿namespace Perla
 
 open System
+open System.CommandLine.Invocation
 open System.IO
+
+open System.Threading
 open System.Threading.Tasks
-open FSharp.Control
-open FsToolkit.ErrorHandling
-open FSharp.Control.Reactive
-open Perla.Lib
-open Types
-open Server
-open Build
-open Logger
+
+open Microsoft.Playwright
+open Perla.Plugins
 open Spectre.Console
 
-open Argu
-
-
-
-type ServerArgs =
-  | [<AltCommandLine("-a")>] Auto_Start of bool option
-  | [<AltCommandLine("-p")>] Port of int option
-  | [<AltCommandLine("-h")>] Host of string option
-  | [<AltCommandLine("-s")>] Use_Ssl of bool option
-
-  interface IArgParserTemplate with
-    member this.Usage =
-      match this with
-      | Port _ -> "Selects the server port, defaults to 7331"
-      | Host _ -> "Server host, defaults to localhost"
-      | Use_Ssl _ -> "Forces the requests to go through HTTPS. Defaults to true"
-      | Auto_Start _ -> "Starts the server without action required by the user."
-
-type BuildArgs =
-  | [<AltCommandLine("-i")>] Index_File of string option
-  | [<AltCommandLine("-ev")>] Esbuild_Version of string option
-  | [<AltCommandLine("-o")>] Out_Dir of string option
-
-  interface IArgParserTemplate with
-    member this.Usage =
-      match this with
-      | Index_File _ ->
-        "The Entry File for the web application. Defaults to \"index.html\""
-      | Esbuild_Version _ ->
-        "Uses a specific esbuild version. defaults to \"0.12.9\""
-      | Out_Dir _ -> "Where to output the files. Defaults to \"./dist\""
-
-type InitArgs =
-  | [<AltCommandLine("-p")>] Path of string option
-  | [<AltCommandLine("-wf")>] With_Fable of bool option
-  | [<AltCommandLine("-k")>] Init_Kind of InitKind option
-  | [<AltCommandLine("-y")>] Yes of bool option
-
-
-  static member ToOptions(args: ParseResults<InitArgs>) : InitOptions =
-    { path = args.TryGetResult(Path) |> Option.flatten
-      withFable = args.TryGetResult(With_Fable) |> Option.flatten
-      initKind = args.TryGetResult(Init_Kind) |> Option.flatten
-      yes = args.TryGetResult(Yes) |> Option.flatten }
-
-  interface IArgParserTemplate with
-    member this.Usage: string =
-      match this with
-      | Path _ -> "Where to write the config file"
-      | With_Fable _ -> "Includes fable options in the config file"
-      | Init_Kind _ ->
-        "Sets whether to do a full perla setup or just create a perla.json file."
-      | Yes _ -> "Skips the full init prompt"
-
-type SearchArgs =
-  | [<AltCommandLine("-n")>] Name of string
-  | [<AltCommandLine("-p")>] Page of int option
-
-  static member ToOptions(args: ParseResults<SearchArgs>) : SearchOptions =
-    { package = args.TryGetResult(Name)
-      page = args.TryGetResult(Page) |> Option.flatten }
-
-  interface IArgParserTemplate with
-    member this.Usage: string =
-      match this with
-      | Name _ -> "The name of the package to search for."
-      | Page _ -> "Page number to search at."
-
-type ShowArgs =
-  | [<AltCommandLine("-p")>] Package of string
-
-  static member ToOptions(args: ParseResults<ShowArgs>) : ShowPackageOptions =
-    { package = args.TryGetResult(Package) }
-
-  interface IArgParserTemplate with
-    member this.Usage: string =
-      match this with
-      | Package _ -> "The name of the package to show information about."
-
-type RemoveArgs =
-  | [<MainCommand>] Package of string
-
-  static member ToOptions
-    (args: ParseResults<RemoveArgs>)
-    : RemovePackageOptions =
-    { package = args.TryGetResult(Package) }
-
-  interface IArgParserTemplate with
-    member this.Usage: string =
-      match this with
-      | Package _ -> "Package name (or alias) to remove from the import map."
-
-type AddArgs =
-  | [<MainCommand>] Package of string
-  | [<AltCommandLine("-a")>] Alias of string option
-  | [<AltCommandLine("-s")>] Source of Source option
-
-  static member ToOptions(args: ParseResults<AddArgs>) : AddPackageOptions =
-    { package = args.TryGetResult(Package)
-      alias = args.TryGetResult(Alias) |> Option.flatten
-      source = args.TryGetResult(Source) |> Option.flatten }
-
-  interface IArgParserTemplate with
-    member this.Usage: string =
-      match this with
-      | Package _ -> "The name of the package to show information about."
-      | Alias _ -> "Specifier for this particular module."
-      | Source _ ->
-        "The name of the source you want to install a package from. e.g. unpkg or skypack."
-
-type ListArgs =
-  | As_Package_Json
-
-  static member ToOptions(args: ParseResults<ListArgs>) : ListPackagesOptions =
-    match args.TryGetResult(As_Package_Json) with
-    | Some _ -> { format = PackageJson }
-    | _ -> { format = HumanReadable }
-
-  interface IArgParserTemplate with
-    member this.Usage: string =
-      match this with
-      | As_Package_Json -> "Lists packages in npm's package.json format."
-
-type RepositoryArgs =
-  | [<AltCommandLine("-n")>] Repository_Name of string
-  | [<AltCommandLine("-b")>] Branch of string option
-
-  static member ToOptions
-    (args: ParseResults<RepositoryArgs>)
-    : RepositoryOptions =
-    { fullRepositoryName = args.GetResult(Repository_Name)
-      branch = args.GetResult(Branch) |> Option.defaultValue "main" }
-
-  interface IArgParserTemplate with
-    member s.Usage =
-      match s with
-      | Repository_Name _ -> "Name of the repository where the template lives"
-      | Branch _ -> "Branch to pick the repository from, defaults to \"main\""
-
-type NewProjectArgs =
-  | [<AltCommandLine("-t")>] Template of string
-  | [<AltCommandLine("-n")>] ProjectName of string
-
-  static member ToOptions(args: ParseResults<NewProjectArgs>) : ProjectOptions =
-    { projectName = args.GetResult(ProjectName)
-      templateName = args.GetResult(Template) }
-
-  interface IArgParserTemplate with
-    member s.Usage =
-      match s with
-      | ProjectName _ -> "Name of the project to create."
-      | Template _ -> "Template to use for this project."
-
-type DevServerArgs =
-  | [<CliPrefix(CliPrefix.None); AltCommandLine("s")>] Serve of
-    ParseResults<ServerArgs>
-  | [<CliPrefix(CliPrefix.None); AltCommandLine("b")>] Build of
-    ParseResults<BuildArgs>
-  | [<CliPrefix(CliPrefix.None)>] Init of ParseResults<InitArgs>
-  | [<CliPrefix(CliPrefix.None); AltCommandLine("se")>] Search of
-    ParseResults<SearchArgs>
-  | [<CliPrefix(CliPrefix.None)>] Show of ParseResults<ShowArgs>
-  | [<CliPrefix(CliPrefix.None)>] Add of ParseResults<AddArgs>
-  | [<CliPrefix(CliPrefix.None)>] Restore
-  | [<CliPrefix(CliPrefix.None)>] Remove of ParseResults<RemoveArgs>
-  | [<CliPrefix(CliPrefix.None)>] List of ParseResults<ListArgs>
-  | [<CliPrefix(CliPrefix.None)>] New of ParseResults<NewProjectArgs>
-  | [<CliPrefix(CliPrefix.None)>] Add_Template of ParseResults<RepositoryArgs>
-  | [<CliPrefix(CliPrefix.None)>] Update_Template of
-    ParseResults<RepositoryArgs>
-  | [<CliPrefix(CliPrefix.None); AltCommandLine("-lt")>] List_Templates
-  | [<CliPrefix(CliPrefix.None); AltCommandLine("-rt")>] Remove_Template of
-    string
-  | [<AltCommandLine("-v")>] Version
-
-  interface IArgParserTemplate with
-    member this.Usage =
-      match this with
-      | Serve _ ->
-        "Starts a development server for modern Javascript development"
-      | Build _ -> "Builds the specified JS and CSS resources for production"
-      | Init _ -> "Sets perla up to start new projects."
-      | Search _ -> "Searches a package in the skypack API."
-      | Show _ -> "Gets the skypack information about a package."
-      | Add _ -> "Generates an entry in the import map."
-      | Restore _ -> "Restores import map"
-      | Remove _ -> "Removes an entry in the import map."
-      | List _ -> "Lists entries in the import map."
-      | New _ -> "Creates a new Perla based project."
-      | List_Templates -> "Shows existing templates available to scaffold."
-      | Add_Template _ ->
-        "Downloads a GitHub repository to the templates directory."
-      | Update_Template _ ->
-        "Downloads a new version of the specified template."
-      | Remove_Template _ -> "Removes an existing templating repository."
-      | Version _ -> "Prints out the cli version to the console."
-
-module Commands =
-  let private (|ParseRegex|_|) regex str =
-    let m = Text.RegularExpressions.Regex(regex).Match(str)
-
-    if m.Success then
-      Some(List.tail [ for x in m.Groups -> x.Value ])
-    else
-      None
-
-  let parseUrl url =
-    match url with
-    | ParseRegex @"https://cdn.skypack.dev/pin/(@?[^@]+)@v([\d.]+)"
-                 [ name; version ] -> Some(Source.Skypack, name, version)
-    | ParseRegex @"https://cdn.jsdelivr.net/npm/(@?[^@]+)@([\d.]+)"
-                 [ name; version ] -> Some(Source.Jsdelivr, name, version)
-    | ParseRegex @"https://ga.jspm.io/npm:(@?[^@]+)@([\d.]+)" [ name; version ] ->
-      Some(Source.Jspm, name, version)
-    | ParseRegex @"https://unpkg.com/(@?[^@]+)@([\d.]+)" [ name; version ] ->
-      Some(Source.Unpkg, name, version)
-    | _ -> None
-
-  let getServerOptions (serverargs: ServerArgs list) =
-    let config =
-      match Fs.getPerlaConfig (Path.GetPerlaConfigPath()) with
-      | Ok config -> config
-      | Error err ->
-        Logger.log ("Failed to get perla config, using defaults", err)
-        PerlaConfig.DefaultConfig()
-
-    let devServerConfig =
-      match config.devServer with
-      | Some devServer -> devServer
-      | None -> DevServerConfig.DefaultConfig()
-
-    let foldServerOpts (server: DevServerConfig) (next: ServerArgs) =
-
-      match next with
-      | Auto_Start (Some value) -> { server with autoStart = Some value }
-      | Port (Some value) -> { server with port = Some value }
-      | Host (Some value) -> { server with host = Some value }
-      | Use_Ssl (Some value) -> { server with useSSL = Some value }
-      | _ -> server
-
-    { config with
-        devServer =
-          serverargs |> List.fold foldServerOpts devServerConfig |> Some }
-
-  let getBuildOptions (serverargs: BuildArgs list) =
-    let config =
-      match Fs.getPerlaConfig (Path.GetPerlaConfigPath()) with
-      | Ok config -> config
-      | Error err ->
-        Logger.log ("Failed to get perla config, using defaults", err)
-        PerlaConfig.DefaultConfig()
-
-    let buildConfig =
-      match config.build with
-      | Some build -> build
-      | None -> BuildConfig.DefaultConfig()
-
-    let foldBuildOptions (build: BuildConfig) (next: BuildArgs) =
-      match next with
-      | Esbuild_Version (Some value) ->
-        { build with esbuildVersion = Some value }
-      | Out_Dir (Some value) -> { build with outDir = Some value }
-      | _ -> build
-
-    { config with
-        build = serverargs |> List.fold foldBuildOptions buildConfig |> Some }
-
-  let startBuild (configuration: PerlaConfig) = execBuild configuration
-
-
-  let private (|ScopedPackage|Package|) (package: string) =
-    if package.StartsWith("@") then
-      ScopedPackage(package.Substring(1))
-    else
-      Package package
-
-  let private parsePackageName (name: string) =
-
-    let getVersion parts =
-
-      let version =
-        let version = parts |> Seq.tryLast |> Option.defaultValue ""
-
-        if String.IsNullOrWhiteSpace version then
-          None
-        else
-          Some version
-
-      version
-
-    match name with
-    | ScopedPackage name ->
-      // check if the user is looking to install a particular version
-      // i.e. package@5.0.0
-      if name.Contains("@") then
-        let parts = name.Split("@")
-        let version = getVersion parts
-
-        $"@{parts.[0]}", version
-      else
-        $"@{name}", None
-    | Package name ->
-      if name.Contains("@") then
-        let parts = name.Split("@")
-
-        let version = getVersion parts
-        parts.[0], version
-      else
-        name, None
-
-  let private getRepositoryName (fullRepoName: string) =
-    match
-      fullRepoName.Split("/") |> Array.filter (String.IsNullOrWhiteSpace >> not)
-    with
-    | [| _; repoName |] -> Ok repoName
-    | [| _ |] -> Error MissingRepoName
-    | _ -> Error WrongGithubFormat
-
-  let private getTemplateAndChild (templateName: string) =
-    match
-      templateName.Split("/") |> Array.filter (String.IsNullOrWhiteSpace >> not)
-    with
-    | [| user; template; child |] -> Some user, template, Some child
-    | [| template; child |] -> None, template, Some child
-    | [| template |] -> None, template, None
-    | _ -> None, templateName, None
-
-  let runListTemplates () =
-    let results = Database.listEntries ()
-
-    let table =
-      Table()
-        .AddColumn("Name")
-        .AddColumn("Templates")
-        .AddColumn("Template Branch")
-        .AddColumn("Last Update")
-        .AddColumn("Location")
-
-    for column in table.Columns do
-      column.Alignment <- Justify.Center
-
-    for result in results do
-      let printedDate =
-        result.updatedAt
-        |> Option.ofNullable
-        |> Option.defaultValue result.createdAt
-        |> (fun x -> x.ToShortDateString())
-
-      let children =
-        let names =
-          Fs.getPerlaRepositoryChildren result
-          |> Array.map (fun d -> $"[green]{d.Name}[/]")
-
-        String.Join("\n", names) |> Markup
-
-      let path =
-        let path = TextPath(result.path)
-        path.LeafStyle <- Style(Color.Green)
-        path.StemStyle <- Style(Color.Yellow)
-        path.SeparatorStyle <- Style(Color.Blue)
-        path
-
-      table.AddRow(
-        Markup($"[yellow]{result.fullName}[/]"),
-        children,
-        Markup(result.branch),
-        Markup(printedDate),
-        path
-      )
-      |> ignore
-
-    AnsiConsole.Write table
-
-    0
-
-  let runAddTemplate (autoContinue: bool option) (opts: RepositoryOptions) =
-    taskResult {
-      match getRepositoryName opts.fullRepositoryName with
-      | Error err -> return! err.AsString |> FailedToParseNameException |> Error
-      | Ok simpleName ->
-        if Database.existsByFullName opts.fullRepositoryName then
-          match autoContinue with
-          | Some true ->
-            let updateOperation =
-              taskOption {
-                let! repo = Database.findByFullName opts.fullRepositoryName
-                let repo = { repo with branch = opts.branch }
-
-                let! repo =
-                  repo |> Scaffolding.downloadRepo |> Scaffolding.unzipAndClean
-
-                return! Database.updateEntry (Some repo)
-              }
-
-            match! updateOperation with
-            | Some true ->
-              Logger.log
-                $"{opts.fullRepositoryName} - {opts.branch} updated correctly"
-
-              return 0
-            | _ -> return 0
-          | _ ->
-            let prompt = SelectionPrompt<string>().AddChoices([ "Yes"; "No" ])
-
-            prompt.Title <-
-              $"\"{opts.fullRepositoryName}\" already exists, Do you want to update it?"
-
-            match AnsiConsole.Prompt(prompt) with
-            | "Yes" ->
-              let updateOperation =
-                Logger.spinner (
-                  "Updating Templates",
-                  fun context ->
-                    taskOption {
-                      let! repo =
-                        Database.findByFullName opts.fullRepositoryName
-
-                      let repo = { repo with branch = opts.branch }
-
-                      let! repo =
-                        repo
-                        |> (fun repository ->
-                          context.Status <- "Downloading Templates"
-
-                          repository)
-                        |> Scaffolding.downloadRepo
-                        |> (fun tsk ->
-                          context.Status <- "Extracting Templates"
-                          tsk)
-                        |> Scaffolding.unzipAndClean
-
-                      return! Database.updateEntry (Some repo)
-                    }
-                )
-
-              match! updateOperation with
-              | Some true ->
-                Logger.log
-                  $"{opts.fullRepositoryName} - {opts.branch} updated correctly"
-
-                return 0
-              | _ -> return! UpdateTemplateFailedException |> Error
-            | _ -> return 0
-        else
-          let path =
-            Fs.getPerlaRepositoryPath opts.fullRepositoryName opts.branch
-
-          let addedRepository =
-            Logger.spinner (
-              "Adding new templates",
-              fun context ->
-                taskOption {
-                  let! addedRepository =
-                    (simpleName, opts.fullRepositoryName, opts.branch)
-                    |> (PerlaTemplateRepository.NewClamRepo path)
-                    |> (fun tsk ->
-                      context.Status <- "Downloading Templates"
-                      tsk)
-                    |> Scaffolding.downloadRepo
-                    |> (fun tsk ->
-                      context.Status <- "Extracting Templates"
-                      tsk)
-                    |> Scaffolding.unzipAndClean
-
-                  return! Database.createEntry (Some addedRepository)
-                }
-            )
-
-          match! addedRepository with
-          | Some repository ->
-            Logger.log
-              $"Succesfully added {repository.fullName} at {repository.path}"
-
-            return 0
-          | None -> return! AddTemplateFailedException |> Error
-    }
-
-
-  let runInit (options: InitOptions) =
-    taskResult {
-      let path = Path.GetPerlaConfigPath(?directoryPath = options.path)
-
-      let initKind = defaultArg options.initKind InitKind.Full
-
-      match initKind with
-      | InitKind.Full ->
-        Logger.log "Perla will set up the following resources:"
-        Logger.log "- Esbuild"
-        Logger.log "- Default Templates"
+open FSharp.Control
+open FSharp.Control.Reactive
+
+open FSharp.UMX
+open FsToolkit.ErrorHandling
+
+open AngleSharp
 
+open Perla
+open Perla.Types
+open Perla.Units
+open Perla.Server
+open Perla.Build
+open Perla.Logger
+open Perla.FileSystem
+open Perla.VirtualFs
+open Perla.Esbuild
+open Perla.Fable
+open Perla.Json
+open Perla.Scaffolding
+open Perla.Configuration.Types
+open Perla.Configuration
+
+open Perla.Plugins.Extensibility
+
+open Perla.PackageManager
+open Perla.PackageManager.Types
+
+open Perla.Testing
+
+
+module CliOptions =
+  [<Struct; RequireQualifiedAccess>]
+  type ListFormat =
+    | HumanReadable
+    | TextOnly
+
+  type ServeOptions =
+    { port: int option
+      host: string option
+      mode: RunConfiguration option
+      ssl: bool option }
+
+  type BuildOptions =
+    { mode: RunConfiguration option
+      disablePreloads: bool }
+
+  type SetupOptions = { skipPrompts: bool }
+
+  type SearchOptions = { package: string; page: int }
+
+  type ShowPackageOptions = { package: string }
+
+  type ListTemplatesOptions = { format: ListFormat }
+
+  type AddPackageOptions =
+    { package: string
+      version: string option
+      source: Provider option
+      mode: RunConfiguration option
+      alias: string option }
+
+  type RemovePackageOptions =
+    { package: string
+      alias: string option }
+
+  type ListPackagesOptions = { format: ListFormat }
+
+  type TemplateRepositoryOptions =
+    { fullRepositoryName: string
+      branch: string
+      yes: bool }
+
+  type ProjectOptions =
+    { projectName: string
+      templateName: string }
+
+  type RestoreOptions =
+    { source: Provider option
+      mode: RunConfiguration option }
+
+  type TestingOptions =
+    { files: string seq
+      browsers: Browser seq
+      headless: bool
+      watch: bool }
+
+open CliOptions
+
+
+[<RequireQualifiedAccess>]
+module Handlers =
+  open AngleSharp.Html.Parser
+  open Zio.FileSystems
+  open Zio
+
+  let private updateTemplate
+    (template: PerlaTemplateRepository)
+    (branch: string)
+    (context: StatusContext)
+    =
+    context.Status <-
+      $"Download and extracting template {template.ToFullNameWithBranch}"
+
+    Templates.Update({ template with branch = branch })
+
+  let private addTemplate
+    (user: string)
+    (repository: string)
+    (branch: string)
+    (context: StatusContext)
+    =
+    context.Status <-
+      $"Download and extracting template {user}/{repository}:{branch}"
+
+    Templates.Add(user, repository, branch)
+
+  let runListTemplates (options: ListTemplatesOptions) =
+    let results = Templates.List()
+
+    match options.format with
+    | ListFormat.HumanReadable ->
+      let table =
+        Table()
+          .AddColumns(
+            [| "Name"
+               "Templates"
+               "Template Branch"
+               "Last Update"
+               "Location" |]
+          )
+
+      for column in table.Columns do
+        column.Alignment <- Justify.Center
+
+      for result in results do
+        let printedDate =
+          result.updatedAt
+          |> Option.ofNullable
+          |> Option.defaultValue result.createdAt
+          |> (fun x -> x.ToShortDateString())
+
+        let children =
+          let names =
+            let basePath =
+              FileSystem.PathForTemplate(
+                result.username,
+                result.repository,
+                result.branch
+              )
+
+            DirectoryInfo(basePath).EnumerateDirectories()
+            |> Seq.map (fun d -> $"[green]{d.Name}[/]")
+
+          String.Join("\n", names) |> Markup
+
+        let path =
+          TextPath(
+            UMX.untag result.path,
+            LeafStyle = Style(Color.Green),
+            StemStyle = Style(Color.Yellow),
+            SeparatorStyle = Style(Color.Blue)
+          )
+
+        table.AddRow(
+          Markup($"[yellow]{result.ToFullName}[/]"),
+          children,
+          Markup(result.branch),
+          Markup(printedDate),
+          path
+        )
+        |> ignore
+
+      AnsiConsole.Write table
+      0
+    | ListFormat.TextOnly ->
+      for result in results do
         Logger.log
-          "After that you should be able to run 'perla build' or 'perla new'"
+          $"[bold green]{result.ToFullName}[/]:[bold yellow]{result.branch}[/]"
 
-        let canContinue =
-          match options.yes with
-          | Some true -> true
-          | _ ->
-            let prompt = SelectionPrompt<string>().AddChoices([ "Yes"; "No" ])
+        let path = TextPath(UMX.untag result.path).StemColor(Color.Blue)
+        AnsiConsole.Write path
 
-            prompt.Title <- $"Can we Start?"
+      0
 
-            match AnsiConsole.Prompt(prompt) with
-            | "Yes" -> true
-            | _ -> false
+  let runAddTemplate (opts: TemplateRepositoryOptions) =
+    task {
+      let autoContinue = opts.yes
 
-        if not <| canContinue then
-          Logger.log "Nothing to do, finishing here"
+      let mutable chosen = parseFullRepositoryName opts.fullRepositoryName
+
+      while chosen |> Option.isNone do
+        chosen <-
+          AnsiConsole.Ask(
+            "that doesn't feel right, please tell us the  username/repository:branch github repository to look for templates"
+          )
+          |> parseFullRepositoryName
+
+        match chosen with
+        | None -> ()
+        | parsed -> chosen <- parsed
+
+      let username, repository, _ = chosen.Value
+
+      let template =
+        TemplateSearchKind.FullName(username, repository) |> Templates.FindOne
+
+      match template, autoContinue with
+      | Some template, true ->
+        match!
+          Logger.spinner (
+            "Updating Templates",
+            updateTemplate template opts.branch
+          )
+        with
+        | true ->
+          Logger.log
+            $"{opts.fullRepositoryName} - {opts.branch} updated correctly"
+
           return 0
-        else
-          do! Esbuild.setupEsbuild Constants.Esbuild_Version
+        | false ->
+          Logger.log
+            $"{opts.fullRepositoryName} - {opts.branch} was not updated"
 
-          let! res =
-            runAddTemplate
-              (Some true)
-              { branch = Constants.Default_Templates_Repository_Branch
-                fullRepositoryName = Constants.Default_Templates_Repository }
+          return 1
+      | Some template, false ->
+        let prompt =
+          SelectionPrompt<string>(
+            Title =
+              $"\"{opts.fullRepositoryName}\" already exists, Do you want to update it?"
+          )
+            .AddChoices([ "Yes"; "No" ])
 
-          if res <> 0 then
-            return res
-          else
-            Logger.log (
-              "[bold green]esbuild[/] and [bold yellow]templates[/] have been setup!",
-              escape = false
+        match AnsiConsole.Prompt(prompt) with
+        | "Yes" ->
+          match!
+            Logger.spinner (
+              "Updating Templates",
+              updateTemplate template opts.branch
             )
-
-            runListTemplates () |> ignore
-            Logger.log "Feel free to create a new perla project"
-
-            Logger.log (
-              "[bold yellow]perla[/] [bold blue]new -t[/] [bold green]perla-templates/<TEMPLATE_NAME>[/] [bold blue]-n <PROJECT_NAME>[/]",
-              escape = false
-            )
+          with
+          | true ->
+            Logger.log
+              $"{opts.fullRepositoryName} - {opts.branch} updated correctly"
 
             return 0
-      | InitKind.Simple ->
-        let config =
-          PerlaConfig.DefaultConfig(defaultArg options.withFable false)
+          | false ->
+            Logger.log
+              $"{opts.fullRepositoryName} - {opts.branch} was not updated"
 
-        let fable =
-          config.fable
-          |> Option.map (fun fable -> { fable with autoStart = Some true })
+            return 1
+        | _ ->
+          Logger.log $"Template {template.ToFullNameWithBranch} was not updated"
 
-        let config =
-          {| ``$schema`` = config.``$schema``
-             index = config.index
-             fable = fable |}
+          return 0
+      | None, _ ->
 
-        do! Fs.createPerlaConfig path config
+        let! tplId =
+          Logger.spinner (
+            "Adding new templates",
+            addTemplate username repository opts.branch
+          )
 
-        return 0
-      | _ ->
-        return!
-          (ArgumentException "The provided kind is not supported" :> exn)
-          |> Error
+        match Templates.FindOne(TemplateSearchKind.Id tplId) with
+        | Some template ->
+          Logger.log $"Successfully added {template.ToFullNameWithBranch}"
+
+          let path =
+            TextPath(
+              UMX.untag template.path,
+              LeafStyle = Style(Color.Green),
+              StemStyle = Style(Color.Yellow),
+              SeparatorStyle = Style(Color.Blue)
+            )
+
+          AnsiConsole.Write("Template at path: ")
+          AnsiConsole.Write(path)
+          return 0
+        | None ->
+          Logger.log
+            $"Template may have been downloaded but for some reason we can't find it, this is likely a bug"
+
+          return 1
+
     }
 
-  let private printSearchTable (searchData: SkypackSearchResult seq) =
-    let table =
-      Table()
-        .AddColumn(TableColumn("Name"))
-        .AddColumn(TableColumn("Description"))
-        .AddColumn(TableColumn("Maintainers"))
-        .AddColumn(TableColumn("Last Updated"))
+  let runNew (opts: ProjectOptions) =
+    Logger.log "Creating new project..."
+    let user, template, child = getTemplateAndChild opts.templateName
 
-    for row in searchData do
-      let maintainers =
-        row.maintainers
-        |> Seq.truncate 3
-        |> Seq.map (fun maintainer ->
-          $"[yellow]{maintainer.name}[/] - [yellow]{maintainer.email}[/]")
+    option {
+      let! template =
+        match user, child with
+        | Some user, _ ->
+          Templates.FindOne(TemplateSearchKind.FullName(user, template))
+        | None, _ -> Templates.FindOne(TemplateSearchKind.Repository template)
 
-      let maintainers = String.Join("\n", maintainers)
-
-      table.AddRow(
-        Markup($"[bold green]{row.name}[/]"),
-        Markup(row.description),
-        Markup(maintainers),
-        Markup(row.updatedAt.ToShortDateString())
+      Logger.log (
+        $"Using [bold yellow]{template.ToFullNameWithBranch}[/]",
+        escape = false
       )
-      |> ignore
 
-    AnsiConsole.Write table
-
-  let runSearch (options: SearchOptions) =
-    taskResult {
-      let! package =
-        match options.package with
-        | Some package -> Ok package
-        | None -> Error PackageNotFoundException
-
-      let! results =
-        Logger.spinner (
-          "Searching for package information",
-          Http.searchPackage package options.page
+      let templatePath =
+        FileSystem.PathForTemplate(
+          template.username,
+          template.repository,
+          template.branch,
+          ?tplName = child
         )
 
-      results.results |> Seq.truncate 5 |> printSearchTable
+      let targetPath = opts.projectName
 
-      Logger.log (
-        $"[bold green]Found[/]: {results.meta.totalCount}",
-        escape = false
+      let content =
+        FileSystem.GetTemplateScriptContent(
+          template.username,
+          template.repository,
+          template.branch,
+          ?tplName = child
+        )
+        |> Option.map Scaffolding.getConfigurationFromScript
+        |> Option.flatten
+
+      Logger.log $"Creating structure..."
+
+      FileSystem.WriteTplRepositoryToDisk(
+        UMX.tag<SystemPath> templatePath,
+        UMX.tag<UserPath> targetPath,
+        ?payload = content
       )
 
       Logger.log (
-        $"[bold green]Page[/] {results.meta.page} of {results.meta.totalPages}",
+        $"Your project is ready at [bold green]{targetPath}[/]",
         escape = false
       )
+
+      Logger.log ($"cd {targetPath}", escape = false)
+      Logger.log ("[bold green]perla serve[/]", escape = false)
 
       return 0
     }
+    |> function
+      | None ->
+        Logger.log $"Template [{opts.templateName}] was not found"
+        1
+      | Some n -> n
 
-  let private printShowTable (package: ShowSearchResults) =
-    let table =
-      Table()
-        .AddColumn(TableColumn("Description"))
-        .AddColumn(TableColumn("Is Deprecated"))
-        .AddColumn(TableColumn("Dependency Count"))
-        .AddColumn(TableColumn("License"))
-        .AddColumn(TableColumn("Versions"))
-        .AddColumn(TableColumn("Maintainers"))
-        .AddColumn(TableColumn("Last Update"))
+  let runInit (options: SetupOptions) =
+    task {
+      Logger.log "Perla will set up the following resources:"
+      Logger.log "- Esbuild"
+      Logger.log "- Default Templates"
 
-    let maintainers =
-      package.maintainers
-      |> Seq.truncate 5
-      |> Seq.map (fun maintainer ->
-        $"[yellow]{maintainer.name}[/] - [yellow]{maintainer.email}[/]")
+      Logger.log
+        "After that you should be able to run 'perla build' or 'perla new'"
 
-    let maintainers = String.Join("\n", maintainers)
+      do! FileSystem.SetupEsbuild(UMX.tag Constants.Esbuild_Version)
+      Logger.log ("[bold green]esbuild[/] has been setup!", escape = false)
 
-    let versions =
-      package.distTags
-      |> Map.toSeq
-      |> Seq.truncate 5
-      |> Seq.map (fun (name, version) ->
-        $"[bold yellow]{name}[/] - [dim green]{version}[/]")
 
-    let versions = String.Join("\n", versions)
+      if options.skipPrompts then
+        let username, repository, branch =
+          PerlaTemplateRepository.DefaultTemplatesRepository
 
-    let deprecated =
-      if package.isDeprecated then
-        "[bold red]Yes[/]"
+        match
+          TemplateSearchKind.FullName(username, repository) |> Templates.FindOne
+        with
+        | Some template ->
+          Logger.log
+            $"{template.ToFullName} is already set up, updating from {template.branch}"
+
+
+          let! result = Templates.Update(template)
+
+          if not result then
+            Logger.log (
+              "We were unable to update the existing [bold red]templates[/].",
+              escape = false
+            )
+
+            return 1
+          else
+            runListTemplates { format = ListFormat.HumanReadable } |> ignore
+
+            Logger.log (
+              "[bold yellow]perla[/] [bold blue]new [/] [bold green]perla-templates/<TEMPLATE_NAME>[/] [bold blue] <PROJECT_NAME>[/]",
+              escape = false
+            )
+
+            Logger.log "Feel  free to create a new perla project"
+            return 0
+        | None ->
+          let! _ =
+            Logger.spinner (
+              "Adding default templates",
+              addTemplate username repository branch
+            )
+
+          runListTemplates { format = ListFormat.HumanReadable } |> ignore
+
+          Logger.log (
+            "[bold yellow]perla[/] [bold blue]new [/] [bold green]perla-templates/<TEMPLATE_NAME>[/] [bold blue] <PROJECT_NAME>[/]",
+            escape = false
+          )
+
+          return 0
       else
-        "[green]No[/]"
+        let chosen =
+          AnsiConsole.Ask(
+            "Tell us the Username/repository:branch github repository to look for templates",
+            $"{Constants.Default_Templates_Repository}:main"
+          )
 
-    let sep =
-      Rule($"[bold green]{package.name}[/]").Centered().RuleStyle("bold green")
+        let mutable chosen = parseFullRepositoryName chosen
 
-    AnsiConsole.Write sep
+        while chosen |> Option.isNone do
+          chosen <-
+            AnsiConsole.Ask(
+              "Tell us the Username/repository:branch github repository to look for templates",
+              $"{Constants.Default_Templates_Repository}:main"
+            )
+            |> parseFullRepositoryName
 
-    table.AddRow(
-      Markup(package.description),
-      Markup(deprecated),
-      Markup($"[bold green]%i{package.dependenciesCount}[/]"),
-      Markup($"[bold yellow]{package.license}[/]"),
-      Markup(versions),
-      Markup(maintainers),
-      Markup(package.updatedAt.ToShortDateString())
-    )
-    |> ignore
+          match chosen with
+          | None -> ()
+          | parsed -> chosen <- parsed
 
-    AnsiConsole.Write table
+        let username, repository, branch = chosen.Value
+
+        let! tplId = Templates.Add(username, repository, branch)
+
+        match Templates.FindOne(TemplateSearchKind.Id tplId) with
+        | Some template ->
+          Logger.log
+            $"Successfully added {template.ToFullNameWithBranch} at {template.path}"
+
+          runListTemplates { format = ListFormat.HumanReadable } |> ignore
+          return 0
+        | None ->
+          Logger.log
+            $"Template may have been downloaded but for some reason we can't find it, this is likely a bug"
+
+          return 1
+
+    }
+
+  let runSearch (options: SearchOptions) =
+    task {
+      do! Dependencies.Search(options.package, options.page)
+      return 0
+    }
 
   let runShow (options: ShowPackageOptions) =
-    taskResult {
-      let! package =
-        match options.package with
-        | Some package -> Ok package
-        | None -> Error PackageNotFoundException
-
-      let! package =
-        Logger.spinner (
-          "Searching for package information",
-          Http.showPackage package
-        )
-
-      printShowTable package
+    task {
+      do! Dependencies.Show(options.package)
       return 0
     }
 
   let runList (options: ListPackagesOptions) =
-    taskResult {
-      let! config = Fs.getPerlaConfig (Path.GetPerlaConfigPath())
-
-      let installedPackages = config.packages |> Option.defaultValue Map.empty
+    task {
+      let config = Configuration.CurrentConfig
 
       match options.format with
-      | HumanReadable ->
+      | ListFormat.HumanReadable ->
         Logger.log (
           "[bold green]Installed packages[/] [yellow](alias: packageName@version)[/]\n",
           escape = false
         )
 
-        for importMap in installedPackages do
-          match parseUrl importMap.Value with
-          | Some (_, name, version) ->
-            Logger.log (
-              $"[bold yellow]{importMap.Key}[/]: [green]{name}@{version}[/]",
-              escape = false
-            )
-          | None ->
-            Logger.log (
-              $"[bold red]{importMap.Key}[/]: [yellow]Couldn't parse {importMap.Value}[/]",
-              escape = false
-            )
-      | PackageJson ->
-        installedPackages
-        |> Map.toList
-        |> List.choose (fun (_alias, importMap) ->
-          parseUrl importMap
-          |> Option.map (fun (_, name, version) -> (name, version)))
-        |> Map.ofList
-        |> Json.ToPackageJson
-        |> printfn "%s"
+        let prodTable =
+          dependencyTable (config.dependencies, "Production Dependencies")
+
+        let devTable =
+          dependencyTable (config.devDependencies, "Development Dependencies")
+
+        AnsiConsole.Write(prodTable)
+        AnsiConsole.WriteLine()
+        AnsiConsole.Write(devTable)
+
+      | ListFormat.TextOnly ->
+        let inline aliasDependency (dep: Dependency) =
+          let name =
+            match dep.alias with
+            | Some alias -> $"{alias}:{dep.name}"
+            | None -> dep.name
+
+          name, dep.version
+
+        let depsMap =
+          config.dependencies |> Seq.map aliasDependency |> Map.ofSeq
+
+        let devDepsMap =
+          config.devDependencies |> Seq.map aliasDependency |> Map.ofSeq
+
+        {| dependencies = depsMap
+           devDependencies = devDepsMap |}
+        |> Json.ToText
+        |> AnsiConsole.Write
 
       return 0
-    }
-
-  let runRemove (options: RemovePackageOptions) =
-    taskResult {
-      let name = defaultArg options.package ""
-      Logger.log ($"Removing: [red]{name}[/]", escape = false)
-
-      if name = "" then
-        return! PackageNotFoundException |> Error
-
-      let! fdsConfig = Fs.getPerlaConfig (Path.GetPerlaConfigPath())
-      let! lockFile = Fs.getOrCreateLockFile (Path.GetPerlaConfigPath())
-
-      let deps =
-        fdsConfig.packages |> Option.map (fun map -> map |> Map.remove name)
-
-      let opts = { fdsConfig with packages = deps }
-
-      let imports = lockFile.imports |> Map.remove name
-
-      let scopes =
-        lockFile.scopes |> Map.map (fun _ value -> value |> Map.remove name)
-
-      Logger.log ("Updating importmap...")
-      Logger.log ($"Writing scopes: %A{scopes}")
-      Logger.log ($"Writing imports: %A{imports}")
-
-      do!
-        Fs.writeLockFile
-          (Path.GetPerlaConfigPath())
-          { lockFile with
-              scopes = scopes
-              imports = imports }
-
-      do! Fs.createPerlaConfig (Path.GetPerlaConfigPath()) opts
-
-      return 0
-    }
-
-  let runNew (opts: ProjectOptions) =
-    Logger.log ("Creating new project...")
-    let (user, template, child) = getTemplateAndChild opts.templateName
-
-    result {
-      let repository =
-        match user, child with
-        | Some user, Some _ -> Database.findByFullName $"{user}/{template}"
-        | Some _, None -> Database.findByFullName opts.templateName
-        | None, _ -> Database.findByName template
-
-      match repository with
-      | Some clamRepo ->
-        Logger.log (
-          $"Using [bold yellow]{clamRepo.name}:{clamRepo.branch}[/]",
-          escape = false
-        )
-
-        let templatePath = Fs.getPerlaTemplatePath clamRepo child
-        let targetPath = Fs.getPerlaTemplateTarget opts.projectName
-
-        let content =
-          Fs.getPerlaTemplateScriptContent templatePath clamRepo.path
-
-        Logger.log ($"Creating structure...")
-
-        match content with
-        | Some content ->
-          Extensibility.getConfigurationFromScript content
-          |> Scaffolding.compileAndCopy templatePath targetPath
-        | None -> Scaffolding.compileAndCopy templatePath targetPath None
-
-        return 0
-      | None ->
-        return!
-          TemplateNotFoundException
-            $"Template [{opts.templateName}] was not found"
-          |> Error
     }
 
   let runRemoveTemplate (name: string) =
     let deleteOperation =
       option {
-        let! repo = Database.findByFullName name
-        Fs.removePerlaRepository repo
-        return! Database.deleteByFullName repo.fullName
+        let! username, repository, _ = parseFullRepositoryName name
+
+        return
+          Templates.Delete(TemplateSearchKind.FullName(username, repository))
       }
 
     match deleteOperation with
@@ -823,248 +528,1184 @@ module Commands =
         escape = false
       )
 
-      Ok 0
+      0
     | Some false ->
       Logger.log (
         $"[bold red]{name}[/] could not be deleted from repositories.",
         escape = false
       )
 
-      DeleteTemplateFailedException |> Error
-    | None -> name |> TemplateNotFoundException |> Error
+      0
+    | None ->
+      Logger.log (
+        $"[bold red]{name}[/] was not found in the repository list.",
+        escape = false
+      )
 
-  let runUpdateTemplate (opts: RepositoryOptions) =
-    taskResult {
-      let updateOperation =
-        taskOption {
-          let! repo = Database.findByFullName opts.fullRepositoryName
-          let repo = { repo with branch = opts.branch }
+      1
 
-          let! repo =
-            repo |> Scaffolding.downloadRepo |> Scaffolding.unzipAndClean
+  let runUpdateTemplate (opts: TemplateRepositoryOptions) =
+    task {
+      match parseFullRepositoryName opts.fullRepositoryName with
+      | Some (username, repository, branch) ->
+        match
+          Templates.FindOne(TemplateSearchKind.FullName(username, repository))
+        with
+        | Some template ->
+          match!
+            Logger.spinner ("Updating Template", updateTemplate template branch)
+          with
+          | true ->
+            Logger.log (
+              $"[bold green]{opts.fullRepositoryName}[/] - [yellow]{branch}[/] updated correctly",
+              escape = false
+            )
 
-          return! Database.updateEntry (Some repo)
-        }
+            return 0
+          | _ ->
+            Logger.log (
+              $"[bold red]{opts.fullRepositoryName}[/] - [yellow]{branch}[/] failed to update",
+              escape = false
+            )
 
-      match! updateOperation with
-      | Some true ->
+            return 1
+        | None ->
+          Logger.log (
+            $"[bold red]{opts.fullRepositoryName}[/] - [yellow]{branch}[/] failed to update",
+            escape = false
+          )
+
+          return 1
+      | None ->
         Logger.log (
-          $"[bold green]{opts.fullRepositoryName}[/] - [yellow]{opts.branch}[/] updated correctly",
+          $"[bold red]{opts.fullRepositoryName}[/] Was not found in the templates",
           escape = false
         )
 
+        return 1
+
+    }
+
+  let runRemove (options: RemovePackageOptions) =
+    task {
+      let name = options.package
+      Logger.log ($"Removing: [red]{name}[/]", escape = false)
+      let config = Configuration.CurrentConfig
+
+      let map = FileSystem.GetImportMap()
+
+      let dependencies, devDependencies =
+        let deps, devDeps =
+          Dependencies.LocateDependenciesFromMapAndConfig(
+            map,
+            { config with
+                dependencies =
+                  config.dependencies |> Seq.filter (fun d -> d.name <> name)
+                devDependencies =
+                  config.devDependencies |> Seq.filter (fun d -> d.name <> name) }
+          )
+
+        deps, devDeps
+
+      Configuration.WriteFieldsToFile(
+        [ PerlaWritableField.Dependencies dependencies
+          PerlaWritableField.DevDependencies devDependencies ]
+      )
+
+      let packages =
+        match config.runConfiguration with
+        | RunConfiguration.Production ->
+          dependencies |> Seq.map (fun f -> f.AsVersionedString)
+        | RunConfiguration.Development ->
+          [ yield! dependencies; yield! devDependencies ]
+          |> Seq.map (fun f -> f.AsVersionedString)
+
+      match!
+        Dependencies.Restore(
+          packages,
+          Provider.Jspm,
+          runConfig = config.runConfiguration
+        )
+      with
+      | Ok map ->
+        FileSystem.WriteImportMap(map) |> ignore
         return 0
-      | _ -> return! UpdateTemplateFailedException |> Error
+      | Error err ->
+        Logger.log $"[bold red]{err}[/]"
+        return 1
     }
 
   let runAdd (options: AddPackageOptions) =
-    taskResult {
-      let! package, version =
-        match options.package with
-        | Some package -> parsePackageName package |> Ok
-        | None -> MissingPackageNameException |> Error
+    task {
+      Configuration.UpdateFromCliArgs(
+        ?runConfig = options.mode,
+        ?provider = options.source
+      )
 
-      let alias = options.alias |> Option.defaultValue package
+      let config = Configuration.CurrentConfig
+      let package, packageVersion = parsePackageName options.package
 
-      let source = defaultArg options.source Source.Skypack
+      match options.alias with
+      | Some _ ->
+        Logger.log (
+          $"[bold yellow]Aliases management will change in the future, they will be ignored if this warning appears[/]",
+          escape = false
+        )
+      | None -> ()
 
       let version =
-        match version with
+        match packageVersion with
         | Some version -> $"@{version}"
         | None -> ""
 
-      let! deps, scopes =
+      let importMap = FileSystem.GetImportMap()
+      Logger.log "Updating Import Map..."
+
+      let! map =
         Logger.spinner (
           $"Adding: [bold yellow]{package}{version}[/]",
-          Http.getPackageUrlInfo $"{package}{version}" alias source
+          Dependencies.Add(
+            $"{package}{version}",
+            importMap,
+            provider = config.provider,
+            runConfig = config.runConfiguration
+          )
         )
 
+      match map with
+      | Ok map ->
+        let newDep =
+          { name = package
+            version = packageVersion
+            alias = options.alias }
 
-      let! fdsConfig = Fs.getPerlaConfig (Path.GetPerlaConfigPath())
-      let! lockFile = Fs.getOrCreateLockFile (Path.GetPerlaConfigPath())
+        let dependencies, devDependencies =
+          let config =
+            match config.runConfiguration with
+            | RunConfiguration.Development ->
+              { config with
+                  devDependencies = [ yield! config.devDependencies; newDep ] }
+            | RunConfiguration.Production ->
+              { config with
+                  dependencies = [ yield! config.dependencies; newDep ] }
 
-      let packages =
-        fdsConfig.packages
-        |> Option.defaultValue Map.empty
-        |> Map.toList
-        |> fun existing -> existing @ deps
-        |> Map.ofList
+          let deps, devDeps =
+            Dependencies.LocateDependenciesFromMapAndConfig(map, config)
 
-      let fdsConfig = { fdsConfig with packages = packages |> Some }
+          PerlaWritableField.Dependencies deps,
+          PerlaWritableField.DevDependencies devDeps
 
-      let lockFile =
-        let imports =
-          lockFile.imports
-          |> Map.toList
-          |> fun existing -> existing @ deps |> Map.ofList
+        Configuration.WriteFieldsToFile([ dependencies; devDependencies ])
 
-        let scopes =
-          let scopes = scopes |> Map.ofList
-
-          lockFile.scopes
-          |> Map.fold
-               (fun acc key value ->
-                 match acc |> Map.tryFind key with
-                 | Some found ->
-                   let newValue =
-                     (found |> Map.toList) @ (value |> Map.toList) |> Map.ofList
-
-                   acc |> Map.add key newValue
-                 | None -> acc |> Map.add key value)
-               scopes
-
-        Logger.log ("Updating importmap...")
-        Logger.log ($"Writing scopes: %A{scopes}")
-        Logger.log ($"Writing imports: %A{imports}")
-
-        { lockFile with
-            imports = imports
-            scopes = scopes }
-
-      do! Fs.createPerlaConfig (Path.GetPerlaConfigPath()) fdsConfig
-      do! Fs.writeLockFile (Path.GetPerlaConfigPath()) lockFile
-
-      return 0
+        FileSystem.WriteImportMap(map) |> ignore
+        return 0
+      | Error err ->
+        Logger.log ($"[bold red]{err}[/]", escape = false)
+        return 1
     }
 
-  let runRestore () =
-    taskResult {
-      let! fdsConfig = Fs.getPerlaConfig (Path.GetPerlaConfigPath())
-      let! lockFile = Fs.getOrCreateLockFile (Path.GetPerlaConfigPath())
+  let runRestore (options: RestoreOptions) =
+    task {
+      Configuration.UpdateFromCliArgs(
+        ?runConfig = options.mode,
+        ?provider = options.source
+      )
 
-      if lockFile.imports |> Map.isEmpty |> not then
-        return! exn "Import map already exists" |> Error
-
-      let packages = fdsConfig.packages |> Option.defaultValue Map.empty
-
-      let addRuns =
-        packages
-        |> Map.toList
-        |> List.map (fun (k, v) ->
-          match parseUrl v with
-          | None -> raise (FormatException "Packages has incorrect format")
-          | Some (source, name, version) ->
-            let alias = if k = name then None else Some k
-
-            let options: AddPackageOptions =
-              { AddPackageOptions.package = Some $"{name}@{version}"
-                alias = alias
-                source = Some source }
-
-            runAdd options)
+      let config = Configuration.CurrentConfig
 
       Logger.log "Regenerating import map..."
 
-      do! List.sequenceTaskResultM addRuns |> TaskResult.ignore
+      let packages =
+        [ yield! config.dependencies
+          match config.runConfiguration with
+          | RunConfiguration.Development -> yield! config.devDependencies
+          | RunConfiguration.Production -> () ]
+        |> List.map (fun d -> d.AsVersionedString)
+        // deduplicate repeated strings
+        |> set
+
+      match!
+        Logger.spinner (
+          "Fetching dependencies...",
+          Dependencies.Restore(packages, provider = config.provider)
+        )
+      with
+      | Ok response -> FileSystem.WriteImportMap(response) |> ignore
+      | Error err ->
+        Logger.log $"An error happened restoring the import map:\n{err}"
 
       return 0
     }
 
-  let private tryExecPerlaCommand (command: string) =
-    asyncResult {
-      let parser = ArgumentParser.Create<DevServerArgs>()
+  let maybeFable (config: PerlaConfig, cancel: CancellationToken) =
+    task {
+      match config.fable with
+      | Some fable -> do! Fable.Start(fable, cancellationToken = cancel) :> Task
+      | None ->
+        Logger.log (
+          "No Fable configuration provided, skipping fable",
+          target = PrefixKind.Build
+        )
+    }
 
-      let parsed =
-        parser.Parse(
-          command.Split(' '),
-          ignoreMissing = true,
-          ignoreUnrecognized = true
+  let runBuild (cancel: CancellationToken, args: BuildOptions) =
+    task {
+      Configuration.UpdateFromCliArgs(?runConfig = args.mode)
+      let config = Configuration.CurrentConfig
+
+      do! maybeFable (config, cancel)
+
+      if not <| File.Exists($"{FileSystem.EsbuildBinaryPath}") then
+        do! FileSystem.SetupEsbuild(config.esbuild.version, cancel)
+
+      let outDir = UMX.untag config.build.outDir
+
+      try
+        Directory.Delete(outDir, true)
+        Directory.CreateDirectory(outDir) |> ignore
+      with _ ->
+        ()
+
+      LoadPlugins(config.esbuild)
+
+      do!
+        Logger.spinner (
+          "Mounting Virtual File System",
+          VirtualFileSystem.Mount config
         )
 
-      match parsed.TryGetSubCommand() with
-      | Some (Build _)
-      | Some (Serve _)
-      | Some (Init _) ->
-        return! exn "This command is not supported in interactive mode" |> Error
-      | Some (Add subcmd) ->
-        return!
-          subcmd
-          |> AddArgs.ToOptions
-          |> runAdd
-          |> Async.AwaitTask
-          |> Async.Ignore
-      | Some (Remove subcmd) ->
-        return!
-          subcmd
-          |> RemoveArgs.ToOptions
-          |> runRemove
-          |> Async.AwaitTask
-          |> Async.Ignore
-      | Some (Search subcmd) ->
-        return!
-          subcmd
-          |> SearchArgs.ToOptions
-          |> runSearch
-          |> Async.AwaitTask
-          |> Async.Ignore
-      | Some (Show subcmd) ->
-        return!
-          subcmd
-          |> ShowArgs.ToOptions
-          |> runShow
-          |> Async.AwaitTask
-          |> Async.Ignore
-      | Some (List subcmd) ->
-        return!
-          subcmd
-          |> ListArgs.ToOptions
-          |> runList
-          |> Async.AwaitTask
-          |> Async.Ignore
-      | err ->
-        parser.PrintUsage("No command specified", hideSyntax = true)
-        |> printfn "%s"
+      let tempDirectory = VirtualFileSystem.CopyToDisk() |> UMX.tag<SystemPath>
 
-        return! async { return () }
+      Logger.log (
+        $"Copying Processed files to {tempDirectory}",
+        target = PrefixKind.Build
+      )
+
+      let externals = Build.GetExternals(config)
+
+      let index = FileSystem.IndexFile(config.index)
+
+      use browserCtx = new BrowsingContext()
+
+      let parser = browserCtx.GetService<IHtmlParser>()
+
+      let document = parser.ParseDocument index
+
+      use fs = new PhysicalFileSystem()
+
+      let tmp = UMX.untag tempDirectory |> fs.ConvertPathFromInternal
+
+      let css, js = Build.GetEntryPoints(document)
+
+      let runEsbuild =
+        Task.WhenAll(
+          backgroundTask {
+            for css in css do
+              let path =
+                UPath.Combine(tmp, UMX.untag css) |> fs.ConvertPathToInternal
+
+              let targetPath =
+                Path.Combine(UMX.untag config.build.outDir, UMX.untag css)
+                |> Path.GetDirectoryName
+                |> UMX.tag<SystemPath>
+
+              let tsk =
+                Esbuild
+                  .ProcessCss(path, config.esbuild, targetPath)
+                  .ExecuteAsync(cancel)
+
+              do! tsk.Task :> Task
+          },
+
+          backgroundTask {
+            for js in js do
+              let path =
+                UPath.Combine(tmp, UMX.untag js) |> fs.ConvertPathToInternal
+
+              let targetPath =
+                Path.Combine(UMX.untag config.build.outDir, UMX.untag js)
+                |> Path.GetDirectoryName
+                |> UMX.tag<SystemPath>
+
+              let tsk =
+                Esbuild
+                  .ProcessJS(path, config.esbuild, targetPath, externals)
+                  .ExecuteAsync(cancel)
+
+              do! tsk.Task :> Task
+          }
+        )
+
+      do! Logger.spinner ("Transpiling CSS and JS Files", runEsbuild) :> Task
+
+      let css =
+        [ yield! css
+          yield!
+            js
+            |> Seq.map (fun p ->
+              Path.ChangeExtension(UMX.untag p, ".css") |> UMX.tag) ]
+
+      let! indexContent =
+        task {
+          let dependencies =
+            match config.runConfiguration with
+            | RunConfiguration.Production ->
+              config.dependencies |> Seq.map (fun d -> d.AsVersionedString)
+            | RunConfiguration.Development ->
+              [ yield! config.dependencies; yield! config.devDependencies ]
+              |> Seq.map (fun d -> d.AsVersionedString)
+
+          match!
+            Logger.spinner (
+              "Resolving Static dependencies and import map...",
+              Dependencies.GetMapAndDependencies(dependencies, config.provider)
+            )
+          with
+          | Ok (deps, map) ->
+            FileSystem.WriteImportMap(map) |> ignore
+            let deps = if args.disablePreloads then Seq.empty else deps
+            return Build.GetIndexFile(document, css, js, map, deps)
+          | Error err ->
+            Logger.log
+              $"We were unable to update static dependencies and import map: {err}, falling back to the map in disk"
+
+            let map = FileSystem.GetImportMap()
+            return Build.GetIndexFile(document, css, js, map)
+        }
+
+      let outDir =
+        config.build.outDir
+        |> UMX.untag
+        |> Path.GetFullPath
+        |> fs.ConvertPathFromInternal
+
+      fs.WriteAllText(UPath.Combine(outDir, "index.html"), indexContent)
+
+      // copy any glob files
+      Build.CopyGlobs(config.build)
+      // copy any root files
+      fs.EnumerateFileEntries(tmp, "*.*", SearchOption.TopDirectoryOnly)
+      |> Seq.iter (fun file ->
+        file.CopyTo(UPath.Combine(outDir, file.Name), true) |> ignore)
+
+      Logger.log $"Cleaning up temp dir {tempDirectory}"
+
+      try
+        Directory.Delete(UMX.untag tempDirectory, true)
+      with ex ->
+        Logger.log ($"Failed to delete {tempDirectory}", ex = ex)
+
+      return 0
     }
 
-  let startInteractive (configuration: unit -> PerlaConfig) =
-    let onStdinAsync = serverActions tryExecPerlaCommand configuration
-    let perlaWatcher = Fs.getPerlaConfigWatcher ()
-    let configuration = configuration ()
+  let private getFableLogger (config: PerlaConfig) =
+    fun msg ->
+      Logger.log msg
+      let msg = msg.ToLowerInvariant()
 
-    let devServer =
-      defaultArg configuration.devServer (DevServerConfig.DefaultConfig())
+      if msg.Contains("watching") || msg.Contains("compilation finished") then
+        let config = config.devServer
 
-    let fableConfig =
-      defaultArg configuration.fable (FableConfig.DefaultConfig())
+        let http, https =
+          Server.GetServerURLs config.host config.port config.useSSL
 
-    let autoStartServer = defaultArg devServer.autoStart true
-    let autoStartFable = defaultArg fableConfig.autoStart true
+        Logger.log $"Server Ready at:"
+        Logger.log $"{http}\n{https}"
 
-    let esbuildVersion =
-      configuration.build
-      |> Option.map (fun build -> build.esbuildVersion)
-      |> Option.flatten
-      |> Option.defaultValue Constants.Esbuild_Version
+  let private firstCompileFinished isWatch (observable: IObservable<FableEvent>) =
+    observable
+    |> Observable.choose (function
+      | FableEvent.WaitingForChanges -> Some()
+      | _ -> None)
+    |> (fun obs -> if isWatch then Observable.first obs else Observable.takeLast 1 obs)
+    |> AsyncSeq.ofObservableBuffered
+    |> AsyncSeq.iter ignore
 
-    Esbuild.setupEsbuild esbuildVersion
-    |> Async.AwaitTask
-    |> Async.StartImmediate
+  let private getFileChanges
+    (
+      index: string,
+      mountDirectories,
+      perlaFilesChanges
+    ) =
+    let perlaFilesChanges =
+      perlaFilesChanges
+      |> Observable.map (fun event ->
+        let name, path, extension =
+          match event with
+          | PerlaFileChange.Index ->
+            (Path.GetFileName index, Path.GetFullPath index, ".html")
+          | PerlaFileChange.PerlaConfig ->
+            (Constants.PerlaConfigName,
+             UMX.untag FileSystem.PerlaConfigPath,
+             ".jsonc")
+          | PerlaFileChange.ImportMap ->
+            (Constants.ImportMapName,
+             UMX.untag (FileSystem.GetConfigPath Constants.ImportMapName None),
+             ".importmap")
 
-    Console.CancelKeyPress.Add(fun _ ->
-      Logger.log "Got it, see you around!..."
-      onStdinAsync "exit" |> Async.RunSynchronously
-      exit 0)
+        { serverPath = UMX.tag "/"
+          userPath = UMX.tag "/"
+          oldPath = None
+          oldName = None
+          changeType = ChangeKind.Changed
+          path = UMX.tag path
+          name = UMX.tag name },
+        { content = ""; extension = extension })
 
-    [ perlaWatcher.Changed
-      |> Observable.throttle (TimeSpan.FromMilliseconds(400.))
-      perlaWatcher.Created
-      |> Observable.throttle (TimeSpan.FromMilliseconds(400.)) ]
-    |> Observable.mergeSeq
-    |> Observable.map (fun _ -> onStdinAsync "restart")
-    |> Observable.switchAsync
-    |> Observable.add (fun _ -> Logger.log "perla.jsonc Changed, Restarting")
+    VirtualFileSystem.GetFileChangeStream mountDirectories
+    |> VirtualFileSystem.ApplyVirtualOperations
+    |> Observable.merge perlaFilesChanges
 
-    asyncSeq {
-      if autoStartServer then
-        "start"
+  let runServe (cancel: CancellationToken, options: ServeOptions) =
+    task {
+      let cliArgs =
+        [ match options.port with
+          | Some port -> DevServerField.Port port
+          | None -> ()
+          match options.host with
+          | Some host -> DevServerField.Host host
+          | None -> ()
+          match options.ssl with
+          | Some ssl -> DevServerField.UseSSl ssl
+          | None -> () ]
 
-      if autoStartFable then
-        "start:fable"
+      Configuration.UpdateFromCliArgs(
+        ?runConfig = options.mode,
+        serverOptions = cliArgs
+      )
 
-      while true do
-        let! value = Console.In.ReadLineAsync() |> Async.AwaitTask
-        value
+      let config = Configuration.CurrentConfig
+
+      let fableEvents =
+        match config.fable with
+        | Some fable -> Fable.Observe(fable, cancellationToken = cancel)
+        | None ->
+          let sub = Subject.replay
+          sub.OnNext(FableEvent.WaitingForChanges)
+          sub
+
+      use _ =
+        fableEvents
+        |> Observable.subscribeSafe (fun events ->
+          match events with
+          | FableEvent.Log msg -> Logger.log (msg.EscapeMarkup())
+          | FableEvent.ErrLog msg ->
+            Logger.log $"[bold red]{msg.EscapeMarkup()}[/]"
+          | FableEvent.WaitingForChanges -> ())
+
+      do! firstCompileFinished true fableEvents
+
+      do! FileSystem.SetupEsbuild(config.esbuild.version, cancel)
+
+      LoadPlugins(config.esbuild)
+
+      do! VirtualFileSystem.Mount(config)
+
+      let perlaChanges =
+        FileSystem.ObservePerlaFiles(UMX.untag config.index, cancel)
+
+      let fileChanges =
+        getFileChanges (
+          UMX.untag config.index,
+          config.mountDirectories,
+          perlaChanges
+        )
+
+      // TODO: Grab these from esbuild
+      let compilerErrors = Observable.empty
+
+      let mutable app = Server.GetServerApp(config, fileChanges, compilerErrors)
+      do! app.StartAsync(cancel)
+
+      perlaChanges
+      |> Observable.choose (function
+        | PerlaFileChange.PerlaConfig -> Some()
+        | _ -> None)
+      |> Observable.map (fun _ -> app.StopAsync() |> Async.AwaitTask)
+      |> Observable.switchAsync
+      |> Observable.add (fun _ ->
+        Configuration.UpdateFromFile()
+        app <- Server.GetServerApp(config, fileChanges, compilerErrors)
+        app.StartAsync(cancel) |> ignore)
+
+      while not cancel.IsCancellationRequested do
+        do! Async.Sleep(TimeSpan.FromSeconds(1.))
+
+      return 0
     }
-    |> AsyncSeq.iterAsync onStdinAsync
+
+  let runTesting (cancel: CancellationToken, options: TestingOptions) =
+    task {
+      let config = Configuration.CurrentConfig
+      Testing.SetupPlaywright()
+
+      let fableEvents =
+        match config.fable with
+        | Some fable -> Fable.Observe(fable, options.watch)
+        | None -> Observable.single FableEvent.WaitingForChanges
+
+      use _ =
+        fableEvents
+        |> Observable.subscribeSafe (fun events ->
+          match events with
+          | FableEvent.Log msg -> Logger.log (msg.EscapeMarkup())
+          | FableEvent.ErrLog msg ->
+            Logger.log $"[bold red]{msg.EscapeMarkup()}[/]"
+          | FableEvent.WaitingForChanges -> ())
+
+      do! firstCompileFinished options.watch fableEvents
+
+      do! FileSystem.SetupEsbuild(config.esbuild.version, cancel)
+
+      let! dependencies =
+        Logger.spinner (
+          "Resolving Static dependencies and import map...",
+          Dependencies.GetMapAndDependencies(
+            [ yield! config.dependencies; yield! config.devDependencies ]
+            |> Seq.map (fun d -> d.AsVersionedString),
+            config.provider
+          )
+        )
+
+      let dependencies =
+        dependencies
+        |> Result.defaultWith (fun _ -> (Seq.empty, FileSystem.GetImportMap()))
+
+      LoadPlugins(config.esbuild)
+
+      let mountedDirs =
+        config.mountDirectories
+        |> Map.add (UMX.tag<ServerUrl> "/tests") (UMX.tag<UserPath> "./tests")
+
+      do!
+        VirtualFileSystem.Mount({ config with mountDirectories = mountedDirs })
+
+      let perlaChanges =
+        FileSystem.ObservePerlaFiles(UMX.untag config.index, cancel)
+
+      let fileChanges =
+        getFileChanges (
+          UMX.untag config.index,
+          config.mountDirectories,
+          perlaChanges
+        )
+      // TODO: Grab these from esbuild
+      let compilerErrors = Observable.empty
+
+      let config =
+        { config with
+            devServer = { config.devServer with liveReload = options.watch } }
+
+      let events = Subject<TestEvent>.broadcast
+
+      let http, _ =
+        Server.GetServerURLs
+          config.devServer.host
+          config.devServer.port
+          config.devServer.useSSL
+
+      let mutable app =
+        Server.GetTestingApp(
+          config,
+          dependencies,
+          events,
+          fileChanges,
+          compilerErrors,
+          options.files
+        )
+
+      do! app.StartAsync(cancel)
+
+      use! pl = Playwright.CreateAsync()
+
+      use! browser =
+        Testing.GetBrowser(options.browsers |> Seq.head, options.headless, pl)
+
+      let! page =
+        browser.NewPageAsync(BrowserNewPageOptions(IgnoreHTTPSErrors = true))
+
+      perlaChanges
+      |> Observable.choose (function
+        | PerlaFileChange.PerlaConfig -> Some()
+        | _ -> None)
+      |> Observable.map (fun _ -> app.StopAsync() |> Async.AwaitTask)
+      |> Observable.switchAsync
+      |> Observable.add (fun _ ->
+        Configuration.UpdateFromFile()
+        app <- Server.GetServerApp(config, fileChanges, compilerErrors)
+
+        task {
+          do! app.StartAsync(cancel)
+          do! page.GotoAsync(http) :> Task
+        }
+        |> Async.AwaitTask
+        |> Async.Start)
+
+
+      use _ = Testing.PrintReportLive events
+
+      do! page.GotoAsync(http) :> Task
+
+
+      page.Console
+      |> Observable.add (fun e ->
+        match e.Type with
+        | Debug -> Logger.log $"[bold blue]Browser:[/] {e.Text.EscapeMarkup()}"
+        | Info ->
+          Logger.log
+            $"[bold cyan]Browser:[/] [bold cyan]{e.Text.EscapeMarkup()}[/]"
+        | Err -> Logger.log $"[bold red]Browser:[/]{e.Text.EscapeMarkup()}"
+        | Warning ->
+          Logger.log $"[bold orange]Browser:[/]{e.Text.EscapeMarkup()}"
+        | Clear ->
+          Logger.log
+            $"[yellow]Browser:[/] Browser Console cleared at: [link]{e.Location}[/]"
+        | _ -> Logger.log $"[bold yellow]Browser:[/] {e.Text.EscapeMarkup()}"
+
+        AnsiConsole.Write(
+          Rule(
+            $"[dim blue]{e.Location}[/]",
+            Style = Style.Parse("dim"),
+            Alignment = Justify.Right
+          )
+        ))
+
+      if not options.watch then
+        events
+        |> Observable.toEnumerable
+        |> Testing.BuildReport
+        |> Testing.Print.Report
+
+        return 0
+      else
+
+        while not cancel.IsCancellationRequested do
+          do! Async.Sleep(TimeSpan.FromSeconds(1.))
+
+        return 0
+    }
+
+
+module Commands =
+
+  open FSharp.SystemCommandLine
+  open FSharp.SystemCommandLine.Aliases
+
+  [<AutoOpen>]
+  module Inputs =
+    open System.CommandLine
+
+    type Input with
+
+      static member OptionWithStrings
+        (
+          aliases: string seq,
+          ?values: string seq,
+          ?defaultValue: string,
+          ?description
+        ) =
+        let option =
+          Opt<string option>(
+            aliases |> Array.ofSeq,
+            getDefaultValue = (fun _ -> defaultValue),
+            ?description = description
+          )
+
+        match values with
+        | Some values -> option.FromAmong(values |> Array.ofSeq)
+        | None -> option
+        |> HandlerInput.OfOption
+
+      static member OptionWithMultipleStrings
+        (
+          aliases: string seq,
+          ?values: string seq,
+          ?description
+        ) =
+        let option =
+          Opt<string[]>(
+            aliases |> Array.ofSeq,
+            getDefaultValue = (fun _ -> Array.empty),
+            ?description = description
+          )
+
+        match values with
+        | Some values -> option.FromAmong(values |> Array.ofSeq)
+        | None -> option
+        |> HandlerInput.OfOption
+
+      static member ArgumentWithStrings
+        (
+          name: string,
+          ?values: string seq,
+          ?defaultValue: string,
+          ?description
+        ) =
+        let arg =
+          Arg<string option>(
+            name,
+            getDefaultValue = (fun _ -> defaultValue),
+            ?description = description
+          )
+
+        match values with
+        | Some values -> arg.FromAmong(values |> Array.ofSeq)
+        | None -> arg
+        |> HandlerInput.OfArgument
+
+      static member ArgumentMaybe
+        (
+          name: string,
+          ?values: string seq,
+          ?description
+        ) =
+        let arg =
+          Arg<string option>(
+            name,
+            parse =
+              (fun argResult ->
+                match argResult.Tokens |> Seq.toList with
+                | [] -> None
+                | [ token ] -> Some token.Value
+                | _ :: _ ->
+                  failwith "F# Option can only be used with a single argument."),
+            ?description = description
+          )
+
+        match values with
+        | Some values -> arg.FromAmong(values |> Array.ofSeq)
+        | None -> arg
+        |> HandlerInput.OfArgument
+
+  let runAsDev =
+    Input.OptionMaybe(
+      [ "--development"; "-d"; "--dev" ],
+      "Use Dev dependencies when running, defaults to false"
+    )
+
+  let Build =
+    let disablePreloads =
+      Input.OptionMaybe(
+        [ "-dpl"; "--disable-preload-links" ],
+        "disables adding modulepreload links in the final build"
+      )
+
+    let buildArgs
+      (
+        context: InvocationContext,
+        runAsDev: bool option,
+        disablePreloads: bool option
+      ) =
+      (context.GetCancellationToken(),
+       { mode =
+           runAsDev
+           |> Option.map (fun runAsDev ->
+             match runAsDev with
+             | true -> RunConfiguration.Development
+             | false -> RunConfiguration.Production)
+         disablePreloads = defaultArg disablePreloads false })
+
+    command "build" {
+      description "Builds the SPA application for distribution"
+      inputs (Input.Context(), runAsDev, disablePreloads)
+      setHandler (buildArgs >> Handlers.runBuild)
+    }
+
+  let Serve =
+
+    let port =
+      Input.OptionMaybe<int>(
+        [ "--port"; "-p" ],
+        "Port where the application starts"
+      )
+
+    let host =
+      Input.OptionMaybe<string>(
+        [ "--host" ],
+        "network ip address where the application will run"
+      )
+
+    let ssl = Input.OptionMaybe<bool>([ "--ssl" ], "Run dev server with SSL")
+
+
+    let buildArgs
+      (
+        context: InvocationContext,
+        mode: bool option,
+        port: int option,
+        host: string option,
+        ssl: bool option
+      ) =
+      (context.GetCancellationToken(),
+       { mode =
+           mode
+           |> Option.map (fun runAsDev ->
+             match runAsDev with
+             | true -> RunConfiguration.Development
+             | false -> RunConfiguration.Production)
+         port = port
+         host = host
+         ssl = ssl })
+
+    command "serve" {
+      inputs (Input.Context(), runAsDev, port, host, ssl)
+      setHandler (buildArgs >> Handlers.runServe)
+    }
+
+  let Init =
+    let skipPrompts =
+      Input.OptionMaybe<bool>(
+        [ "--skip-prompts"; "-y"; "--yes"; "-sp" ],
+        "Skip prompts"
+      )
+
+    let buildArgs (yes: bool option) : SetupOptions =
+      { skipPrompts = yes |> Option.defaultValue false }
+
+    command "init" {
+      description "Initialized a given directory or perla itself"
+      inputs skipPrompts
+      setHandler (buildArgs >> Handlers.runInit)
+    }
+
+  let SearchPackages =
+    let package =
+      Input.Argument(
+        "package",
+        "The package you want to search for in the Skypack api"
+      )
+
+    let page =
+      Input.ArgumentMaybe(
+        "page",
+        "change the page number in the search results"
+      )
+
+    let buildArgs (package: string, page: int option) : SearchOptions =
+      { package = package
+        page = page |> Option.defaultValue 1 }
+
+    command "search" {
+      description
+        "Search a package name in the Skypack api, this will bring potential results"
+
+      inputs (package, page)
+      setHandler (buildArgs >> Handlers.runSearch)
+    }
+
+  let ShowPackage =
+    let package =
+      Input.Argument(
+        "package",
+        "The package you want to search for in the Skypack api"
+      )
+
+    let buildArgs (package: string) : ShowPackageOptions = { package = package }
+
+    command "show" {
+      description
+        "Shows information about a package if the name matches an existing one"
+
+      inputs package
+      setHandler (buildArgs >> Handlers.runShow)
+    }
+
+  let RemovePackage =
+    let package =
+      Input.Argument(
+        "package",
+        "The package you want to search for in the Skypack api"
+      )
+
+    let alias =
+      Input.OptionMaybe(
+        [ "--alias"; "-a" ],
+        "the alias of the package if you added one"
+      )
+
+    let buildArgs
+      (
+        package: string,
+        alias: string option
+      ) : RemovePackageOptions =
+      { package = package; alias = alias }
+
+    command "remove" {
+      description "removes a package from the "
+
+      inputs (package, alias)
+      setHandler (buildArgs >> Handlers.runRemove)
+    }
+
+  let AddPackage =
+    let package =
+      Input.Argument(
+        "package",
+        "The package you want to search for in the skypack api"
+      )
+
+    let version =
+      let opt =
+        Aliases.Opt<string option>(
+          [| "-v"; "--version" |],
+          parseArgument =
+            (fun arg ->
+              arg.Tokens
+              |> Seq.tryHead
+              |> Option.map (fun token -> token.Value |> Option.ofObj)
+              |> Option.flatten)
+        )
+
+      opt |> HandlerInput.OfOption
+
+    let source =
+      Input.OptionWithStrings(
+        [ "--source"; "-s" ],
+        [ "jspm"; "skypack"; "unpkg"; "jsdelivr"; "jspm.system" ],
+        "jspm",
+        "CDN that will be used to fetch dependencies from"
+      )
+
+    let dev =
+      Input.OptionMaybe(
+        [ "--dev"; "--development"; "-d" ],
+        "Adds this dependency to the dev dependencies"
+      )
+
+    let alias =
+      Input.OptionMaybe(
+        [ "--alias"; "-a" ],
+        "the alias of the package if you added one"
+      )
+
+    let buildArgs
+      (
+        package: string,
+        version: string option,
+        source: string option,
+        dev: bool option,
+        alias: string option
+      ) : AddPackageOptions =
+      { package = package
+        version = version
+        source = source |> Option.map Provider.FromString
+        mode =
+          dev
+          |> Option.map (fun dev ->
+            if dev then
+              RunConfiguration.Development
+            else
+              RunConfiguration.Production)
+        alias = alias }
+
+    command "add" {
+      description
+        "Shows information about a package if the name matches an existing one"
+
+      inputs (package, version, source, dev, alias)
+      setHandler (buildArgs >> Handlers.runAdd)
+    }
+
+  let ListDependencies =
+
+    let asNpm =
+      Input.OptionMaybe(
+        [ "--npm"; "--as-package-json"; "-j" ],
+        "Show the packages simlar to npm's package.json"
+      )
+
+    let buildArgs (asNpm: bool option) : ListPackagesOptions =
+      { format =
+          asNpm
+          |> Option.map (fun asNpm ->
+            if asNpm then
+              ListFormat.TextOnly
+            else
+              ListFormat.HumanReadable)
+          |> Option.defaultValue ListFormat.HumanReadable }
+
+    command "list" {
+      description
+        "Lists the current dependencies in a table or an npm style json string"
+
+      inputs asNpm
+      setHandler (buildArgs >> Handlers.runList)
+    }
+
+  let Restore =
+    let source =
+      Input.OptionWithStrings(
+        [ "--source"; "-s" ],
+        [ "jspm"; "skypack"; "unpkg"; "jsdelivr"; "jspm.system" ],
+        description = "CDN that will be used to fetch dependencies from"
+      )
+
+    let mode =
+      Input.OptionWithStrings(
+        [ "--mode"; "-m" ],
+        [ "dev"; "development"; "prod"; "production" ],
+        description = "Restore Dependencies based on the mode to run"
+      )
+
+    let buildArgs
+      (
+        source: string option,
+        mode: string option
+      ) : RestoreOptions =
+      { source = source |> Option.map Provider.FromString
+        mode = mode |> Option.map RunConfiguration.FromString }
+
+    command "restore" {
+      description
+        "Restore the import map based on the selected mode, defaults to production"
+
+      inputs (source, mode)
+      setHandler (buildArgs >> Handlers.runRestore)
+    }
+
+  let AddTemplate, UpdateTemplate =
+    let repoName =
+      Input.Argument(
+        "templateRepositoryName",
+        "The User/repository name combination"
+      )
+
+    let branch =
+      Input.Argument("banch", "Whch branch to pick the template from")
+
+    let yes = Input.OptionMaybe([ "--yes"; "--continue"; "-y" ], "skip prompts")
+
+    let buildArgs
+      (
+        name: string,
+        branch: string,
+        yes: bool option
+      ) : TemplateRepositoryOptions =
+      { fullRepositoryName = name
+        branch = branch
+        yes = yes |> Option.defaultValue false }
+
+    let add =
+      command "templates:add" {
+        description "Adds a new template from a particular repository"
+        inputs (repoName, branch, yes)
+        setHandler (buildArgs >> Handlers.runAddTemplate)
+      }
+
+    let update =
+      command "templates:update" {
+        description "Updates an existing template in the templates database"
+        inputs (repoName, branch, yes)
+        setHandler (buildArgs >> Handlers.runUpdateTemplate)
+      }
+
+    add, update
+
+  let ListTemplates =
+    let display =
+      Input.ArgumentWithStrings(
+        "format",
+        [ "table"; "simple" ],
+        description =
+          "The chosen format to display the existing perla templates"
+      )
+
+    let buildArgs (format: string option) : ListTemplatesOptions =
+      let toFormat (format: string) =
+        match format.ToLowerInvariant() with
+        | "table" -> ListFormat.HumanReadable
+        | _ -> ListFormat.TextOnly
+
+      { format =
+          format
+          |> Option.map toFormat
+          |> Option.defaultValue ListFormat.HumanReadable }
+
+    command "templates:list" {
+      inputs display
+      setHandler (buildArgs >> Handlers.runListTemplates)
+    }
+
+  let RemoveTemplate =
+    let repoName =
+      Input.Argument(
+        "templateRepositoryName",
+        "The User/repository name combination"
+      )
+
+    command "templates:delete" {
+      description "Removes a template from the templates database"
+      inputs repoName
+      setHandler Handlers.runRemoveTemplate
+    }
+
+  let NewProject =
+    let name = Input.Argument("name", "Name of the new project")
+
+    let templateName =
+      Input.Argument(
+        "templateName",
+        "repository/directory combination of the template name, or the full name in case of name conflicts username/repository/directory"
+      )
+
+    let buildArgs (name: string, template: string) : ProjectOptions =
+      { projectName = name
+        templateName = template }
+
+    command "new" {
+      description
+        "Creates a new project based on the selected template if it exists"
+
+      inputs (name, templateName)
+      setHandler (buildArgs >> Handlers.runNew)
+    }
+
+  let Test =
+    let files =
+      Input.Option(
+        [ "--tests"; "-t" ],
+        None,
+        "Specify a glob of tests to run. e.g '**/featureA/*.test.js' or 'tests/my-test.test.js'"
+      )
+
+    let browsers =
+      Input.OptionWithMultipleStrings(
+        [ "--browser"; "-b" ],
+        [ "chromium"; "edge"; "chrome"; "webkit"; "firefox" ],
+        "Which browsers to run the tests on, defaults to 'chromium'"
+      )
+
+    let headless =
+      Input.Option(
+        [ "--headless"; "-hl" ],
+        "Turn on or off the Headless mode and open the browser (useful for debugging tests)"
+      )
+
+    let watch =
+      Input.Option(
+        [ "--watch"; "-w" ],
+        "Start the server and keep watching for file changes"
+      )
+
+    let buildArgs
+      (
+        ctx: InvocationContext,
+        files: string array option,
+        browsers: string array,
+        headless: bool,
+        watch: bool
+      ) =
+      ctx.GetCancellationToken(),
+      { files = files |> Option.defaultValue Array.empty
+        browsers =
+          if browsers.Length = 0 then [| "chromium" |] else browsers
+          |> Array.map Browser.FromString
+          |> set
+        headless = headless
+        watch = watch }
+
+    command "test" {
+      description "Runs client side tests in a headless browser"
+      inputs (Input.Context(), files, browsers, headless, watch)
+      setHandler (buildArgs >> Handlers.runTesting)
+    }

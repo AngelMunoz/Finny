@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <IsPackable>false</IsPackable>
+    <GenerateProgramFile>false</GenerateProgramFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Env.fs" />
+    <Compile Include="FileSystem.fs" />
+    <Compile Include="Json.fs" />
+    <Compile Include="Esbuild.fs" />
+    <Compile Include="Build.fs" />
+    <Compile Include="Dependencies.fs" />
+    <Compile Include="TypesAndOptions.fs" />
+    <Compile Include="Program.fs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Perla\Perla.fsproj" />
+  </ItemGroup>
+  <Import Project="..\..\.paket\Paket.Restore.targets" />
+</Project>

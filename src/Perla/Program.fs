@@ -1,94 +1,44 @@
 ﻿// Learn more about F# at http://docs.microsoft.com/dotnet/fsharp
-open System.Threading.Tasks
-
-open System
-open Argu
-open FsToolkit.ErrorHandling
+open System.CommandLine.Invocation
+open System.CommandLine.Help
+open System.CommandLine.Builder
+open FSharp.SystemCommandLine
 open Perla
-open Perla.Lib
-open Types
-open Logger
-
-let processExit (result: Task<Result<int, exn>>) =
-  task {
-    match! result with
-    | Ok exitCode -> return exitCode
-    | Error ex ->
-      match ex with
-      | :? ArguParseException as ex -> eprintfn $"{ex.Message}"
-      | CommandNotParsedException message -> eprintfn $"{message}"
-      | others ->
-        Logger.log ($"There was an error running this command", others)
-
-      return 1
-  }
+open System.Threading.Tasks
 
 [<EntryPoint>]
 let main argv =
-  taskResult {
-    let parser = ArgumentParser.Create<DevServerArgs>()
-    Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Development")
+  let maybeHelp = Input.OptionMaybe([ "--info" ], "Brings the Help dialog")
 
-    try
-      let parsed =
-        parser.ParseCommandLine(
-          inputs = argv,
-          raiseOnUsage = true,
-          ignoreMissing = true
-        )
+  let handler (_: InvocationContext, _: bool option) =
 
-      match parsed.GetAllResults() with
-      | [ Version ] ->
-        let version =
-          System.Reflection.Assembly.GetEntryAssembly().GetName().Version
+    Task.FromResult 0
 
-        printfn $"{version.Major}.{version.Minor}.{version.Build}"
-        return! Ok 0
-      | [ List_Templates ] -> return Commands.runListTemplates ()
-      | [ Restore ] -> return! Commands.runRestore ()
-      | [ Remove_Template name ] -> return! Commands.runRemoveTemplate name
-      | _ ->
-        match parsed.TryGetSubCommand() with
-        | Some (DevServerArgs.Build items) ->
-          let buildConfig = Commands.getBuildOptions (items.GetAllResults())
+  rootCommand argv {
+    description "The Perla Dev Server!"
+    inputs (Input.Context(), maybeHelp)
+    setHandler handler
 
-          System.IO.Path.SetCurrentDirectoryToPerlaConfigDirectory()
-          do! Commands.startBuild buildConfig :> Task
-          return! Ok 0
-        | Some (DevServerArgs.Serve items) ->
-          System.IO.Path.SetCurrentDirectoryToPerlaConfigDirectory()
+    usePipeline (fun pipeline ->
+      // don't replace leading @ strings e.g. @lit-labs/task
+      pipeline.UseTokenReplacer(fun _ _ _ -> false) |> ignore)
 
-          do!
-            Commands.startInteractive (fun () ->
-              Commands.getServerOptions (items.GetAllResults()))
-
-          return! Ok 0
-        | Some (Init subcmd) ->
-          return! subcmd |> InitArgs.ToOptions |> Commands.runInit
-        | Some (Add subcmd) ->
-          return! subcmd |> AddArgs.ToOptions |> Commands.runAdd
-        | Some (Remove subcmd) ->
-          return! subcmd |> RemoveArgs.ToOptions |> Commands.runRemove
-        | Some (Search subcmd) ->
-          return! subcmd |> SearchArgs.ToOptions |> Commands.runSearch
-        | Some (Show subcmd) ->
-          return! subcmd |> ShowArgs.ToOptions |> Commands.runShow
-        | Some (List subcmd) ->
-          return! subcmd |> ListArgs.ToOptions |> Commands.runList
-        | Some (New subcmd) ->
-          return! subcmd |> NewProjectArgs.ToOptions |> Commands.runNew
-        | Some (Add_Template subcmd) ->
-          return!
-            subcmd |> RepositoryArgs.ToOptions |> Commands.runAddTemplate None
-        | Some (Update_Template subcmd) ->
-          return!
-            subcmd |> RepositoryArgs.ToOptions |> Commands.runUpdateTemplate
-        | err ->
-          parsed.Raise("No Commands Specified", showUsage = true)
-          return! CommandNotParsedException $"%A{err}" |> Error
-    with ex ->
-      return! ex |> Error
+    addCommands
+      [ Commands.Serve
+        Commands.Build
+        Commands.Init
+        Commands.SearchPackages
+        Commands.ShowPackage
+        Commands.RemovePackage
+        Commands.AddPackage
+        Commands.ListDependencies
+        Commands.Restore
+        Commands.AddTemplate
+        Commands.UpdateTemplate
+        Commands.ListTemplates
+        Commands.RemoveTemplate
+        Commands.NewProject
+        Commands.Test ]
   }
-  |> processExit
   |> Async.AwaitTask
   |> Async.RunSynchronously

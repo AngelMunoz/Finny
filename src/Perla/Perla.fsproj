@@ -1,26 +1,76 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
-
+<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net7.0</TargetFramework>
-    <WarnOn>3390;$(WarnOn)</WarnOn>
-    <Version>0.24.1</Version>
+    <TargetFramework>net6.0</TargetFramework>
     <IsPackable>true</IsPackable>
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>perla</ToolCommandName>
-    <PackageProjectUrl>https://github.com/AngelMunoz/Perla</PackageProjectUrl>
+    <Description>
+        A SPA Dev Server that focuses on removing the node toolchain for frontend developers where possible,
+        Perla uses esbuild, import maps, ESModules, and other modern well supported by browser features to enable A
+        seamless development experience with less tooling.
+    </Description>
+    <Summary>
+        A SPA Dev Server that focuses on removing the node toolchain for frontend developers where possible
+    </Summary>
   </PropertyGroup>
   <ItemGroup>
+    <InternalsVisibleTo Include="$(AssemblyName).Tests" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Constants.fsi" />
+    <Compile Include="Constants.fs" />
+    <Compile Include="Types.fsi" />
+    <Compile Include="Types.fs" />
+    <Compile Include="Env.fsi" />
+    <Compile Include="Env.fs" />
+    <Compile Include="Json.fsi" />
+    <Compile Include="Json.fs" />
+    <Compile Include="FileSystem.fsi" />
+    <Compile Include="FileSystem.fs" />
+    <Compile Include="Esbuild.fsi" />
+    <Compile Include="Esbuild.fs" />
+    <Compile Include="Extensibility.fsi" />
+    <Compile Include="Extensibility.fs" />
+    <Compile Include="VirtualFileSystem.fsi" />
+    <Compile Include="VirtualFileSystem.fs" />
+    <Compile Include="Fable.fsi" />
+    <Compile Include="Fable.fs" />
+    <Compile Include="Build.fsi" />
+    <Compile Include="Build.fs" />
+    <Compile Include="Scaffolding.fsi" />
+    <Compile Include="Scaffolding.fs" />
+    <Compile Include="Library.fsi" />
+    <Compile Include="Library.fs" />
+    <Compile Include="Testing.fs" />
+    <Compile Include="Dependencies.fsi" />
+    <Compile Include="Dependencies.fs" />
+    <Compile Include="Server.fsi" />
+    <Compile Include="Server.fs" />
+    <Compile Include="Configuration.fsi" />
+    <Compile Include="Configuration.fs" />
     <Compile Include="Commands.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
-
   <ItemGroup>
-    <PackageReference Include="Argu" Version="6.1.1" />
+    <None Include="livereload.js">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Include="worker.js">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Include="testing-helpers.js">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Include="mocha-runner.js">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
-
   <ItemGroup>
-    <ProjectReference Include="..\Perla.Lib\Perla.Lib.fsproj" />
+    <ProjectReference Include="..\Perla.Logger\Perla.Logger.fsproj" />
+    <ProjectReference Include="..\Perla.PackageManager\Perla.PackageManager.fsproj" />
+    <ProjectReference Include="..\Perla.Plugins\Perla.Plugins.fsproj" />
   </ItemGroup>
-
+  <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

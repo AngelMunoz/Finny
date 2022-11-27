@@ -1,0 +1,15 @@
+{
+  "imports": {
+    "@shoelace-style/shoelace": "https://ga.jspm.io/npm:@shoelace-style/shoelace@2.0.0-beta.83/dist/shoelace.js",
+    "highlight.js": "https://ga.jspm.io/npm:highlight.js@11.6.0/es/index.js",
+    "marked": "https://ga.jspm.io/npm:marked@4.1.1/lib/marked.esm.js",
+    "navigo": "https://ga.jspm.io/npm:navigo@8.11.1/lib/navigo.min.js",
+    "process": "https://ga.jspm.io/npm:@jspm/core@2.0.0-beta.27/nodelibs/browser/process.js",
+    "react": "https://ga.jspm.io/npm:react@18.2.0/dev.index.js",
+    "react-dom": "https://ga.jspm.io/npm:react-dom@18.2.0/dev.index.js",
+    "react/jsx-runtime": "https://ga.jspm.io/npm:react@18.2.0/dev.jsx-runtime.js",
+    "rxjs": "https://ga.jspm.io/npm:rxjs@7.5.7/dist/esm5/index.js",
+    "scheduler": "https://ga.jspm.io/npm:scheduler@0.23.0/dev.index.js",
+    "tslib": "https://ga.jspm.io/npm:tslib@2.4.0/tslib.es6.js"
+  }
+}

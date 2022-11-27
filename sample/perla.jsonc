@@ -1,0 +1,44 @@
+{
+  "$schema": "../perla.schema.json",
+  "provider": "jspm",
+  "fable": {
+    "project": "./src/App.fsproj",
+    "extension": ".js",
+    "outDir": "./fable_output"
+  },
+  "mountDirectories": {
+    "/src": "./src",
+    "/fable_output": "./fable_output",
+    "/assets": "./assets"
+  },
+  "build": {
+    "includes": [
+      "assets/favicon.ico",
+      "assets/manifest.webmanifest"
+    ]
+  },
+  "dependencies": [
+    {
+      "name": "fsharp-components",
+      "version": "0.0.4"
+    },
+    {
+      "name": "lit",
+      "version": "2.4.0"
+    },
+    {
+      "name": "lit-html",
+      "version": "2.4.0"
+    },
+    {
+      "name": "rxjs",
+      "version": "7.5.7"
+    }
+  ],
+  "devDependencies": [
+    {
+      "name": "@esm-bundle/chai",
+      "version": "4.3.4"
+    }
+  ]
+}

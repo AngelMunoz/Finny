@@ -1,0 +1,13 @@
+{
+  "imports": {
+    "@esm-bundle/chai": "https://ga.jspm.io/npm:@esm-bundle/chai@4.3.4-fix.0/esm/chai.js",
+    "@lit/reactive-element": "https://ga.jspm.io/npm:@lit/reactive-element@1.4.1/reactive-element.js",
+    "fsharp-components": "https://ga.jspm.io/npm:fsharp-components@0.0.4/dist/fs-components.es.js",
+    "lit": "https://ga.jspm.io/npm:lit@2.4.0/index.js",
+    "lit-element/lit-element.js": "https://ga.jspm.io/npm:lit-element@3.2.2/lit-element.js",
+    "lit-html": "https://ga.jspm.io/npm:lit-html@2.4.0/lit-html.js",
+    "lit-html/is-server.js": "https://ga.jspm.io/npm:lit-html@2.4.0/is-server.js",
+    "rxjs": "https://ga.jspm.io/npm:rxjs@7.5.7/dist/esm5/index.js",
+    "tslib": "https://ga.jspm.io/npm:tslib@2.4.0/tslib.es6.js"
+  }
+}

@@ -13,20 +13,74 @@
             "args": [
                 "serve"
             ],
-            "cwd": "${workspaceFolder}/src/App",
+            "cwd": "${workspaceFolder}/sample",
             "stopAtEntry": false,
             "console": "integratedTerminal"
         },
         {
-            "name": "Perla init simple",
+            "name": "Perla build",
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build",
             "program": "${workspaceFolder}/src/Perla/bin/Debug/net6.0/Perla.dll",
             "args": [
-                "init",
-                "-k",
-                "simple"
+                "build"
+            ],
+            "cwd": "${workspaceFolder}/sample",
+            "stopAtEntry": false,
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Perla test watch",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build",
+            "program": "${workspaceFolder}/src/Perla/bin/Debug/net6.0/Perla.dll",
+            "args": [
+                "test",
+                "-w"
+            ],
+            "cwd": "${workspaceFolder}/sample",
+            "stopAtEntry": false,
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Perla test headless",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build",
+            "program": "${workspaceFolder}/src/Perla/bin/Debug/net6.0/Perla.dll",
+            "args": [
+                "test",
+                "--headless"
+            ],
+            "cwd": "${workspaceFolder}/sample",
+            "stopAtEntry": false,
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Perla test",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build",
+            "program": "${workspaceFolder}/src/Perla/bin/Debug/net6.0/Perla.dll",
+            "args": [
+                "test"
+            ],
+            "cwd": "${workspaceFolder}/sample",
+            "stopAtEntry": false,
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Perla templates:add default repo",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build",
+            "program": "${workspaceFolder}/src/Perla/bin/Debug/net6.0/Perla.dll",
+            "args": [
+                "templates:add",
+                "AngelMunoz/perla-templates",
+                "main"
             ],
             "cwd": "${workspaceFolder}",
             "stopAtEntry": false,
@@ -61,24 +115,35 @@
             "console": "integratedTerminal"
         },
         {
-            "name": "Perla add @shoelace-style/shoelace",
+            "name": "Perla add package",
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build",
             "program": "${workspaceFolder}/src/Perla/bin/Debug/net6.0/Perla.dll",
             "args": [
                 "add",
-                "-p",
-                "@shoelace-style/shoelace",
-                "-s",
-                "jspm"
+                "lit"
             ],
-            "cwd": "${workspaceFolder}/src/App",
+            "cwd": "${workspaceFolder}/sample",
             "stopAtEntry": false,
             "console": "integratedTerminal"
         },
         {
-            "name": "NET6 build",
+            "name": "Perla add @shoelace-style/shoelace/dist/utilities/base-path.js",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build",
+            "program": "${workspaceFolder}/src/Perla/bin/Debug/net6.0/Perla.dll",
+            "args": [
+                "add",
+                "@shoelace-style/shoelace"
+            ],
+            "cwd": "${workspaceFolder}/docs",
+            "stopAtEntry": false,
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Build Docs",
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build",
@@ -86,20 +151,7 @@
             "args": [
                 "build"
             ],
-            "cwd": "${workspaceFolder}/src/App",
-            "stopAtEntry": false,
-            "console": "integratedTerminal"
-        },
-        {
-            "name": "NET6 build docs",
-            "type": "coreclr",
-            "request": "launch",
-            "preLaunchTask": "build",
-            "program": "${workspaceFolder}/src/Perla/bin/Debug/net6.0/Perla.dll",
-            "args": [
-                "build"
-            ],
-            "cwd": "${workspaceFolder}/src/docs",
+            "cwd": "${workspaceFolder}/docs",
             "stopAtEntry": false,
             "console": "integratedTerminal"
         }

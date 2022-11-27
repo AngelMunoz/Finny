@@ -1,0 +1,27 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <IsPackable>true</IsPackable>
+    <Description>
+        A Library under the Perla umbrella.
+        This package gives you a a set of types that can be used to generate Perla Perla Dev Server plugins.
+        Use the types here to transform non-supported files for browsers into either HTML/CSS/JS
+    </Description>
+    <Summary>
+        A Library under the Perla umbrella.
+        This package gives you a a set of types that can be used to generate Perla Perla Dev Server plugins.
+    </Summary>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Library.fsi" />
+    <Compile Include="Library.fs" />
+    <Compile Include="Extensibility.fsi" />
+    <Compile Include="Extensibility.fs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Perla.Logger\Perla.Logger.fsproj" />
+  </ItemGroup>
+  <Import Project="..\..\.paket\Paket.Restore.targets" />
+</Project>

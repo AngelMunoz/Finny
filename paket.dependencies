@@ -1,0 +1,47 @@
+source https://api.nuget.org/v3/index.json
+
+nuget FSharp.UMX 1.1.0
+nuget FSharp.Compiler.Service 41.0.6
+nuget FSharp.Control.AsyncSeq 3.2.1
+nuget FSharp.Control.Reactive 5.0.5
+nuget FsToolkit.ErrorHandling 3.0.0
+nuget FsToolkit.ErrorHandling.TaskResult 3.0.0
+nuget FSharp.SystemCommandLine >= 0.13.0-beta4 prerelease
+
+nuget AngleSharp 0.17.1
+nuget Flurl.Http 3.2.4
+nuget CliWrap 3.5.0
+nuget Serilog.AspNetCore
+nuget Spectre.Console 0.45.0
+nuget LiteDB 5.0.12
+nuget Scriban 5.5.0
+nuget Thoth.Json.Net 8.0.0
+nuget Zio 0.15.0
+nuget SharpZipLib 1.4.0
+nuget Hellang.Middleware.SpaFallback 2.0.0
+nuget Fake.IO.FileSystem 5.23.0
+
+nuget System.CommandLine >= 2.0.0-beta4.22272.1 prerelease
+nuget Microsoft.Extensions.Logging 6.0.0
+nuget Yarp.ReverseProxy 1.1.1
+nuget Microsoft.Playwright 1.27.2
+
+# Experiments specific packages
+
+nuget Argu 6.1.1
+nuget Giraffe 6.0.0
+
+group Samples
+    source https://api.nuget.org/v3/index.json
+
+    nuget Sutil >= 1.0.0-0 prerelease
+    nuget Fable.Browser.Dom >= 2.0
+    nuget Fable.Browser.Event >= 1.0
+
+group Tests
+    source https://api.nuget.org/v3/index.json
+
+    nuget Microsoft.NET.Test.Sdk 17.3.2
+    nuget xunit 2.4.2
+    nuget xunit.runner.visualstudio 2.4.5
+    nuget coverlet.collector 3.1.2

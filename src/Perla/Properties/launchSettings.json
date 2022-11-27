@@ -1,9 +1,9 @@
-﻿{
+{
   "profiles": {
     "Serve App": {
       "commandName": "Project",
       "commandLineArgs": "serve",
-      "workingDirectory": "$(ProjectDir)/../App",
+      "workingDirectory": "$(ProjectDir)/../../sample",
       "environmentVariables": {
         "PERLA_envValue": "this is my value",
         "PERLA_SOME_TOKEN": "much secret, so wow :3"
@@ -12,7 +12,43 @@
     "Build App": {
       "commandName": "Project",
       "commandLineArgs": "build",
-      "workingDirectory": "$(ProjectDir)/../App",
+      "workingDirectory": "$(ProjectDir)/../../sample",
+      "environmentVariables": {
+        "PERLA_envValue": "this is my value",
+        "PERLA_SOME_TOKEN": "much secret, so wow :3"
+      }
+    },
+    "Test App Watch": {
+      "commandName": "Project",
+      "commandLineArgs": "test --watch",
+      "workingDirectory": "$(ProjectDir)/../../sample",
+      "environmentVariables": {
+        "PERLA_envValue": "this is my value",
+        "PERLA_SOME_TOKEN": "much secret, so wow :3"
+      }
+    },
+    "Test App Headless": {
+      "commandName": "Project",
+      "commandLineArgs": "test --headless",
+      "workingDirectory": "$(ProjectDir)/../../sample",
+      "environmentVariables": {
+        "PERLA_envValue": "this is my value",
+        "PERLA_SOME_TOKEN": "much secret, so wow :3"
+      }
+    },
+    "Test App Headless Watch": {
+      "commandName": "Project",
+      "commandLineArgs": "test --headless --watch",
+      "workingDirectory": "$(ProjectDir)/../../sample",
+      "environmentVariables": {
+        "PERLA_envValue": "this is my value",
+        "PERLA_SOME_TOKEN": "much secret, so wow :3"
+      }
+    },
+    "Test App": {
+      "commandName": "Project",
+      "commandLineArgs": "test",
+      "workingDirectory": "$(ProjectDir)/../../sample",
       "environmentVariables": {
         "PERLA_envValue": "this is my value",
         "PERLA_SOME_TOKEN": "much secret, so wow :3"
@@ -21,32 +57,32 @@
     "Serve Docs": {
       "commandName": "Project",
       "commandLineArgs": "serve",
-      "workingDirectory": "$(ProjectDir)/../docs"
+      "workingDirectory": "$(ProjectDir)/../../docs"
     },
     "Build Docs": {
       "commandName": "Project",
       "commandLineArgs": "build",
-      "workingDirectory": "$(ProjectDir)/../docs"
+      "workingDirectory": "$(ProjectDir)/../../docs"
     },
     "Add Template": {
       "commandName": "Project",
       "commandLineArgs": "add-template -n AngelMunoz/perla-templates -b clam-poc",
-      "workingDirectory": "$(ProjectDir)/../App"
+      "workingDirectory": "$(ProjectDir)/../../App"
     },
     "Create Project": {
       "commandName": "Project",
       "commandLineArgs": "new -t perla-templates/lit-js -n clam-poc",
-      "workingDirectory": "$(ProjectDir)/../App"
+      "workingDirectory": "$(ProjectDir)/../../App"
     },
-    "Add Lit JSPM ": {
+    "Add Package ": {
       "commandName": "Project",
-      "commandLineArgs": "add -p lit -s jspm",
-      "workingDirectory": "$(ProjectDir)/../App"
+      "commandLineArgs": "add rxjs",
+      "workingDirectory": "$(ProjectDir)/../../sample"
     },
-    "Add RxJS JSPM ": {
+    "Add Dev Package ": {
       "commandName": "Project",
-      "commandLineArgs": "add -p rxjs -s jspm",
-      "workingDirectory": "$(ProjectDir)/../App"
+      "commandLineArgs": "add @esm-bundle/chai -d",
+      "workingDirectory": "$(ProjectDir)/../../sample"
     }
   }
 }

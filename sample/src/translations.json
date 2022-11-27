@@ -1,0 +1,16 @@
+{
+    "en-us": {
+        "user:name": "First Name",
+        "language:current-language": "Current Language",
+        "notification:header": "Header",
+        "notification:message": "Content",
+        "notification:generate": "Generate Notifications"
+    },
+    "de-de": {
+        "user:name": "Vorname",
+        "language:current-language": "Aktuelle Sprache",
+        "notification:header": "Kopfball",
+        "notification:message": "Textinhalt",
+        "notification:generate": "Benachrichtigungen generieren"
+    }
+}

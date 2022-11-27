@@ -14,12 +14,18 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Setup .NET Core
-        uses: actions/setup-dotnet@v1
+        uses: actions/setup-dotnet@v3
         with:
           dotnet-version: 6.0.x
       - name: Install local tools
         run: dotnet tool restore
+      - name: Restore Paket
+        run: dotnet paket restore
       - name: Build
-        run: dotnet fsi ./build.fsx -t SimpleBuild
+        run: dotnet fsi tools.fsx
+      - name: Prepare Esbuild
+        run: dotnet fsi esbuild-ci.fsx
+      - name: Test
+        run: dotnet fsi tools.fsx -- test

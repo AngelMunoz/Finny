@@ -1,0 +1,6 @@
+[*.fs]
+indent_size=2
+fsharp_multiline_block_brackets_on_same_column=true
+fsharp_align_function_signature_to_indentation=true
+fsharp_experimental_keep_indent_in_branch=true
+fsharp_experimental_stroustrup_style=true
