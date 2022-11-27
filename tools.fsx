@@ -12,6 +12,13 @@ let runtimes =
        "win10-x64"
        "win10-arm64" |]
 
+let projects = [ "Perla" ]
+
+let libraries = [ "Perla.PackageManager"; "Perla.Plugins" ]
+
+[<Literal>]
+let PackageVersion = "1.0.0-beta-001"
+
 let fsSources =
     Glob.create "*.fsx"
     |> Glob.toPaths
@@ -62,10 +69,8 @@ module Operations =
     let buildBinaries (project: string) (runtime: string) =
         let cmd =
             let framework = "net6.0"
-            let singleFile = "-p:PublishSingleFile=true"
-            let readyToRun = "-p:PublishReadyToRun=true"
             let outdir = $"{outDir}/{runtime}"
-            $"publish {project} -c Release -f {framework} -r {runtime} --self-contained {singleFile} {readyToRun} -o {outdir}"
+            $"publish {project} -c Release -f {framework} -r {runtime} --self-contained -p:Version={PackageVersion} -o {outdir}"
 
         dotnet cmd
 
@@ -80,10 +85,10 @@ module Steps =
     let packNugets =
         Step.create "Pack Nugets" {
             let! ctx = Step.context
-            do! Operations.cleanDist
             Console.info "Generating NuGet Package" |> ctx.Console.WriteLine
 
-            do! Operations.dotnet $"pack src/Perla -o {outDir}"
+            for packable in projects @ libraries do
+                do! Operations.dotnet $"pack src/{packable}/{packable}.fsproj -p:Version={PackageVersion} -o {outDir}"
         }
 
     let zip =
@@ -92,9 +97,12 @@ module Steps =
 
             Console.info "Zipping Binaries" |> ctx.Console.WriteLine
 
+
             runtimes
             |> Array.Parallel.iter (fun runtime ->
-                ZipFile.CreateFromDirectory($"{outDir}/{runtime}", $"{outDir}/{runtime}.zip"))
+                let sources = $"{outDir}/{runtime}"
+                ZipFile.CreateFromDirectory(sources, $"{outDir}/{runtime}.zip")
+                Directory.Delete(sources, true))
 
             Console.info $"Binaries Zipped at '{outDir}'" |> ctx.Console.WriteLine
         }
@@ -108,7 +116,8 @@ module Steps =
             for runtime in runtimes do
                 Console.info $"Starting [{runtime}]" |> ctx.Console.WriteLine
 
-                do! Operations.buildBinaries "src/Perla/Perla.fsproj" runtime
+                for project in projects do
+                    do! Operations.buildBinaries $"src/{project}/{project}.fsproj" runtime
         }
 
     let buildForRuntime =
@@ -119,7 +128,8 @@ module Steps =
             | Some runtime ->
                 Console.info $"Starting [{runtime}]" |> ctx.Console.WriteLine
 
-                do! Operations.buildBinaries "src/Perla/Perla.fsproj" runtime
+                for project in projects do
+                    do! Operations.buildBinaries $"src/{project}/{project}.fsproj" runtime
             | None ->
                 [ Console.error "No runtime found in the extra arguments."
                   Console.error "example: dotnet fsi build.fsx build:runtime -- linux-x64" ]
@@ -138,6 +148,8 @@ module Steps =
 
 module Pipelines =
 
+    let cleanDist = Pipeline.create "clean:dist" { run Steps.clean }
+
     let restore =
         Pipeline.create "restore" {
             run Steps.installTools
@@ -154,7 +166,6 @@ module Pipelines =
 
     let buildRelease =
         Pipeline.createFrom packNuget "build:release" {
-            run Steps.packNugets
             run Steps.buildBin
             run Steps.zip
         }
@@ -167,6 +178,7 @@ module Pipelines =
     let test = Pipeline.createFrom build "test" { run Steps.test }
 
 Pipelines.create {
+    add Pipelines.cleanDist
     add Pipelines.restore
     add Pipelines.format
     add Pipelines.packNuget

@@ -4,6 +4,8 @@
     <OutputType>Exe</OutputType>
     <RootNamespace>Flan</RootNamespace>
     <TargetFramework>net6.0</TargetFramework>
+    <IsPackable>false</IsPackable>
+    <PackAsTool>true</PackAsTool>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\Perla.Logger\Perla.Logger.fsproj" />
