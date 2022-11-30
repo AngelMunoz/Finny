@@ -20,7 +20,7 @@ let libraries = [ "Perla.PackageManager"; "Perla.Plugins" ]
 let NugetApiKey = EnvVar.getOrFail "NUGET_DEPLOY_KEY"
 
 [<Literal>]
-let PackageVersion = "1.0.0-beta-001"
+let PackageVersion = "1.0.0-beta-002"
 
 let fsSources =
     Glob.create "*.fsx"
