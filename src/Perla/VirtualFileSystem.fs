@@ -297,7 +297,7 @@ module VirtualFileSystem =
     async {
       use fs = new PhysicalFileSystem()
 
-      do!
+      return!
         mountDirectories
           Plugins.ApplyPlugins
           (config.mountDirectories)

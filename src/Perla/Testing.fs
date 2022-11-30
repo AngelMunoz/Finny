@@ -118,14 +118,12 @@ type Print =
         BreakdownChart(ShowTags = true, ShowTagValues = true).FullSize()
 
       chart.AddItems(
-        [ getChartItem (Color.Yellow, "Tests Total", stats.tests)
-          getChartItem (Color.Green, "Tests Passed", stats.passes)
+        [ getChartItem (Color.Green, "Tests Passed", stats.passes)
           getChartItem (Color.Red, "Tests Failed", stats.failures) ]
       )
 
     let endTime = stats.``end`` |> Option.defaultWith (fun _ -> DateTime.Now)
     let difference = endTime - stats.start
-    let errors = errors |> Seq.toList
 
     let rows: IRenderable seq =
       [ for suite in suites do
@@ -146,7 +144,7 @@ type Print =
           chart,
           Header =
             PanelHeader(
-              $"[yellow] TestRun of {stats.suites} suites - Duration:[/] [bold yellow]{difference}[/]"
+              $"[yellow] TestRun of {stats.suites} suites and {stats.tests} tests - Duration:[/] [bold yellow]{difference}[/]"
             )
         ) ]
 
@@ -308,7 +306,15 @@ module Testing =
       .Start(fun ctx ->
         let suites = ResizeArray()
         let errors = ResizeArray()
-        let mutable overallStats = Unchecked.defaultof<_>
+
+        let mutable overallStats =
+          { suites = 0
+            tests = 0
+            passes = 0
+            pending = 0
+            failures = 0
+            start = DateTime.Now
+            ``end`` = None }
 
         let tasks =
           {| allTask = ctx.AddTask("All Tests")
@@ -322,7 +328,7 @@ module Testing =
         let failImport = failImport errors
 
         events
-        |> Observable.add (fun value ->
+        |> Observable.subscribeSafe (fun value ->
           match value with
           | SessionStart(_, _, totalTests) -> startNotifications totalTests
           | SessionEnd(_, stats) ->
@@ -405,7 +411,7 @@ type Testing =
   static member GetBrowser(pl: IPlaywright, browser: Browser, headless: bool) =
     task {
       let options =
-        BrowserTypeLaunchOptions(Devtools = not headless, Headless = headless)
+        BrowserTypeLaunchOptions(Devtools = false, Headless = headless)
 
       match browser with
       | Browser.Chrome ->
@@ -444,4 +450,32 @@ type Testing =
           :> Task
 
         return! page.CloseAsync(PageCloseOptions(RunBeforeUnload = false))
+      }
+
+  static member GetLiveExecutor
+    (
+      url: string,
+      browser: Browser,
+      fileChanges: IObservable<unit>
+    ) =
+    fun (iBrowser: IBrowser) ->
+      task {
+        let! page =
+          iBrowser.NewPageAsync(BrowserNewPageOptions(IgnoreHTTPSErrors = true))
+
+        let monitor = Testing.monitorPageLogs page
+
+        do! page.GotoAsync url :> Task
+
+        Logger.log (
+          $"Starting session for {browser.AsString}: {iBrowser.Version}",
+          target = PrefixKind.Browser
+        )
+
+        return
+          fileChanges
+          |> Observable.map (fun _ ->
+            page.ReloadAsync() |> Async.AwaitTask |> Async.Ignore)
+          |> Observable.switchAsync
+          |> Observable.finallyDo (fun _ -> monitor.Dispose())
       }

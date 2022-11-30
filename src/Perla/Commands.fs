@@ -916,20 +916,6 @@ module Handlers =
       return 0
     }
 
-  let private getFableLogger (config: PerlaConfig) =
-    fun msg ->
-      Logger.log msg
-      let msg = msg.ToLowerInvariant()
-
-      if msg.Contains("watching") || msg.Contains("compilation finished") then
-        let config = config.devServer
-
-        let http, https =
-          Server.GetServerURLs config.host config.port config.useSSL
-
-        Logger.log $"Server Ready at:"
-        Logger.log $"{http}\n{https}"
-
   let private firstCompileFinished
     isWatch
     (observable: IObservable<FableEvent>)
@@ -998,6 +984,7 @@ module Handlers =
         ?runConfig = options.mode,
         serverOptions = cliArgs
       )
+
 
       let config = Configuration.CurrentConfig
 
@@ -1119,11 +1106,17 @@ module Handlers =
             | None -> () ]
       )
 
-      let config = Configuration.CurrentConfig
+      let config =
+        { Configuration.CurrentConfig with
+            mountDirectories =
+              Configuration.CurrentConfig.mountDirectories
+              |> Map.add
+                   (UMX.tag<ServerUrl> "/tests")
+                   (UMX.tag<UserPath> "./tests") }
+
       let isWatch = config.testing.watch
 
       let! dependencies = setupDependencies (config, cancel)
-
 
       let fableEvents =
         match config.fable with
@@ -1141,14 +1134,9 @@ module Handlers =
       do! firstCompileFinished isWatch fableEvents
 
 
-      LoadPlugins(config.esbuild)
+      LoadPlugins config.esbuild
 
-      let mountedDirs =
-        config.mountDirectories
-        |> Map.add (UMX.tag<ServerUrl> "/tests") (UMX.tag<UserPath> "./tests")
-
-      do!
-        VirtualFileSystem.Mount({ config with mountDirectories = mountedDirs })
+      do! VirtualFileSystem.Mount config
 
       let perlaChanges =
         FileSystem.ObservePerlaFiles(UMX.untag config.index, cancel)
@@ -1202,17 +1190,17 @@ module Handlers =
 
       use! pl = Playwright.CreateAsync()
 
-      let browsers =
-        asyncSeq {
-          for browser in config.testing.browsers do
-            let! iBrowser =
-              Testing.GetBrowser(pl, browser, config.testing.headless)
-              |> Async.AwaitTask
-
-            browser, iBrowser
-        }
 
       if not isWatch then
+        let browsers =
+          asyncSeq {
+            for browser in config.testing.browsers do
+              let! iBrowser =
+                Testing.GetBrowser(pl, browser, config.testing.headless)
+                |> Async.AwaitTask
+
+              browser, iBrowser
+          }
 
         let runTest (browser, iBrowser) =
           async {
@@ -1247,6 +1235,29 @@ module Handlers =
 
         return 0
       else
+        let browser = config.testing.browsers |> Seq.head
+
+        let! iBrowser =
+          Testing.GetBrowser(
+            pl,
+            config.testing.browsers |> Seq.head,
+            config.testing.headless
+          )
+
+        let liveExecutor =
+          Testing.GetLiveExecutor(
+            http,
+            browser,
+            fileChanges |> Observable.map ignore
+          )
+
+        use _ = Testing.PrintReportLive events
+        let! pageReloads = liveExecutor iBrowser
+
+        use _ =
+          pageReloads
+          |> Observable.subscribeSafe (fun _ ->
+            Logger.log $"Live Reload: Page Reloaded After Change")
 
         while not cancel.IsCancellationRequested do
           do! Async.Sleep(TimeSpan.FromSeconds(1.))
