@@ -1,8 +1,6 @@
 module Perla.Configuration
 
-open FSharp.UMX
 open Perla.Types
-open Perla.Units
 open Perla.PackageManager.Types
 open System.Runtime.InteropServices
 
@@ -12,6 +10,15 @@ module Types =
         | Host of string
         | LiveReload of bool
         | UseSSl of bool
+
+    [<RequireQualifiedAccess>]
+    type TestingField =
+        | Browsers of Browser seq
+        | Includes of string seq
+        | Excludes of string seq
+        | Watch of bool
+        | Headless of bool
+        | BrowserMode of BrowserMode
 
     type FableField =
         | Project of string
@@ -35,6 +42,7 @@ module Defaults =
     val DevServerConfig: DevServerConfig
     val EsbuildConfig: EsbuildConfig
     val BuildConfig: BuildConfig
+    val TestConfig: TestConfig
     val PerlaConfig: PerlaConfig
 
 /// <summary>
@@ -45,7 +53,8 @@ type Configuration =
     member UpdateFromCliArgs:
         [<Optional>] ?runConfig: RunConfiguration *
         [<Optional>] ?provider: Provider *
-        [<Optional>] ?serverOptions: seq<DevServerField> ->
+        [<Optional>] ?serverOptions: seq<DevServerField> *
+        [<Optional>] ?testingOptions: seq<TestingField> ->
             unit
     member UpdateFromFile: unit -> unit
     member WriteFieldsToFile: newValues: seq<PerlaWritableField> -> unit

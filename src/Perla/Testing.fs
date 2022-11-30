@@ -1,30 +1,20 @@
 ﻿namespace Perla.Testing
 
 open System
+open System.Threading.Tasks
+
 open Microsoft.Playwright
+
+open Perla
 open Perla.Logger
 open Perla.Types
+open Perla.FileSystem
+
 open FSharp.Control
 open FSharp.Control.Reactive
+
 open Spectre.Console
 open Spectre.Console.Rendering
-
-[<Struct>]
-type Browser =
-  | Webkit
-  | Firefox
-  | Chromium
-  | Edge
-  | Chrome
-
-  static member FromString(value: string) =
-    match value.ToLowerInvariant() with
-    | "chromium" -> Chromium
-    | "chrome" -> Chrome
-    | "edge" -> Edge
-    | "webkit" -> Webkit
-    | "firefox" -> Firefox
-    | _ -> Chromium
 
 type ClientTestException(message: string, stack: string) =
   inherit Exception(message)
@@ -114,8 +104,8 @@ type Print =
   static member Report
     (
       stats: TestStats,
-      suites: Suite seq,
-      errors: ReportedError seq
+      suites: Suite list,
+      errors: ReportedError list
     ) =
     let getChartItem (color, label, value) =
       { new IBreakdownChartItem with
@@ -125,9 +115,7 @@ type Print =
 
     let chart =
       let chart =
-        BreakdownChart(ShowTags = true, ShowTagValues = true)
-          .FullSize()
-          .ShowPercentage()
+        BreakdownChart(ShowTags = true, ShowTagValues = true).FullSize()
 
       chart.AddItems(
         [ getChartItem (Color.Yellow, "Tests Total", stats.tests)
@@ -164,17 +152,20 @@ type Print =
 
     rows |> Rows |> AnsiConsole.Write
 
-
-
 module Testing =
-  let SetupPlaywright () =
+  let SetupPlaywright withDeps =
     Logger.log (
       "[bold yellow]Setting up playwright...[/] This will install [bold cyan]all[/] of the supported browsers",
       escape = false
     )
 
     try
-      let exitCode = Program.Main([| "install" |])
+      let exitCode =
+        Program.Main(
+          [| "install"
+             if withDeps then
+               "--with-deps" |]
+        )
 
       if exitCode = 0 then
         Logger.log (
@@ -202,25 +193,25 @@ module Testing =
 
 
   let BuildReport
-    (events: TestEvent seq)
-    : TestStats * Suite seq * ReportedError seq =
+    (events: TestEvent list)
+    : TestStats * Suite list * ReportedError list =
     let suiteEnds =
       events
-      |> Seq.choose (fun event ->
+      |> List.choose (fun event ->
         match event with
-        | SuiteEnd (_, suite) -> Some suite
+        | SuiteEnd(_, _, suite) -> Some suite
         | _ -> None)
 
     let errors =
       events
-      |> Seq.choose (fun event ->
+      |> List.choose (fun event ->
         match event with
-        | TestFailed (_, test, message, stack) ->
+        | TestFailed(_, _, test, message, stack) ->
           Some
             { test = Some test
               message = message
               stack = stack }
-        | TestImportFailed (message, stack) ->
+        | TestImportFailed(_, message, stack) ->
           Some
             { test = None
               message = message
@@ -229,9 +220,9 @@ module Testing =
 
     let stats =
       events
-      |> Seq.tryPick (fun event ->
+      |> List.tryPick (fun event ->
         match event with
-        | SessionEnd stats -> Some stats
+        | SessionEnd(_, stats) -> Some stats
         | _ -> None)
       |> Option.defaultWith (fun _ ->
         { suites = 0
@@ -246,9 +237,10 @@ module Testing =
 
 
   let private startNotifications
-    (tasks: {| allTask: ProgressTask
-               failedTask: ProgressTask
-               passedTask: ProgressTask |})
+    (tasks:
+      {| allTask: ProgressTask
+         failedTask: ProgressTask
+         passedTask: ProgressTask |})
     totalTests
     =
     tasks.allTask.MaxValue <- totalTests
@@ -257,26 +249,29 @@ module Testing =
     tasks.allTask.IsIndeterminate <- true
 
   let private endSession
-    (tasks: {| allTask: ProgressTask
-               failedTask: ProgressTask
-               passedTask: ProgressTask |})
+    (tasks:
+      {| allTask: ProgressTask
+         failedTask: ProgressTask
+         passedTask: ProgressTask |})
     =
     tasks.failedTask.StopTask()
     tasks.passedTask.StopTask()
     tasks.allTask.StopTask()
 
   let private passTest
-    (tasks: {| allTask: ProgressTask
-               failedTask: ProgressTask
-               passedTask: ProgressTask |})
+    (tasks:
+      {| allTask: ProgressTask
+         failedTask: ProgressTask
+         passedTask: ProgressTask |})
     =
     tasks.passedTask.Increment(1)
     tasks.allTask.Increment(1)
 
   let private failTest
-    (tasks: {| allTask: ProgressTask
-               failedTask: ProgressTask
-               passedTask: ProgressTask |})
+    (tasks:
+      {| allTask: ProgressTask
+         failedTask: ProgressTask
+         passedTask: ProgressTask |})
     (errors: ResizeArray<_>)
     (test, message, stack)
     =
@@ -300,14 +295,14 @@ module Testing =
 
   let private signalEnd
     (overallStats: TestStats)
-    (suites: _ seq)
-    (errors: _ seq)
+    (suites: _ list)
+    (errors: _ list)
     =
     Console.Clear()
     AnsiConsole.Clear()
     Print.Report(overallStats, suites, errors)
 
-  let PrintReportLive (events: IObservable<TestEvent>) : IDisposable =
+  let PrintReportLive (events: IObservable<TestEvent>) =
     AnsiConsole
       .Progress(HideCompleted = false, AutoClear = false)
       .Start(fun ctx ->
@@ -327,37 +322,126 @@ module Testing =
         let failImport = failImport errors
 
         events
-        |> Observable.subscribeSafe (fun value ->
+        |> Observable.add (fun value ->
           match value with
-          | SessionStart (_, totalTests) -> startNotifications totalTests
-          | SessionEnd stats ->
+          | SessionStart(_, _, totalTests) -> startNotifications totalTests
+          | SessionEnd(_, stats) ->
             overallStats <- stats
             endSession tasks
           | TestPass _ -> passTest tasks
-          | TestFailed (_, test, message, stack) ->
+          | TestFailed(_, _, test, message, stack) ->
             failTest (test, message, stack)
-          | SuiteStart (stats, _) -> overallStats <- stats
-          | SuiteEnd (stats, suite) ->
+          | SuiteStart(_, stats, _) -> overallStats <- stats
+          | SuiteEnd(_, stats, suite) ->
             overallStats <- stats
             endSuite suite
-          | TestImportFailed (message, stack) -> failImport (message, stack)
-          | TestRunFinished -> signalEnd overallStats suites errors))
+          | TestImportFailed(_, message, stack) -> failImport (message, stack)
+          | TestRunFinished _ ->
+            signalEnd overallStats (suites |> Seq.toList) (errors |> Seq.toList)))
 
-type Testing =
-
-  static member GetBrowser(browser: Browser, headless: bool, pl: IPlaywright) =
+  let getBrowser (browser: Browser, headless: bool, pl: IPlaywright) =
     task {
       let options =
         BrowserTypeLaunchOptions(Devtools = not headless, Headless = headless)
 
       match browser with
-      | Chrome ->
+      | Browser.Chrome ->
         options.Channel <- "chrome"
         return! pl.Chromium.LaunchAsync(options)
-      | Edge ->
+      | Browser.Edge ->
         options.Channel <- "edge"
         return! pl.Chromium.LaunchAsync(options)
-      | Chromium -> return! pl.Chromium.LaunchAsync(options)
-      | Firefox -> return! pl.Firefox.LaunchAsync(options)
-      | Webkit -> return! pl.Webkit.LaunchAsync(options)
+      | Browser.Chromium -> return! pl.Chromium.LaunchAsync(options)
+      | Browser.Firefox -> return! pl.Firefox.LaunchAsync(options)
+      | Browser.Webkit -> return! pl.Webkit.LaunchAsync(options)
     }
+
+  let monitorPageLogs (page: IPage) =
+    page.Console
+    |> Observable.subscribeSafe (fun e ->
+      let getText color =
+        $"[bold {color}]{e.Text.EscapeMarkup()}[/]".EscapeMarkup()
+
+      let writeRule () =
+        AnsiConsole.Write(
+          Rule(
+            $"[dim blue]{e.Location}[/]",
+            Style = Style.Parse("dim"),
+            Alignment = Justify.Right
+          )
+        )
+
+      match e.Type with
+      | Debug -> ()
+      | Info ->
+        Logger.log (getText "cyan", target = PrefixKind.Browser)
+        writeRule ()
+      | Err ->
+        Logger.log (getText "red", target = PrefixKind.Browser)
+        writeRule ()
+      | Warning ->
+        Logger.log (getText "orange", target = PrefixKind.Browser)
+        writeRule ()
+      | Clear ->
+        let link = $"[link]{e.Location.EscapeMarkup()}[/]"
+
+        Logger.log (
+          $"Browser Console cleared at: {link.EscapeMarkup()}",
+          target = PrefixKind.Browser
+        )
+
+        writeRule ()
+      | _ ->
+        Logger.log ($"{e.Text.EscapeMarkup()}", target = PrefixKind.Browser)
+        writeRule ()
+
+    )
+
+
+open Testing
+
+type Testing =
+
+  static member GetBrowser(pl: IPlaywright, browser: Browser, headless: bool) =
+    task {
+      let options =
+        BrowserTypeLaunchOptions(Devtools = not headless, Headless = headless)
+
+      match browser with
+      | Browser.Chrome ->
+        options.Channel <- "chrome"
+        return! pl.Chromium.LaunchAsync(options)
+      | Browser.Edge ->
+        options.Channel <- "edge"
+        return! pl.Chromium.LaunchAsync(options)
+      | Browser.Chromium -> return! pl.Chromium.LaunchAsync(options)
+      | Browser.Firefox -> return! pl.Firefox.LaunchAsync(options)
+      | Browser.Webkit -> return! pl.Webkit.LaunchAsync(options)
+    }
+
+  static member GetExecutor(url: string, browser: Browser) =
+    fun (iBrowser: IBrowser) ->
+      task {
+        let! page =
+          iBrowser.NewPageAsync(BrowserNewPageOptions(IgnoreHTTPSErrors = true))
+
+        use _ = Testing.monitorPageLogs page
+
+        do! page.GotoAsync url :> Task
+
+        Logger.log (
+          $"Starting session for {browser.AsString}: {iBrowser.Version}",
+          target = PrefixKind.Browser
+        )
+
+        do!
+          page.WaitForConsoleMessageAsync(
+            PageWaitForConsoleMessageOptions(
+              Predicate =
+                (fun event -> event.Text = "__perla-test-run-finished")
+            )
+          )
+          :> Task
+
+        return! page.CloseAsync(PageCloseOptions(RunBeforeUnload = false))
+      }

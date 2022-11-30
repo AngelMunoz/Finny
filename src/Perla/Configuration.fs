@@ -5,6 +5,7 @@ open Perla.Types
 open Perla.Units
 open Perla.PackageManager.Types
 open Perla.Logger
+open System.Runtime.InteropServices
 
 module Types =
 
@@ -13,6 +14,15 @@ module Types =
     | Host of string
     | LiveReload of bool
     | UseSSl of bool
+
+  [<RequireQualifiedAccess>]
+  type TestingField =
+    | Browsers of Browser seq
+    | Includes of string seq
+    | Excludes of string seq
+    | Watch of bool
+    | Headless of bool
+    | BrowserMode of BrowserMode
 
   type FableField =
     | Project of string
@@ -71,6 +81,14 @@ module Defaults =
       outDir = UMX.tag "./dist"
       emitEnvFile = true }
 
+  let TestConfig =
+    { browsers = [ Browser.Chromium ]
+      includes = [ "**/*.test.js"; "**/*.spec.js" ]
+      excludes = []
+      watch = false
+      headless = true
+      browserMode = BrowserMode.Parallel }
+
   let PerlaConfig =
     { index = UMX.tag Constants.IndexFile
       runConfiguration = RunConfiguration.Production
@@ -78,6 +96,7 @@ module Defaults =
       build = BuildConfig
       devServer = DevServerConfig
       esbuild = EsbuildConfig
+      testing = TestConfig
       fable = None
       mountDirectories =
         Map.ofList [ UMX.tag<ServerUrl> "/src", UMX.tag<UserPath> "./src" ]
@@ -225,6 +244,7 @@ let fromCli
   (runConfig: RunConfiguration option)
   (provider: Provider option)
   (serverOptions: DevServerField seq option)
+  (testingOptions: TestingField seq option)
   (config: PerlaConfig)
   : PerlaConfig =
   let configuration = defaultArg runConfig Defaults.PerlaConfig.runConfiguration
@@ -249,6 +269,26 @@ let fromCli
            | UseSSl useSSL -> port, host, liveReload, useSSL)
          defaults
 
+  let testing = 
+    defaultArg testingOptions Seq.empty
+    |> Seq.fold
+        (fun current next ->
+          match next with 
+          | TestingField.Browsers value -> 
+            { current with browsers = value}
+          | TestingField.Includes value -> 
+            { current with includes = value}
+          | TestingField.Excludes value -> 
+            { current with excludes = value}
+          | TestingField.Watch value -> 
+            { current with watch = value}
+          | TestingField.Headless value -> 
+            { current with headless = value}
+          | TestingField.BrowserMode value -> 
+            { current with browserMode = value}
+        )
+        config.testing
+
   { config with
       devServer =
         { config.devServer with
@@ -256,6 +296,7 @@ let fromCli
             host = host
             liveReload = liveReload
             useSSL = useSSL }
+      testing = testing
       runConfiguration = configuration
       provider = provider }
 
@@ -326,11 +367,25 @@ let fromFile (fileContent: JsonObject option) (config: PerlaConfig) =
               jsxFragment = esbuild.jsxFragment }
         | None -> config.esbuild
 
+      let testing =
+        match decoded.testing with
+        | Some testing ->
+          { config.testing with
+              browsers = defaultArg testing.browsers config.testing.browsers
+              includes = defaultArg testing.includes config.testing.includes
+              excludes = defaultArg testing.excludes config.testing.excludes
+              watch = defaultArg testing.watch config.testing.watch
+              headless = defaultArg testing.headless config.testing.headless
+              browserMode =
+                defaultArg testing.browserMode config.testing.browserMode }
+        | None -> config.testing
+
       { config with
           fable = fable
           devServer = devServer
           build = build
           esbuild = esbuild
+          testing = testing
           index = defaultArg decoded.index config.index
           runConfiguration =
             defaultArg decoded.runConfiguration config.runConfiguration
@@ -357,13 +412,15 @@ type Configuration() =
   let mutable _runConfig = None
   let mutable _provider = None
   let mutable _serverOptions = None
+
+  let mutable _testingOptions = None
   let mutable _fileConfig = Json.getConfigDocument ()
 
   let mutable _configContents =
     Defaults.PerlaConfig
     |> fromEnv
     |> fromFile _fileConfig
-    |> fromCli _runConfig _provider _serverOptions
+    |> fromCli _runConfig _provider _serverOptions _testingOptions
 
 
   let runPipeline () =
@@ -371,19 +428,21 @@ type Configuration() =
       Defaults.PerlaConfig
       |> fromEnv
       |> fromFile _fileConfig
-      |> fromCli _runConfig _provider _serverOptions
+      |> fromCli _runConfig _provider _serverOptions _testingOptions
 
   member _.CurrentConfig = _configContents
 
   member _.UpdateFromCliArgs
     (
-      ?runConfig: RunConfiguration,
-      ?provider: Provider,
-      ?serverOptions: DevServerField seq
+      [<Optional>] ?runConfig: RunConfiguration,
+      [<Optional>] ?provider: Provider,
+      [<Optional>] ?serverOptions: DevServerField seq,
+      [<Optional>] ?testingOptions: TestingField seq
     ) =
     _runConfig <- runConfig
     _serverOptions <- serverOptions
     _provider <- provider
+    _testingOptions <- testingOptions
 
     runPipeline ()
 
@@ -391,7 +450,7 @@ type Configuration() =
     _fileConfig <- Json.getConfigDocument ()
     runPipeline ()
 
-  member this.WriteFieldsToFile(newValues: PerlaWritableField seq) =
+  member _.WriteFieldsToFile(newValues: PerlaWritableField seq) =
     Json.updateFileFields &_fileConfig newValues
     FileSystem.FileSystem.WritePerlaConfig(?config = _fileConfig)
     runPipeline ()

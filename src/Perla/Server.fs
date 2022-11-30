@@ -140,7 +140,7 @@ module Extensions =
     /// <param name="value">The value to be set. Non string values will be converted to a string using the object's ToString() method.</param>
     [<Extension>]
     static member SetHttpHeader(ctx: HttpContext, key: string, value: obj) =
-      ctx.Response.Headers[ key ] <- StringValues(value.ToString())
+      ctx.Response.Headers[key] <- StringValues(value.ToString())
 
     /// <summary>
     /// Sets the Content-Type HTTP header in the response.
@@ -322,10 +322,7 @@ document.head.appendChild(style).innerHTML=`{content}`;"""
       Json.TestEventFromJson toDecode
       |> Result.teeError (fun err ->
         Logger.log $"[bold red]{err.EscapeMarkup()}[/]")
-      |> Result.iter (fun event ->
-        match event with
-        | TestEvent.TestRunFinished -> testEvents.OnCompleted()
-        | otherEvents -> testEvents.OnNext otherEvents)
+      |> Result.iter (testEvents.OnNext)
 
       return Results.Ok()
     }
@@ -660,7 +657,7 @@ module Server =
       configureLogger
         .MinimumLevel
         .Override("Microsoft.AspNetCore", LogEventLevel.Warning)
-        .MinimumLevel.Information()
+        .MinimumLevel.Warning()
         .Enrich.FromLogContext()
         .WriteTo.Console()
       |> ignore)
@@ -712,6 +709,7 @@ module Server =
 
     let addTestingHandlers
       (files: string seq option)
+      (testConfig: TestConfig)
       (mochaConfig: Map<string, obj> option)
       testingEvents
       (app: WebApplication)
@@ -736,7 +734,12 @@ module Server =
         Func<HttpContext, IResult>(fun _ ->
           let glob: Globbing.LazyGlobbingPattern =
             { BaseDirectory = "./tests"
-              Excludes = [ "**/bin/**"; "**/obj/**"; "**/*.fs"; "**/*.fsproj" ]
+              Excludes =
+                [ "**/bin/**"
+                  "**/obj/**"
+                  "**/*.fs"
+                  "**/*.fsproj"
+                  yield! testConfig.excludes ]
               Includes =
                 match files with
                 | Some files ->
@@ -759,9 +762,25 @@ module Server =
       |> ignore
 
       app.MapGet(
-        "/~perla~/testing/settings",
+        "/~perla~/testing/mocha-settings",
         Func<HttpContext, IResult>(fun _ ->
           Results.Ok(mochaConfig |> Option.defaultValue Map.empty))
+      )
+      |> ignore
+
+      app.MapGet(
+        "/~perla~/testing/environment",
+        Func<HttpContext, IResult>(fun _ ->
+
+          Results.Ok
+            {| testConfig with
+                 browsers =
+                   (testConfig.browsers |> Seq.map ConfigEncoders.Browser)
+                     .ToString()
+                 browserMode =
+                   (testConfig.browserMode |> ConfigEncoders.BrowserMode)
+                     .ToString()
+                 runId = Guid.NewGuid() |})
       )
       |> ignore
 
@@ -827,5 +846,9 @@ type Server =
     |> Server.addProxy proxy
     |> Server.addLiveReload liveReload fileChangedEvents compileErrorEvents
     |> Server.addEnv enableEnv (UMX.untag envPath)
-    |> Server.TestApp.addTestingHandlers fileGlobs mochaOptions testEvents
+    |> Server.TestApp.addTestingHandlers
+         fileGlobs
+         config.testing
+         mochaOptions
+         testEvents
     |> Server.addResolveFile

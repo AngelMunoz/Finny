@@ -13,6 +13,7 @@ type PrefixKind =
   | Build
   | Serve
   | Esbuild
+  | Browser
 
 [<Struct>]
 type LogEnding =
@@ -37,6 +38,9 @@ module Constants =
   [<Literal>]
   let ServePrefix = "Serve:"
 
+  [<Literal>]
+  let BrowserPrefix = "Browser:"
+
 type PrefixKind with
 
   member this.AsString =
@@ -46,6 +50,7 @@ type PrefixKind with
     | PrefixKind.Build -> Constants.BuildPrefix
     | PrefixKind.Serve -> Constants.ServePrefix
     | PrefixKind.Esbuild -> Constants.EsbuildPrefix
+    | PrefixKind.Browser -> Constants.BrowserPrefix
 
 module Internals =
   let format (prefix: PrefixKind list) (message: string) : FormattableString =
@@ -114,6 +119,7 @@ type Logger =
         | PrefixKind.Build -> [ Log; Build ]
         | PrefixKind.Serve -> [ Log; Serve ]
         | PrefixKind.Esbuild -> [ Log; Esbuild ]
+        | PrefixKind.Browser -> [Log; Browser]
 
     Logger.logCustom (message, prefixes = target, ?ex = ex, ?escape = escape)
 
@@ -150,6 +156,7 @@ type Logger =
         | PrefixKind.Build -> [ Log; Build ]
         | PrefixKind.Serve -> [ Log; Serve ]
         | PrefixKind.Esbuild -> [ Log; Esbuild ]
+        | PrefixKind.Browser -> [Log; Browser]
 
     let title = Internals.format prefix title
     let status = AnsiConsole.Status()
@@ -170,6 +177,7 @@ type Logger =
         | PrefixKind.Build -> [ Log; Build ]
         | PrefixKind.Serve -> [ Log; Serve ]
         | PrefixKind.Esbuild -> [ Log; Esbuild ]
+        | PrefixKind.Browser -> [Log; Browser]
 
     let title = Internals.format prefix title
     let status = AnsiConsole.Status()
@@ -186,7 +194,7 @@ module Logger =
     { new ILogger with
         member _.Log(logLevel, eventId, state, ex, formatter) =
           let format = formatter.Invoke(state, ex)
-          Logger.log (format)
+          Logger.log format
 
         member _.IsEnabled(level) = true
 

@@ -67,6 +67,33 @@ module Types =
 
         member internal AsVersionedString: string
 
+    [<Struct; RequireQualifiedAccess>]
+    type Browser =
+        | Webkit
+        | Firefox
+        | Chromium
+        | Edge
+        | Chrome
+
+        member AsString: string
+        static member FromString: string -> Browser
+
+    [<Struct; RequireQualifiedAccess>]
+    type BrowserMode =
+        | Parallel
+        | Sequential
+
+        member AsString: string
+        static member FromString: string -> BrowserMode
+
+    type TestConfig =
+        { browsers: Browser seq
+          includes: string seq
+          excludes: string seq
+          watch: bool
+          headless: bool
+          browserMode: BrowserMode }
+
     type PerlaConfig =
         { index: string<SystemPath>
           runConfiguration: RunConfiguration
@@ -75,6 +102,7 @@ module Types =
           devServer: DevServerConfig
           fable: FableConfig option
           esbuild: EsbuildConfig
+          testing: TestConfig
           mountDirectories: Map<string<ServerUrl>, string<UserPath>>
           enableEnv: bool
           envPath: string<ServerUrl>
@@ -111,14 +139,14 @@ module Types =
           ``end``: DateTime option }
 
     type TestEvent =
-        | SessionStart of stats: TestStats * totalTests: int
-        | SessionEnd of stats: TestStats
-        | SuiteStart of stats: TestStats * suite: Suite
-        | SuiteEnd of stats: TestStats * suite: Suite
-        | TestPass of stats: TestStats * test: Test
-        | TestFailed of stats: TestStats * test: Test * message: string * stack: string
-        | TestImportFailed of message: string * stack: string
-        | TestRunFinished
+        | SessionStart of runId: Guid * stats: TestStats * totalTests: int
+        | SessionEnd of runId: Guid * stats: TestStats
+        | SuiteStart of runId: Guid * stats: TestStats * suite: Suite
+        | SuiteEnd of runId: Guid * stats: TestStats * suite: Suite
+        | TestPass of runId: Guid * stats: TestStats * test: Test
+        | TestFailed of runId: Guid * stats: TestStats * test: Test * message: string * stack: string
+        | TestImportFailed of runId: Guid * message: string * stack: string
+        | TestRunFinished of runId: Guid
 
     exception CommandNotParsedException of string
     exception HelpRequestedException

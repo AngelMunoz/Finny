@@ -73,6 +73,26 @@ module Types =
 
       $"{this.name}{version}"
 
+  [<Struct; RequireQualifiedAccess>]
+  type Browser =
+    | Webkit
+    | Firefox
+    | Chromium
+    | Edge
+    | Chrome
+
+  [<Struct; RequireQualifiedAccess>]
+  type BrowserMode =
+    | Parallel
+    | Sequential
+
+  type TestConfig =
+    { browsers: Browser seq
+      includes: string seq
+      excludes: string seq
+      watch: bool
+      headless: bool
+      browserMode: BrowserMode }
 
   type PerlaConfig =
     { index: string<SystemPath>
@@ -82,6 +102,7 @@ module Types =
       devServer: DevServerConfig
       fable: FableConfig option
       esbuild: EsbuildConfig
+      testing: TestConfig
       mountDirectories: Map<string<ServerUrl>, string<UserPath>>
       enableEnv: bool
       envPath: string<ServerUrl>
@@ -118,18 +139,19 @@ module Types =
       ``end``: DateTime option }
 
   type TestEvent =
-    | SessionStart of stats: TestStats * totalTests: int
-    | SessionEnd of stats: TestStats
-    | SuiteStart of stats: TestStats * suite: Suite
-    | SuiteEnd of stats: TestStats * suite: Suite
-    | TestPass of stats: TestStats * test: Test
+    | SessionStart of runId: Guid * stats: TestStats * totalTests: int
+    | SessionEnd of runId: Guid * stats: TestStats
+    | SuiteStart of runId: Guid * stats: TestStats * suite: Suite
+    | SuiteEnd of runId: Guid * stats: TestStats * suite: Suite
+    | TestPass of runId: Guid * stats: TestStats * test: Test
     | TestFailed of
+      runId: Guid *
       stats: TestStats *
       test: Test *
       message: string *
       stack: string
-    | TestImportFailed of message: string * stack: string
-    | TestRunFinished
+    | TestImportFailed of runId: Guid * message: string * stack: string
+    | TestRunFinished of runId: Guid
 
   exception CommandNotParsedException of string
   exception HelpRequestedException
@@ -153,3 +175,35 @@ module Types =
       | "development"
       | "dev"
       | _ -> Development
+
+  type Browser with
+
+    member this.AsString =
+      match this with
+      | Browser.Chromium -> "chromium"
+      | Browser.Chrome -> "chrome"
+      | Browser.Edge -> "edge"
+      | Browser.Webkit -> "webkit"
+      | Browser.Firefox -> "firefox"
+
+    static member FromString(value: string) =
+      match value.ToLowerInvariant() with
+      | "chromium" -> Browser.Chromium
+      | "chrome" -> Browser.Chrome
+      | "edge" -> Browser.Edge
+      | "webkit" -> Browser.Webkit
+      | "firefox" -> Browser.Firefox
+      | _ -> Browser.Chromium
+
+  type BrowserMode with
+
+    member this.AsString =
+      match this with
+      | BrowserMode.Parallel -> "parallel"
+      | BrowserMode.Sequential -> "sequential"
+
+    static member FromString(value: string) =
+      match value.ToLowerInvariant() with
+      | "parallel" -> BrowserMode.Parallel
+      | "sequential" -> BrowserMode.Sequential
+      | _ -> BrowserMode.Parallel

@@ -58,7 +58,9 @@ module CliOptions =
     { mode: RunConfiguration option
       disablePreloads: bool }
 
-  type SetupOptions = { skipPrompts: bool }
+  type SetupOptions =
+    { skipPrompts: bool
+      playwrightDeps: bool }
 
   type SearchOptions = { package: string; page: int }
 
@@ -93,10 +95,12 @@ module CliOptions =
       mode: RunConfiguration option }
 
   type TestingOptions =
-    { files: string seq
-      browsers: Browser seq
-      headless: bool
-      watch: bool }
+    { browsers: Browser seq option
+      files: string seq option
+      skip: string seq option
+      watch: bool option
+      headless: bool option
+      browserMode: BrowserMode option }
 
 open CliOptions
 
@@ -364,11 +368,25 @@ module Handlers =
       Logger.log "- Default Templates"
 
       Logger.log
-        "After that you should be able to run 'perla build' or 'perla new'"
+        "- Playwright browsers (requires admin privileges if using --with-playwright-deps)"
+
+      Logger.log
+        "After that you should be able to run 'perla build' or 'perla new' or 'perla test'"
 
       do! FileSystem.SetupEsbuild(UMX.tag Constants.Esbuild_Version)
       Logger.log ("[bold green]esbuild[/] has been setup!", escape = false)
 
+      match options.skipPrompts, options.playwrightDeps with
+      | true, true -> Testing.SetupPlaywright true
+      | true, false -> Testing.SetupPlaywright false
+      | false, true -> Testing.SetupPlaywright true
+      | false, false ->
+        if
+          AnsiConsole.Confirm("Install Playwright with dependencies?", false)
+        then
+          Testing.SetupPlaywright true
+        else
+          Testing.SetupPlaywright false
 
       if options.skipPrompts then
         let username, repository, branch =
@@ -547,7 +565,7 @@ module Handlers =
   let runUpdateTemplate (opts: TemplateRepositoryOptions) =
     task {
       match parseFullRepositoryName opts.fullRepositoryName with
-      | Some (username, repository, branch) ->
+      | Some(username, repository, branch) ->
         match
           Templates.FindOne(TemplateSearchKind.FullName(username, repository))
         with
@@ -861,7 +879,7 @@ module Handlers =
               Dependencies.GetMapAndDependencies(dependencies, config.provider)
             )
           with
-          | Ok (deps, map) ->
+          | Ok(deps, map) ->
             FileSystem.WriteImportMap(map) |> ignore
             let deps = if args.disablePreloads then Seq.empty else deps
             return Build.GetIndexFile(document, css, js, map, deps)
@@ -912,12 +930,19 @@ module Handlers =
         Logger.log $"Server Ready at:"
         Logger.log $"{http}\n{https}"
 
-  let private firstCompileFinished isWatch (observable: IObservable<FableEvent>) =
+  let private firstCompileFinished
+    isWatch
+    (observable: IObservable<FableEvent>)
+    =
     observable
     |> Observable.choose (function
       | FableEvent.WaitingForChanges -> Some()
       | _ -> None)
-    |> (fun obs -> if isWatch then Observable.first obs else Observable.takeLast 1 obs)
+    |> (fun obs ->
+      if isWatch then
+        Observable.first obs
+      else
+        Observable.takeLast 1 obs)
     |> AsyncSeq.ofObservableBuffered
     |> AsyncSeq.iter ignore
 
@@ -1034,42 +1059,87 @@ module Handlers =
       return 0
     }
 
+  /// set esbuild, playwright and import map dependencies in parallel
+  /// as these are not overlaping and should save time
+  let setupDependencies (config, cancel) =
+    task {
+      let! results =
+        [ task {
+            do Testing.SetupPlaywright false
+            return None
+          }
+          task {
+            do! FileSystem.SetupEsbuild(config.esbuild.version, cancel)
+            return None
+          }
+          task {
+            let! result =
+              Logger.spinner (
+                "Resolving Static dependencies and import map...",
+                Dependencies.GetMapAndDependencies(
+                  [ yield! config.dependencies; yield! config.devDependencies ]
+                  |> Seq.map (fun d -> d.AsVersionedString),
+                  config.provider
+                )
+              )
+
+            return
+              result
+              |> Result.defaultWith (fun _ ->
+                (Seq.empty, FileSystem.GetImportMap()))
+              |> Some
+          } ]
+        |> Task.WhenAll
+
+      return results[2].Value
+    }
+
+
   let runTesting (cancel: CancellationToken, options: TestingOptions) =
     task {
+      Configuration.UpdateFromCliArgs(
+        testingOptions =
+          [ match options.browsers with
+            | Some value -> TestingField.Browsers value
+            | None -> ()
+            match options.files with
+            | Some value -> TestingField.Includes value
+            | None -> ()
+            match options.skip with
+            | Some value -> TestingField.Excludes value
+            | None -> ()
+            match options.watch with
+            | Some value -> TestingField.Watch value
+            | None -> ()
+            match options.headless with
+            | Some value -> TestingField.Headless value
+            | None -> ()
+            match options.browserMode with
+            | Some value -> TestingField.BrowserMode value
+            | None -> () ]
+      )
+
       let config = Configuration.CurrentConfig
-      Testing.SetupPlaywright()
+      let isWatch = config.testing.watch
+
+      let! dependencies = setupDependencies (config, cancel)
+
 
       let fableEvents =
         match config.fable with
-        | Some fable -> Fable.Observe(fable, options.watch)
+        | Some fable -> Fable.Observe(fable, isWatch)
         | None -> Observable.single FableEvent.WaitingForChanges
 
-      use _ =
-        fableEvents
-        |> Observable.subscribeSafe (fun events ->
-          match events with
-          | FableEvent.Log msg -> Logger.log (msg.EscapeMarkup())
-          | FableEvent.ErrLog msg ->
-            Logger.log $"[bold red]{msg.EscapeMarkup()}[/]"
-          | FableEvent.WaitingForChanges -> ())
+      fableEvents
+      |> Observable.add (fun events ->
+        match events with
+        | FableEvent.Log msg -> Logger.log (msg.EscapeMarkup())
+        | FableEvent.ErrLog msg ->
+          Logger.log $"[bold red]{msg.EscapeMarkup()}[/]"
+        | FableEvent.WaitingForChanges -> ())
 
-      do! firstCompileFinished options.watch fableEvents
+      do! firstCompileFinished isWatch fableEvents
 
-      do! FileSystem.SetupEsbuild(config.esbuild.version, cancel)
-
-      let! dependencies =
-        Logger.spinner (
-          "Resolving Static dependencies and import map...",
-          Dependencies.GetMapAndDependencies(
-            [ yield! config.dependencies; yield! config.devDependencies ]
-            |> Seq.map (fun d -> d.AsVersionedString),
-            config.provider
-          )
-        )
-
-      let dependencies =
-        dependencies
-        |> Result.defaultWith (fun _ -> (Seq.empty, FileSystem.GetImportMap()))
 
       LoadPlugins(config.esbuild)
 
@@ -1093,16 +1163,9 @@ module Handlers =
       let compilerErrors = Observable.empty
 
       let config =
-        { config with
-            devServer = { config.devServer with liveReload = options.watch } }
+        { config with devServer = { config.devServer with liveReload = isWatch } }
 
-      let events = Subject<TestEvent>.broadcast
-
-      let http, _ =
-        Server.GetServerURLs
-          config.devServer.host
-          config.devServer.port
-          config.devServer.useSSL
+      let events = Subject<TestEvent>.replay
 
       let mutable app =
         Server.GetTestingApp(
@@ -1111,18 +1174,17 @@ module Handlers =
           events,
           fileChanges,
           compilerErrors,
-          options.files
+          config.testing.includes
         )
+      // Keep this before initializing the server
+      // otherwise it will always say that the port is occupied
+      let http, _ =
+        Server.GetServerURLs
+          config.devServer.host
+          config.devServer.port
+          config.devServer.useSSL
 
       do! app.StartAsync(cancel)
-
-      use! pl = Playwright.CreateAsync()
-
-      use! browser =
-        Testing.GetBrowser(options.browsers |> Seq.head, options.headless, pl)
-
-      let! page =
-        browser.NewPageAsync(BrowserNewPageOptions(IgnoreHTTPSErrors = true))
 
       perlaChanges
       |> Observable.choose (function
@@ -1130,57 +1192,72 @@ module Handlers =
         | _ -> None)
       |> Observable.map (fun _ -> app.StopAsync() |> Async.AwaitTask)
       |> Observable.switchAsync
-      |> Observable.add (fun _ ->
+      |> Observable.map (fun _ ->
         Configuration.UpdateFromFile()
         app <- Server.GetServerApp(config, fileChanges, compilerErrors)
+        app.StartAsync(cancel) |> Async.AwaitTask)
+      |> Observable.switchAsync
+      |> Observable.add ignore
 
-        task {
-          do! app.StartAsync(cancel)
-          do! page.GotoAsync(http) :> Task
+
+      use! pl = Playwright.CreateAsync()
+
+      let browsers =
+        asyncSeq {
+          for browser in config.testing.browsers do
+            let! iBrowser =
+              Testing.GetBrowser(pl, browser, config.testing.headless)
+              |> Async.AwaitTask
+
+            browser, iBrowser
         }
-        |> Async.AwaitTask
-        |> Async.Start)
+
+      if not isWatch then
+
+        let runTest (browser, iBrowser) =
+          async {
+            let executor = Testing.GetExecutor(http, browser)
+            do! executor iBrowser |> Async.AwaitTask
+            do! iBrowser.CloseAsync() |> Async.AwaitTask
+            return! iBrowser.DisposeAsync().AsTask() |> Async.AwaitTask
+          }
+
+        match config.testing.browserMode with
+        | BrowserMode.Parallel ->
+          do!
+            Async.StartAsTask(
+              browsers |> AsyncSeq.iterAsyncParallel runTest,
+              cancellationToken = cancel
+            )
+        | BrowserMode.Sequential ->
+          do!
+            Async.StartAsTask(
+              browsers |> AsyncSeq.iterAsync runTest,
+              cancellationToken = cancel
+            )
 
 
-      use _ = Testing.PrintReportLive events
+        events.OnCompleted()
 
-      do! page.GotoAsync(http) :> Task
-
-
-      page.Console
-      |> Observable.add (fun e ->
-        match e.Type with
-        | Debug -> Logger.log $"[bold blue]Browser:[/] {e.Text.EscapeMarkup()}"
-        | Info ->
-          Logger.log
-            $"[bold cyan]Browser:[/] [bold cyan]{e.Text.EscapeMarkup()}[/]"
-        | Err -> Logger.log $"[bold red]Browser:[/]{e.Text.EscapeMarkup()}"
-        | Warning ->
-          Logger.log $"[bold orange]Browser:[/]{e.Text.EscapeMarkup()}"
-        | Clear ->
-          Logger.log
-            $"[yellow]Browser:[/] Browser Console cleared at: [link]{e.Location}[/]"
-        | _ -> Logger.log $"[bold yellow]Browser:[/] {e.Text.EscapeMarkup()}"
-
-        AnsiConsole.Write(
-          Rule(
-            $"[dim blue]{e.Location}[/]",
-            Style = Style.Parse("dim"),
-            Alignment = Justify.Right
-          )
-        ))
-
-      if not options.watch then
         events
         |> Observable.toEnumerable
+        |> Seq.toList
         |> Testing.BuildReport
-        |> Testing.Print.Report
+        |> Print.Report
 
         return 0
       else
 
         while not cancel.IsCancellationRequested do
           do! Async.Sleep(TimeSpan.FromSeconds(1.))
+
+        events.OnCompleted()
+
+        events
+        |> Observable.toEnumerable
+        |> Seq.toList
+        |> Testing.BuildReport
+        |> Print.Report
 
         return 0
     }
@@ -1216,17 +1293,23 @@ module Commands =
         | None -> option
         |> HandlerInput.OfOption
 
-      static member OptionWithMultipleStrings
+      static member MultipleStrings
         (
-          aliases: string seq,
+          name: string,
           ?values: string seq,
           ?description
         ) =
         let option =
-          Opt<string[]>(
-            aliases |> Array.ofSeq,
-            getDefaultValue = (fun _ -> Array.empty),
-            ?description = description
+          Option<string[] option>(
+            name = name,
+            ?description = description,
+            IsRequired = false,
+            AllowMultipleArgumentsPerToken = true,
+            parseArgument =
+              (fun result ->
+                match result.Tokens |> Seq.toArray with
+                | [||] -> None
+                | others -> Some(others |> Array.map (fun token -> token.Value)))
           )
 
         match values with
@@ -1359,12 +1442,23 @@ module Commands =
         "Skip prompts"
       )
 
-    let buildArgs (yes: bool option) : SetupOptions =
-      { skipPrompts = yes |> Option.defaultValue false }
+    let playwrightDeps =
+      Input.OptionMaybe<bool>(
+        [ "--with-playwright-deps"; "-wpd"; "--pl-deps" ],
+        "Install Playwright dependencies as well? (requires admin priviledges)"
+      )
+
+    let buildArgs
+      (
+        yes: bool option,
+        playwrightDeps: bool option
+      ) : SetupOptions =
+      { skipPrompts = yes |> Option.defaultValue false
+        playwrightDeps = playwrightDeps |> Option.defaultValue false }
 
     command "init" {
       description "Initialized a given directory or perla itself"
-      inputs skipPrompts
+      inputs (skipPrompts, playwrightDeps)
       setHandler (buildArgs >> Handlers.runInit)
     }
 
@@ -1661,51 +1755,88 @@ module Commands =
     }
 
   let Test =
-    let files =
-      Input.Option(
-        [ "--tests"; "-t" ],
-        None,
-        "Specify a glob of tests to run. e.g '**/featureA/*.test.js' or 'tests/my-test.test.js'"
-      )
 
     let browsers =
-      Input.OptionWithMultipleStrings(
-        [ "--browser"; "-b" ],
-        [ "chromium"; "edge"; "chrome"; "webkit"; "firefox" ],
+      Input.MultipleStrings(
+        "--browser",
+        [ "chromium"; "firefox"; "webkit"; "edge"; "chrome" ],
         "Which browsers to run the tests on, defaults to 'chromium'"
       )
 
-    let headless =
-      Input.Option(
+    let files: HandlerInput<string[]> =
+      Input.Option<string[]>(
+        [ "--tests"; "-t" ],
+        [||],
+        "Specify a glob of tests to run. e.g '**/featureA/*.test.js' or 'tests/my-test.test.js'"
+      )
+
+    let skips: HandlerInput<string[]> =
+      Input.Option<string[]>(
+        [ "--skip"; "-s" ],
+        [||],
+        "Specify a glob of tests to skip. e.g '**/featureA/*.test.js' or 'tests/my-test.test.js'"
+      )
+
+
+    let headless: HandlerInput<bool option> =
+      Input.OptionMaybe<bool>(
         [ "--headless"; "-hl" ],
         "Turn on or off the Headless mode and open the browser (useful for debugging tests)"
       )
 
-    let watch =
-      Input.Option(
+    let watch: HandlerInput<bool option> =
+      Input.OptionMaybe<bool>(
         [ "--watch"; "-w" ],
         "Start the server and keep watching for file changes"
+      )
+
+    let sequential: HandlerInput<bool option> =
+      Input.OptionMaybe<bool>(
+        [ "--browser-sequential"; "-bs" ],
+        "Run each browser's test suite in sequence, rather than parallel"
       )
 
     let buildArgs
       (
         ctx: InvocationContext,
-        files: string array option,
-        browsers: string array,
-        headless: bool,
-        watch: bool
-      ) =
+        browsers: string array option,
+        files: string array,
+        skips: string array,
+        headless: bool option,
+        watch: bool option,
+        sequential: bool option
+      ) : CancellationToken * TestingOptions =
       ctx.GetCancellationToken(),
-      { files = files |> Option.defaultValue Array.empty
-        browsers =
-          if browsers.Length = 0 then [| "chromium" |] else browsers
-          |> Array.map Browser.FromString
-          |> set
+      { browsers =
+          browsers
+          |> Option.map (fun browsers ->
+            if browsers |> Array.isEmpty then
+              None
+            else
+              Some(browsers |> Seq.map Browser.FromString))
+          |> Option.flatten
+        files = if files |> Array.isEmpty then None else Some files
+        skip = if skips |> Array.isEmpty then None else Some skips
         headless = headless
-        watch = watch }
+        watch = watch
+        browserMode =
+          sequential
+          |> Option.map (fun sequential ->
+            if sequential then Some BrowserMode.Sequential else None)
+          |> Option.flatten }
 
     command "test" {
       description "Runs client side tests in a headless browser"
-      inputs (Input.Context(), files, browsers, headless, watch)
+
+      inputs (
+        Input.Context(),
+        browsers,
+        files,
+        skips,
+        headless,
+        watch,
+        sequential
+      )
+
       setHandler (buildArgs >> Handlers.runTesting)
     }

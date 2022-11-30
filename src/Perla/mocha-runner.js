@@ -1,7 +1,8 @@
 ﻿import {
-  postEvent,
+  postEvent as _postEvent,
   getFileList,
-  getTestSettings,
+  getPerlaTestEnv,
+  getMochaSettings,
   PERLA_SESSION_START,
   PERLA_SUITE_START,
   PERLA_SUITE_END,
@@ -20,6 +21,17 @@ const {
   EVENT_SUITE_BEGIN,
   EVENT_SUITE_END,
 } = Mocha.Runner.constants;
+
+const [perlaTestingEnv, mochaSettings, files] = await Promise.all([
+  getPerlaTestEnv(),
+  getMochaSettings(),
+  getFileList(),
+]);
+
+function postEvent(event, payload) {
+  const id = perlaTestingEnv?.runId;
+  return _postEvent(event, id, payload);
+}
 
 function serializeTest(test) {
   const serialized = test.serialize();
@@ -89,13 +101,10 @@ function MyReporter(runner, options) {
 
 Mocha.utils.inherits(MyReporter, Mocha.reporters.HTML);
 
-const settings = await getTestSettings();
-const files = await getFileList();
-
 mocha.setup({
   reporter: MyReporter,
   ui: "bdd",
-  ...settings,
+  ...mochaSettings,
 });
 
 for (const file of files) {

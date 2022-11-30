@@ -72,6 +72,14 @@ module ConfigDecoders =
       outDir: string<SystemPath> option
       emitEnvFile: bool option }
 
+  type DecodedTesting =
+    { browsers: Browser seq option
+      includes: string seq option
+      excludes: string seq option
+      watch: bool option
+      headless: bool option
+      browserMode: BrowserMode option }
+
   type DecodedPerlaConfig =
     { index: string<SystemPath> option
       runConfiguration: RunConfiguration option
@@ -80,6 +88,7 @@ module ConfigDecoders =
       devServer: DecodedDevServer option
       fable: DecodedFableConfig option
       esbuild: DecodedEsbuild option
+      testing: DecodedTesting option
       mountDirectories: Map<string<ServerUrl>, string<UserPath>> option
       enableEnv: bool option
       envPath: string<ServerUrl> option
@@ -147,6 +156,30 @@ module ConfigDecoders =
         version = get.Optional.Field "version" Decode.string
         alias = get.Optional.Field "alias" Decode.string })
 
+  let BrowserDecoder: Decoder<Browser> =
+    Decode.string
+    |> Decode.andThen (fun value -> Browser.FromString value |> Decode.succeed)
+
+  let BrowserModeDecoder: Decoder<BrowserMode> =
+    Decode.string
+    |> Decode.andThen (fun value ->
+      BrowserMode.FromString value |> Decode.succeed)
+
+  let TestConfigDecoder: Decoder<DecodedTesting> =
+    Decode.object (fun get ->
+      { browsers =
+          get.Optional.Field "browsers" (Decode.list BrowserDecoder)
+          |> Option.map List.toSeq
+        includes =
+          get.Optional.Field "includes" (Decode.list Decode.string)
+          |> Option.map List.toSeq
+        excludes =
+          get.Optional.Field "excludes" (Decode.list Decode.string)
+          |> Option.map List.toSeq
+        watch = get.Optional.Field "watch" Decode.bool
+        headless = get.Optional.Field "headless" Decode.bool
+        browserMode = get.Optional.Field "browserMode" BrowserModeDecoder })
+
   let PerlaDecoder: Decoder<DecodedPerlaConfig> =
     Decode.object (fun get ->
       let runConfigDecoder =
@@ -178,6 +211,7 @@ module ConfigDecoders =
         devServer = get.Optional.Field "devServer" DevServerDecoder
         fable = get.Optional.Field "fable" FableFileDecoder
         esbuild = get.Optional.Field "esbuild" EsbuildDecoder
+        testing = get.Optional.Field "testing" TestConfigDecoder
         mountDirectories =
           get.Optional.Field "mountDirectories" (Decode.dict Decode.string)
           |> Option.map (fun m ->
@@ -234,36 +268,60 @@ module internal TestDecoders =
 [<RequireQualifiedAccess>]
 module internal EventDecoders =
 
-  let SessionStart: Decoder<TestStats * int> =
+  let SessionStart: Decoder<Guid * TestStats * int> =
     Decode.object (fun get ->
+      get.Required.Field "runId" Decode.guid,
       get.Required.Field "stats" TestDecoders.TestStats,
       get.Required.Field "totalTests" Decode.int)
 
-  let SessionEnd: Decoder<TestStats> =
-    Decode.object (fun get -> get.Required.Field "stats" TestDecoders.TestStats)
-
-  let SuiteEvent: Decoder<TestStats * Suite> =
+  let SessionEnd: Decoder<Guid * TestStats> =
     Decode.object (fun get ->
+      get.Required.Field "runId" Decode.guid,
+      get.Required.Field "stats" TestDecoders.TestStats)
+
+  let SuiteEvent: Decoder<Guid * TestStats * Suite> =
+    Decode.object (fun get ->
+      get.Required.Field "runId" Decode.guid,
       get.Required.Field "stats" TestDecoders.TestStats,
       get.Required.Field "suite" TestDecoders.Suite)
 
-  let TestPass: Decoder<TestStats * Test> =
+  let TestPass: Decoder<Guid * TestStats * Test> =
     Decode.object (fun get ->
+      get.Required.Field "runId" Decode.guid,
       get.Required.Field "stats" TestDecoders.TestStats,
       get.Required.Field "test" TestDecoders.Test)
 
-  let TestFailed: Decoder<TestStats * Test * string * string> =
+  let TestFailed: Decoder<Guid * TestStats * Test * string * string> =
     Decode.object (fun get ->
+      get.Required.Field "runId" Decode.guid,
       get.Required.Field "stats" TestDecoders.TestStats,
       get.Required.Field "test" TestDecoders.Test,
       get.Required.Field "message" Decode.string,
       get.Required.Field "stack" Decode.string)
 
-  let ImportFailed: Decoder<string * string> =
+  let ImportFailed: Decoder<Guid * string * string> =
     Decode.object (fun get ->
+      get.Required.Field "runId" Decode.guid,
       get.Required.Field "message" Decode.string,
       get.Required.Field "stack" Decode.string)
 
+[<RequireQualifiedAccess>]
+module internal ConfigEncoders =
+
+  let Browser: Encoder<Browser> = fun value -> Encode.string value.AsString
+
+  let BrowserMode: Encoder<BrowserMode> =
+    fun value -> Encode.string value.AsString
+
+  let TestConfig: Encoder<TestConfig> =
+    fun value ->
+      Encode.object
+        [ "browsers", value.browsers |> Seq.map Browser |> Encode.seq
+          "includes", value.includes |> Seq.map Encode.string |> Encode.seq
+          "excludes", value.excludes |> Seq.map Encode.string |> Encode.seq
+          "watch", Encode.bool value.watch
+          "headless", Encode.bool value.headless
+          "browserMode", BrowserMode value.browserMode ]
 
 type Json =
   static member ToBytes value =
@@ -287,6 +345,7 @@ type Json =
   static member TestEventFromJson(value: string) =
     // test events
     // { event: string
+    //   runId: Guid
     //   stats: TestingStats
     //   suite?: Suite
     //   test?: Test
@@ -295,30 +354,34 @@ type Json =
     //   stack?: string }
     result {
       match! Decode.fromString (Decode.field "event" Decode.string) value with
-      | "session-start" ->
+      | "__perla-session-start" ->
         return!
           Decode.fromString EventDecoders.SessionStart value
           |> Result.map SessionStart
-      | "suite-start"
-      | "suite-end" ->
+      | "__perla-suite-start"
+      | "__perla-suite-end" ->
         return!
           Decode.fromString EventDecoders.SuiteEvent value
           |> Result.map SuiteStart
-      | "test-pass" ->
+      | "__perla-test-pass" ->
         return!
           Decode.fromString EventDecoders.TestPass value |> Result.map TestPass
-      | "test-failed" ->
+      | "__perla-test-failed" ->
         return!
           Decode.fromString EventDecoders.TestFailed value
           |> Result.map TestFailed
-      | "session-end" ->
+      | "__perla-session-end" ->
         return!
           Decode.fromString EventDecoders.SessionEnd value
           |> Result.map SessionEnd
-      | "test-import-failed" ->
+      | "__perla-test-import-failed" ->
         return!
           Decode.fromString EventDecoders.ImportFailed value
           |> Result.map TestImportFailed
-      | "test-run-finished" -> return TestRunFinished
+      | "__perla-test-run-finished" ->
+        let decoder =
+          Decode.object (fun get -> get.Required.Field "runId" Decode.guid)
+
+        return! Decode.fromString decoder value |> Result.map TestRunFinished
       | unknown -> return! Error($"'{unknown}' is not a known event")
     }

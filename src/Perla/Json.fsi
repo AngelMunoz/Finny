@@ -13,6 +13,7 @@ open FSharp.UMX
 
 module ConfigDecoders =
 
+
     type DecodedFableConfig =
         { project: string<SystemPath> option
           extension: string<FileExtension> option
@@ -43,6 +44,14 @@ module ConfigDecoders =
           outDir: string<SystemPath> option
           emitEnvFile: bool option }
 
+    type DecodedTesting =
+        { browsers: Browser seq option
+          includes: string seq option
+          excludes: string seq option
+          watch: bool option
+          headless: bool option
+          browserMode: BrowserMode option }
+
     type DecodedPerlaConfig =
         { index: string<SystemPath> option
           runConfiguration: RunConfiguration option
@@ -51,6 +60,7 @@ module ConfigDecoders =
           devServer: DecodedDevServer option
           fable: DecodedFableConfig option
           esbuild: DecodedEsbuild option
+          testing: DecodedTesting option
           mountDirectories: Map<string<ServerUrl>, string<UserPath>> option
           enableEnv: bool option
           envPath: string<ServerUrl> option
@@ -67,11 +77,18 @@ module internal TestDecoders =
 
 [<RequireQualifiedAccess>]
 module internal EventDecoders =
-    val SessionStart: Decoder<TestStats * int>
-    val SessionEnd: Decoder<TestStats>
-    val SuiteEvent: Decoder<TestStats * Suite>
-    val TestPass: Decoder<TestStats * Test>
-    val TestFailed: Decoder<TestStats * Test * string * string>
+    val SessionStart: Decoder<Guid * TestStats * int>
+    val SessionEnd: Decoder<Guid * TestStats>
+    val SuiteEvent: Decoder<Guid * TestStats * Suite>
+    val TestPass: Decoder<Guid * TestStats * Test>
+    val TestFailed: Decoder<Guid * TestStats * Test * string * string>
+    val ImportFailed: Decoder<Guid * string * string>
+
+[<RequireQualifiedAccess>]
+module internal ConfigEncoders =
+    val Browser: Encoder<Browser>
+    val BrowserMode: Encoder<BrowserMode>
+    val TestConfig: Encoder<TestConfig>
 
 open ConfigDecoders
 
