@@ -17,7 +17,9 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
-    "jsx": "react-jsx",
+    "jsx": "react",
+    "jsxFactory": "h",
+    "jsxFragmentFactory": "Fragment",
     "preserveValueImports": true
   },
   "include": [
@@ -26,8 +28,8 @@
   "typeAcquisition": {
     "enable": true,
     "include": [
-      "react",
-      "react-dom",
+      "preact",
+      "@preact/signals",
       "@shoelace-style/shoelace",
       "navigo",
       "rxjs"

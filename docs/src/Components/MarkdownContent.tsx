@@ -1,11 +1,11 @@
 import "./MarkdownContent.css";
-import { useEffect, useState } from "react";
+//@ts-ignore
+import { useEffect } from "preact/hooks";
+//@ts-ignore
+import { useSignal } from "@preact/signals";
 import { fetchMarkdown } from "../markdown.js";
 import { buildUrl } from "../utils.js";
 import { ToC } from "./ToC.js";
-
-//@ts-ignore
-import { SlButton } from "@shoelace-style/shoelace/dist/react/index.js";
 
 const errorContent = (error: string) => [
   <p>Well, Well, Well... How the turntables have turned...</p>,
@@ -23,16 +23,16 @@ const getUrlForPage = (filename: string, section?: string) => {
 };
 
 export function MarkdownContent({ filename, section }: MarkdownContentProps) {
-  const [content, setContent] = useState("");
-  const [error, setError] = useState("");
+  const content = useSignal("");
+  const error = useSignal("");
 
   useEffect(() => {
     const url = buildUrl(filename, section);
     fetchMarkdown(url)
-      .then(setContent)
+      .then((response) => (content.value = response))
       .catch((err) => {
-        setContent("");
-        setError(err);
+        content.value = "";
+        error.value = err;
       });
   });
 
@@ -41,22 +41,22 @@ export function MarkdownContent({ filename, section }: MarkdownContentProps) {
       <ToC isAside={true} />
       <section className="markdown-content__section">
         <header className="markdown-content__header">
-          <SlButton
+          <sl-button
             type="text"
             target="_blank"
             href={getUrlForPage(filename, section)}
           >
             Edit this page
-          </SlButton>
+          </sl-button>
         </header>
-        {content ? (
+        {content.value ? (
           <article
             className="markdown-content"
-            dangerouslySetInnerHTML={{ __html: content }}
+            dangerouslySetInnerHTML={{ __html: content.value }}
           ></article>
         ) : (
           <article className="markdown-content markdown-error">
-            {error ? errorContent(error) : null}
+            {error.value ? errorContent(error.value) : null}
           </article>
         )}
       </section>

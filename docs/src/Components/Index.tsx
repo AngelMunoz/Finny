@@ -1,6 +1,3 @@
-//@ts-ignore
-import { SlButton } from "@shoelace-style/shoelace/dist/react/index.js";
-
 function FeatureListItem({ header, content }: FeatureListItemProps) {
   return (
     <li className="features__feature-list-item card with-box-shadow">
@@ -55,27 +52,37 @@ const rows = [
           like:
           <ul className="link-list">
             <li>
-              <SlButton
+              <sl-button
                 type="text"
                 target="_blank"
                 href="https://jspm.org/docs/cdn"
+                variant="primary"
+                outline
               >
                 JSPM
-              </SlButton>
+              </sl-button>
             </li>
             <li>
-              <SlButton
+              <sl-button
                 type="text"
                 target="_blank"
                 href="https://www.skypack.dev/"
+                variant="primary"
+                outline
               >
                 Skypack
-              </SlButton>
+              </sl-button>
             </li>
             <li>
-              <SlButton type="text" target="_blank" href="https://unpkg.com/">
+              <sl-button
+                type="text"
+                target="_blank"
+                href="https://unpkg.com/"
+                variant="primary"
+                outline
+              >
                 Unpkg
-              </SlButton>
+              </sl-button>
             </li>
           </ul>
         </>
@@ -102,12 +109,22 @@ export function Index() {
       </header>
 
       <section className="action-buttons">
-        <SlButton type="primary" size="large" outline href="#/content/install">
+        <sl-button
+          size="large"
+          variant="primary"
+          outline
+          href="#/content/install"
+        >
           Get Started
-        </SlButton>
-        <SlButton type="primary" size="large" outline href="/#/content/index">
+        </sl-button>
+        <sl-button
+          size="large"
+          variant="primary"
+          outline
+          href="/#/content/index"
+        >
           Learn More
-        </SlButton>
+        </sl-button>
       </section>
 
       <section className="features">

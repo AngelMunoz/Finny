@@ -1,10 +1,6 @@
 import "./App.css";
-import { useEffect, useState } from "react";
-import {
-  SlButton,
-  SlDrawer,
-  //@ts-ignore
-} from "@shoelace-style/shoelace/dist/react/index.js";
+//@ts-ignore
+import { useSignal, signal } from "@preact/signals";
 import { Page } from "./router.js";
 import { Index } from "./Components/Index.js";
 import { ToC } from "./Components/ToC.js";
@@ -18,7 +14,7 @@ function OffCanvas({
   onClose?: () => void;
 }) {
   return (
-    <SlDrawer
+    <sl-drawer
       label="Table of Contents"
       open={isOpen}
       placement="start"
@@ -26,11 +22,11 @@ function OffCanvas({
     >
       <ToC />
       {onClose ? (
-        <SlButton slot="footer" type="primary" onClick={() => onClose()}>
+        <sl-button slot="footer" variant="primary" onClick={() => onClose()}>
           Close
-        </SlButton>
+        </sl-button>
       ) : null}
-    </SlDrawer>
+    </sl-drawer>
   );
 }
 
@@ -39,38 +35,38 @@ function Navbar({ requestMenu }: { requestMenu?: () => void }) {
     <>
       <nav className="perla-nav with-box-shadow">
         <section>
-          <SlButton
+          <sl-button
             className="menu-btn"
-            type="text"
+            variant="text"
             size="large"
             onClick={() => requestMenu?.()}
           >
             Menu
-          </SlButton>
-          <SlButton href="/#/" type="text" size="large">
+          </sl-button>
+          <sl-button href="/#/" variant="text" size="large">
             Perla
-          </SlButton>
+          </sl-button>
         </section>
         <section className="nav-links">
           <ul className="link-list">
             <li>
-              <SlButton href="/#/content/index" type="text">
+              <sl-button href="/#/content/index" variant="text">
                 Docs
-              </SlButton>
+              </sl-button>
             </li>
             <li>
-              <SlButton href="/#/blog" type="text">
+              <sl-button href="/#/blog" variant="text">
                 Blog
-              </SlButton>
+              </sl-button>
             </li>
             <li>
-              <SlButton
+              <sl-button
                 target="_blank"
                 href="https://github.com/AngelMunoz/Perla"
-                type="text"
+                variant="text"
               >
                 Github
-              </SlButton>
+              </sl-button>
             </li>
           </ul>
         </section>
@@ -79,28 +75,36 @@ function Navbar({ requestMenu }: { requestMenu?: () => void }) {
   );
 }
 
-function App() {
-  const [content, setContent] = useState(<Index />);
-  const [isOpen, setIsOpen] = useState(false);
+const content = signal(<Index />);
 
-  useEffect(() => {
-    const sub = Page.subscribe((page: Page) => {
-      if (page === "Home") {
-        setContent(<Index />);
-      } else {
-        const [_, section, pageName] = page;
-        setContent(<MarkdownContent filename={pageName!} section={section} />);
-      }
-    });
-    return () => sub.unsubscribe();
-  }, []);
+Page.subscribe((page: Page) => {
+  console.log(page);
+  if (page === "Home") {
+    content.value = <Index />;
+  } else {
+    const [_, section, pageName] = page;
+    content.value = <MarkdownContent filename={pageName!} section={section} />;
+  }
+});
 
-  return [
-    <Navbar requestMenu={() => setIsOpen(true)} />,
-    <OffCanvas isOpen={isOpen} onClose={() => setIsOpen(false)} />,
-    <main>{content}</main>,
-    <footer></footer>,
-  ];
+export function App() {
+  const isOpen = useSignal(false);
+
+  return (
+    <>
+      <Navbar
+        requestMenu={() => {
+          isOpen.value = true;
+        }}
+      />
+      <OffCanvas
+        isOpen={isOpen}
+        onClose={() => {
+          isOpen.value = false;
+        }}
+      />
+      <main>{content.value}</main>
+      <footer></footer>
+    </>
+  );
 }
-
-export default App;
