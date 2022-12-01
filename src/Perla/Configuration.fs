@@ -224,7 +224,12 @@ module Json =
           .Parse($"""{{ "$schema": "{Constants.JsonSchemaUrl}" }}""")
           .AsObject()
 
-    match content[ "$schema" ].GetValue<string>() |> Option.ofObj with
+    match
+      content["$schema"]
+      |> Option.ofObj
+      |> Option.map (fun schema -> schema.GetValue<string>() |> Option.ofObj)
+      |> Option.flatten
+    with
     | Some _ -> ()
     | None -> content["$schema"] <- Json.ToNode(Constants.JsonSchemaUrl)
 
@@ -269,25 +274,19 @@ let fromCli
            | UseSSl useSSL -> port, host, liveReload, useSSL)
          defaults
 
-  let testing = 
+  let testing =
     defaultArg testingOptions Seq.empty
     |> Seq.fold
-        (fun current next ->
-          match next with 
-          | TestingField.Browsers value -> 
-            { current with browsers = value}
-          | TestingField.Includes value -> 
-            { current with includes = value}
-          | TestingField.Excludes value -> 
-            { current with excludes = value}
-          | TestingField.Watch value -> 
-            { current with watch = value}
-          | TestingField.Headless value -> 
-            { current with headless = value}
-          | TestingField.BrowserMode value -> 
-            { current with browserMode = value}
-        )
-        config.testing
+         (fun current next ->
+           match next with
+           | TestingField.Browsers value -> { current with browsers = value }
+           | TestingField.Includes value -> { current with includes = value }
+           | TestingField.Excludes value -> { current with excludes = value }
+           | TestingField.Watch value -> { current with watch = value }
+           | TestingField.Headless value -> { current with headless = value }
+           | TestingField.BrowserMode value ->
+             { current with browserMode = value })
+         config.testing
 
   { config with
       devServer =

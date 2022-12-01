@@ -122,7 +122,6 @@ module VirtualFileSystem =
     let url = UMX.untag pathInfo.url
 
     let targetPath =
-
       globPath.Replace(localPath, url)
       |> memoryFileSystem.ConvertPathFromInternal
 
@@ -137,6 +136,7 @@ module VirtualFileSystem =
     )
 
   let internal processFiles
+    (injects: string list)
     (url: string<ServerUrl>)
     (userPath: string<UserPath>)
     (physicalFileSystem: IFileSystem)
@@ -161,6 +161,11 @@ module VirtualFileSystem =
 
       let isInFableMdules = globPath.FullName.Contains("fable_modules")
 
+      if extension = ".js" && not isInFableMdules then
+        let content = globPath.FullName |> physicalFileSystem.ReadAllText
+        let injects = String.Join("\n", injects)
+        physicalFileSystem.WriteAllText(globPath, $"{injects}\n{content}")
+
       if not (HasPluginsForExtension extension) || isInFableMdules then
         return
           copyFileWithoutPlugins pathInfo memoryFileSystem physicalFileSystem
@@ -168,6 +173,14 @@ module VirtualFileSystem =
         let url = UMX.untag pathInfo.url
         let content = physicalFileSystem.ReadAllText globPath
         let! transform = applyPlugins (content, extension)
+
+        let transform =
+          if transform.extension = ".js" then
+            let injects = String.Join("\n", injects)
+            { transform with content = $"{injects}\n{transform.content}" }
+          else
+            transform
+
         let parentDir = UMX.untag url |> UPath
 
         let path =
@@ -182,6 +195,7 @@ module VirtualFileSystem =
     }
 
   let internal mountDirectories
+    (injects: string list)
     (applyPlugins: ApplyPluginsFn)
     (directories: Map<string<ServerUrl>, string<UserPath>>)
     (serverPaths: IFileSystem)
@@ -197,7 +211,7 @@ module VirtualFileSystem =
           IO.Path.Combine(UMX.untag cwd, UMX.untag path)
           |> IO.Path.GetFullPath
           |> getGlobbedFiles
-          |> Seq.map (processFiles url path fs serverPaths applyPlugins)
+          |> Seq.map (processFiles injects url path fs serverPaths applyPlugins)
           |> Async.Parallel
           |> Async.Ignore
 
@@ -246,11 +260,15 @@ module VirtualFileSystem =
     dir
 
   let internal updateInVirtualFs
+    (injects: string list)
     (serverFs: IFileSystem)
     (event: FileChangedEvent, transform: Plugins.FileTransform)
     =
     let fullUserPath = UMX.untag event.userPath |> IO.Path.GetFullPath
+    let injects = String.Join("\n", injects)
 
+    let transform =
+      { transform with content = $"{injects}\n{transform.content}" }
 
     let serverFullPath =
       let filePath = (UMX.untag event.path) |> IO.Path.GetFullPath
@@ -279,7 +297,7 @@ module VirtualFileSystem =
 
   let serverPaths = lazy (new MemoryFileSystem())
 
-  let ApplyVirtualOperations stream =
+  let ApplyVirtualOperations (injects: string list) stream =
     let withReadFile path = IO.File.ReadAllTextAsync path
     let withFs = serverPaths.Value
 
@@ -290,15 +308,21 @@ module VirtualFileSystem =
       |> (fun extension ->
         Plugins.HasPluginsForExtension extension || extension = ".js")
 
+    let injects =
+        [ for inject in injects do IO.File.ReadAllText(inject) ]
+
     normalizeEventStream (stream, withFilter, withReadFile)
-    |> Observable.map (updateInVirtualFs withFs)
+    |> Observable.map (updateInVirtualFs injects withFs)
 
   let Mount config =
     async {
       use fs = new PhysicalFileSystem()
-
+      let injects = config.esbuild.injects
+      let injects =
+        [ for inject in injects do IO.File.ReadAllText(inject) ]
       return!
         mountDirectories
+          injects
           Plugins.ApplyPlugins
           (config.mountDirectories)
           serverPaths.Value

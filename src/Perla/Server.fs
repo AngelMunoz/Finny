@@ -643,7 +643,7 @@ module Server =
 
     app
 
-  let addCommonServices proxy (builder: WebApplicationBuilder) =
+  let addCommonServices isTesting proxy (builder: WebApplicationBuilder) =
     if proxy |> Map.isEmpty |> not then
       builder.Services.AddHttpForwarder() |> ignore
 
@@ -657,9 +657,13 @@ module Server =
       configureLogger
         .MinimumLevel
         .Override("Microsoft.AspNetCore", LogEventLevel.Warning)
-        .MinimumLevel.Warning()
         .Enrich.FromLogContext()
         .WriteTo.Console()
+      |> (fun v ->
+        if isTesting then
+          v.MinimumLevel.Warning()
+        else
+          v.MinimumLevel.Information())
       |> ignore)
     |> ignore
 
@@ -805,7 +809,7 @@ type Server =
     let enableEnv = config.enableEnv
     let envPath = config.envPath
 
-    Server.addCommonServices proxy builder
+    Server.addCommonServices false proxy builder
     let app = builder.Build()
 
     Server.addCommonMiddleware host port useSSL app
@@ -837,7 +841,7 @@ type Server =
     let enableEnv = config.enableEnv
     let envPath = config.envPath
 
-    Server.addCommonServices proxy builder
+    Server.addCommonServices true proxy builder
 
     let app = builder.Build()
     Server.addCommonMiddleware host port useSSL app

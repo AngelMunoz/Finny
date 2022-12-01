@@ -41,6 +41,7 @@ type internal ApplyPluginsFn = string * string -> Async<FileTransform>
 module VirtualFileSystem =
 
     val internal processFiles:
+        injects: string list ->
         url: string<ServerUrl> ->
         userPath: string<UserPath> ->
         physicalFileSystem: IFileSystem ->
@@ -50,6 +51,7 @@ module VirtualFileSystem =
             Async<unit>
 
     val internal mountDirectories:
+        injects: string list ->
         applyPlugins: ApplyPluginsFn ->
         directories: Map<string<ServerUrl>, string<UserPath>> ->
         serverPaths: IFileSystem ->
@@ -65,7 +67,10 @@ module VirtualFileSystem =
         tempDir: string<SystemPath> * mountedFileSystem: IFileSystem * physicalFileSystem: IFileSystem -> string
 
     val internal updateInVirtualFs:
-        serverFs: IFileSystem -> event: FileChangedEvent * transform: FileTransform -> FileChangedEvent * FileTransform
+        injects: string list ->
+        serverFs: IFileSystem ->
+        event: FileChangedEvent * transform: FileTransform ->
+            FileChangedEvent * FileTransform
 
     val internal normalizeEventStream:
         stream: IObservable<FileChangedEvent> *
@@ -73,7 +78,7 @@ module VirtualFileSystem =
         withReadFile: (string -> Task<string>) ->
             IObservable<FileChangedEvent * FileTransform>
 
-    val ApplyVirtualOperations: stream: IObservable<FileChangedEvent> -> IObservable<FileChangedEvent * FileTransform>
+    val ApplyVirtualOperations: injects: string list ->  stream: IObservable<FileChangedEvent> -> IObservable<FileChangedEvent * FileTransform>
 
     val Mount: config: PerlaConfig -> Async<unit>
 
