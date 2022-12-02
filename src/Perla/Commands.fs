@@ -56,7 +56,8 @@ module CliOptions =
 
   type BuildOptions =
     { mode: RunConfiguration option
-      disablePreloads: bool }
+      enablePreloads: bool
+      rebuildImportMap: bool }
 
   type SetupOptions =
     { skipPrompts: bool
@@ -865,23 +866,33 @@ module Handlers =
 
       let! indexContent =
         task {
-          let dependencies =
-            match config.runConfiguration with
-            | RunConfiguration.Production ->
-              config.dependencies |> Seq.map (fun d -> d.AsVersionedString)
-            | RunConfiguration.Development ->
-              [ yield! config.dependencies; yield! config.devDependencies ]
-              |> Seq.map (fun d -> d.AsVersionedString)
+          let operation =
+
+            if args.rebuildImportMap then
+              let dependencies =
+                match config.runConfiguration with
+                | RunConfiguration.Production ->
+                  config.dependencies |> Seq.map (fun d -> d.AsVersionedString)
+                | RunConfiguration.Development ->
+                  [ yield! config.dependencies; yield! config.devDependencies ]
+                  |> Seq.map (fun d -> d.AsVersionedString)
+
+              Dependencies.GetMapAndDependencies(dependencies, config.provider)
+            else
+              Dependencies.GetMapAndDependencies(
+                FileSystem.GetImportMap(),
+                config.provider
+              )
 
           match!
             Logger.spinner (
               "Resolving Static dependencies and import map...",
-              Dependencies.GetMapAndDependencies(dependencies, config.provider)
+              operation
             )
           with
           | Ok(deps, map) ->
             FileSystem.WriteImportMap(map) |> ignore
-            let deps = if args.disablePreloads then Seq.empty else deps
+            let deps = if args.enablePreloads then deps else Seq.empty
             return Build.GetIndexFile(document, css, js, map, deps)
           | Error err ->
             Logger.log
@@ -1378,17 +1389,25 @@ module Commands =
     )
 
   let Build =
-    let disablePreloads =
+    let enablePreloads =
       Input.OptionMaybe(
-        [ "-dpl"; "--disable-preload-links" ],
-        "disables adding modulepreload links in the final build"
+        [ "-epl"; "--enable-preload-links" ],
+        "enable adding modulepreload links in the final build"
+      )
+
+    let rebuildImportMap =
+      Input.OptionMaybe(
+        [ "-rim"; "--rebuild-importmap" ],
+        "discards the current import map (and custom resolutions)
+         and generates a new one based on the dependencies listed in the config file."
       )
 
     let buildArgs
       (
         context: InvocationContext,
         runAsDev: bool option,
-        disablePreloads: bool option
+        enablePreloads: bool option,
+        rebuildImportMap: bool option
       ) =
       (context.GetCancellationToken(),
        { mode =
@@ -1397,11 +1416,12 @@ module Commands =
              match runAsDev with
              | true -> RunConfiguration.Development
              | false -> RunConfiguration.Production)
-         disablePreloads = defaultArg disablePreloads false })
+         enablePreloads = defaultArg enablePreloads true
+         rebuildImportMap = defaultArg rebuildImportMap false })
 
     command "build" {
       description "Builds the SPA application for distribution"
-      inputs (Input.Context(), runAsDev, disablePreloads)
+      inputs (Input.Context(), runAsDev, enablePreloads, rebuildImportMap)
       setHandler (buildArgs >> Handlers.runBuild)
     }
 
