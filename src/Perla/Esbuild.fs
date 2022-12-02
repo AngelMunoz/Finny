@@ -1,6 +1,7 @@
 ﻿namespace Perla.Esbuild
 
 open System
+open System.Diagnostics
 open System.IO
 open System.Runtime.InteropServices
 open CliWrap
@@ -88,12 +89,18 @@ module Esbuild =
 
     args
 
-  let internal addJsxFactory
-    (factory: string option)
+  let internal addJsxAutomatic
+    (addAutomatic: bool)
     (args: Builders.ArgumentsBuilder)
     =
-    match factory with
-    | Some factory -> args.Add $"--jsx-factory={factory}"
+    if addAutomatic then args.Add "--jsx=automatic" else args
+
+  let internal addJsxImportSource
+    (importSource: string option)
+    (args: Builders.ArgumentsBuilder)
+    =
+    match importSource with
+    | Some source -> args.Add $"--jsx-import-source={source}"
     | None -> args
 
   let internal addJsxFragment
@@ -150,9 +157,8 @@ type Esbuild =
         |> Esbuild.addDefaultFileLoaders fileLoaders
         |> Esbuild.addMinify config.minify
         |> Esbuild.addFormat "esm"
-        |> Esbuild.addInjects config.injects
-        |> Esbuild.addJsxFactory config.jsxFactory
-        |> Esbuild.addJsxFragment config.jsxFragment
+        |> Esbuild.addJsxAutomatic config.jsxAutomatic
+        |> Esbuild.addJsxImportSource config.jsxImportSource
         |> Esbuild.addOutDir outDir
         |> ignore)
 
@@ -205,8 +211,8 @@ type Esbuild =
         |> Esbuild.addLoader loader
         |> Esbuild.addFormat "esm"
         |> Esbuild.addMinify config.minify
-        |> Esbuild.addJsxFactory config.jsxFactory
-        |> Esbuild.addJsxFragment config.jsxFragment
+        |> Esbuild.addJsxAutomatic config.jsxAutomatic
+        |> Esbuild.addJsxImportSource config.jsxImportSource
         |> Esbuild.addTsconfigRaw tsconfig
         |> ignore)
       .WithValidation(CommandResultValidation.None)
@@ -214,7 +220,7 @@ type Esbuild =
   static member GetPlugin(config: EsbuildConfig) : PluginInfo =
     let shouldTransform: FilePredicate =
       fun extension ->
-        [ ".jsx"; ".tsx"; ".ts"; ".css" ] |> List.contains extension
+        [ ".jsx"; ".tsx"; ".ts"; ".css"; ".js" ] |> List.contains extension
 
     let transform: TransformTask =
       fun args ->
@@ -228,7 +234,7 @@ type Esbuild =
             | ".js" -> None
             | _ -> None
 
-          let resultsContainer = new StringBuilder()
+          let resultsContainer = StringBuilder()
 
           let result =
             Esbuild.BuildSingleFile(

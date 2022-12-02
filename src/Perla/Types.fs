@@ -51,8 +51,8 @@ module Types =
       injects: string seq
       externals: string seq
       fileLoaders: Map<string, string>
-      jsxFactory: string option
-      jsxFragment: string option }
+      jsxAutomatic: bool
+      jsxImportSource: string option }
 
   type BuildConfig =
     { includes: string seq

@@ -57,7 +57,7 @@ module Defaults =
       proxy = Map.empty }
 
   let EsbuildConfig: EsbuildConfig =
-    { esBuildPath = FileSystem.FileSystem.EsbuildBinaryPath()
+    { esBuildPath = FileSystem.FileSystem.EsbuildBinaryPath None
       version = UMX.tag Constants.Esbuild_Version
       ecmaVersion = Constants.Esbuild_Target
       minify = true
@@ -66,8 +66,8 @@ module Defaults =
       fileLoaders =
         [ ".png", "file"; ".woff", "file"; ".woff2", "file"; ".svg", "file" ]
         |> Map.ofList
-      jsxFactory = None
-      jsxFragment = None }
+      jsxAutomatic = false
+      jsxImportSource = None }
 
   let BuildConfig =
     { includes = Seq.empty
@@ -362,8 +362,9 @@ let fromFile (fileContent: JsonObject option) (config: PerlaConfig) =
               externals = defaultArg esbuild.externals config.esbuild.externals
               fileLoaders =
                 defaultArg esbuild.fileLoaders config.esbuild.fileLoaders
-              jsxFactory = esbuild.jsxFactory
-              jsxFragment = esbuild.jsxFragment }
+              jsxAutomatic =
+                defaultArg esbuild.jsxAutomatic config.esbuild.jsxAutomatic
+              jsxImportSource = esbuild.jsxImportSource }
         | None -> config.esbuild
 
       let testing =

@@ -63,8 +63,8 @@ module ConfigDecoders =
       injects: string seq option
       externals: string seq option
       fileLoaders: Map<string, string> option
-      jsxFactory: string option
-      jsxFragment: string option }
+      jsxAutomatic: bool option
+      jsxImportSource: string option }
 
   type DecodedBuild =
     { includes: string seq option
@@ -134,8 +134,8 @@ module ConfigDecoders =
         externals =
           get.Optional.Field "externals" (Decode.list Decode.string)
           |> Option.map List.toSeq
-        jsxFactory = get.Optional.Field "jsxFactory" Decode.string
-        jsxFragment = get.Optional.Field "jsxFragment" Decode.string })
+        jsxAutomatic = get.Optional.Field "jsxAutomatic" Decode.bool
+        jsxImportSource = get.Optional.Field "jsxImportSource" Decode.string })
 
   let BuildDecoder: Decoder<DecodedBuild> =
     Decode.object (fun get ->

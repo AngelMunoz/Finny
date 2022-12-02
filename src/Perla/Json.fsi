@@ -35,8 +35,8 @@ module ConfigDecoders =
           injects: string seq option
           externals: string seq option
           fileLoaders: Map<string, string> option
-          jsxFactory: string option
-          jsxFragment: string option }
+          jsxAutomatic: bool option
+          jsxImportSource: string option }
 
     type DecodedBuild =
         { includes: string seq option
