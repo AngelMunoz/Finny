@@ -1,5 +1,5 @@
 {
-  "$schema": "https://raw.githubusercontent.com/AngelMunoz/Perla/main/perla.schema.json",
+  "$schema": "https://raw.githubusercontent.com/AngelMunoz/Perla/dev/perla.schema.json",
   "runConfiguration": "development",
   "provider": "jspm",
   "mountDirectories": {
@@ -8,11 +8,8 @@
     "/src": "./src"
   },
   "esbuild": {
-    "injects": [
-      "./preact-shim.js"
-    ],
-    "jsxFactory": "h",
-    "jsxFragment": "Fragment"
+    "jsxAutomatic": true,
+    "jsxImportSource": "preact"
   },
   "build": {
     "includes": [
@@ -25,20 +22,12 @@
       "version": "1.1.2"
     },
     {
-      "name": "preact",
-      "version": "10.11.3"
-    },
-    {
-      "name": "rxjs",
-      "version": "7.5.7"
-    },
-    {
       "name": "@shoelace-style/shoelace",
-      "version": "2.0.0-beta.85"
+      "version": "2.0.0"
     },
     {
       "name": "highlight.js",
-      "version": "11.6.0"
+      "version": "11.7.0"
     },
     {
       "name": "marked",
@@ -47,6 +36,14 @@
     {
       "name": "navigo",
       "version": "8.11.1"
+    },
+    {
+      "name": "preact",
+      "version": "10.11.3"
+    },
+    {
+      "name": "rxjs",
+      "version": "7.5.7"
     }
   ],
   "devDependencies": []
