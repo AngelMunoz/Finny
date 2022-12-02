@@ -19,7 +19,7 @@ type Esbuild() =
     Assert.True(plugin.shouldProcessFile.Value ".tsx")
     Assert.True(plugin.shouldProcessFile.Value ".ts")
     Assert.True(plugin.shouldProcessFile.Value ".css")
-    Assert.False(plugin.shouldProcessFile.Value ".js")
+    Assert.True(plugin.shouldProcessFile.Value ".js")
 
   [<Fact>]
   member _.``Esbuild Plugin should process JSX``() =
@@ -28,8 +28,8 @@ type Esbuild() =
         Esbuild.GetPlugin(
           { Defaults.EsbuildConfig with
               minify = false
-              jsxFactory = Some "h"
-              jsxFragment = Some "Fragment" }
+              jsxAutomatic = true
+              jsxImportSource = Some "preact" }
         )
 
       match plugin.transform with
@@ -42,7 +42,8 @@ type Esbuild() =
         Assert.Equal(".js", result.extension)
 
         Assert.Equal(
-          """const a = /* @__PURE__ */ h("a", null, "hello");
+          """import { jsx } from "preact/jsx-runtime";
+const a = /* @__PURE__ */ jsx("a", { children: "hello" });
 """,
           result.content
         )
@@ -56,8 +57,8 @@ type Esbuild() =
         Esbuild.GetPlugin(
           { Defaults.EsbuildConfig with
               minify = false
-              jsxFactory = Some "h"
-              jsxFragment = Some "Fragment" }
+              jsxAutomatic = true
+              jsxImportSource = Some "preact" }
         )
 
       match plugin.transform with
@@ -70,8 +71,9 @@ type Esbuild() =
         Assert.Equal(".js", result.extension)
 
         Assert.Equal(
-          """const b = "hello";
-const a = /* @__PURE__ */ h("a", null, b);
+          """import { jsx } from "preact/jsx-runtime";
+const b = "hello";
+const a = /* @__PURE__ */ jsx("a", { children: b });
 """,
           result.content
         )

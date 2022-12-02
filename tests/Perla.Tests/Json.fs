@@ -251,8 +251,8 @@ let ``PerlaDecoder Should Decode Esbuild options`` () =
     "injects": [],
     "externals": ["react"],
     "fileLoaders": {},
-    "jsxFactory": "h",
-    "jsxFragment": "Fragment"
+    "jsxAutomatic": true,
+    "jsxImportSource": "preact"
   }
 }
 """
@@ -294,11 +294,11 @@ let ``PerlaDecoder Should Decode Esbuild options`` () =
       let react = Assert.Single externals
       Assert.Equal("react", react)
 
-    Assert.Equal("h", esbuild.jsxFactory |> Option.defaultValue "bad value")
+    Assert.Equal(true, esbuild.jsxAutomatic |> Option.defaultWith (fun _ -> failwith "jsxAutomatic is not present"))
 
     Assert.Equal(
-      "Fragment",
-      esbuild.jsxFragment |> Option.defaultValue "bad value"
+      "preact",
+      esbuild.jsxImportSource |> Option.defaultValue "bad value"
     )
 
   | Ok { esbuild = None } ->
