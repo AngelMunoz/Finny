@@ -154,12 +154,17 @@ module FileSystem =
   let EsbuildBinaryPath (version: string<Semver> option) : string<SystemPath> =
     let bin = if Env.IsWindows then "" else "bin"
     let exec = if Env.IsWindows then ".exe" else ""
+
     let version =
       match version with
       | Some version -> UMX.untag version
       | None -> Perla.Constants.Esbuild_Version
 
-    (UMX.untag PerlaArtifactsRoot) / version / "package" / bin / $"esbuild{exec}"
+    (UMX.untag PerlaArtifactsRoot)
+    / version
+    / "package"
+    / bin
+    / $"esbuild{exec}"
     |> Path.GetFullPath
     |> UMX.tag
 
@@ -176,7 +181,9 @@ module FileSystem =
       cancellationToken: CancellationToken option
     ) : Task<string option> =
     let binString = $"esbuild-{Env.PlatformString}-{Env.ArchString}"
-    let compressedFile = (UMX.untag PerlaArtifactsRoot) / esbuildVersion / "esbuild.tgz"
+
+    let compressedFile =
+      (UMX.untag PerlaArtifactsRoot) / esbuildVersion / "esbuild.tgz"
 
     let url =
       $"https://registry.npmjs.org/{binString}/-/{binString}-{esbuildVersion}.tgz"
@@ -206,11 +213,14 @@ module FileSystem =
         return None
     }
 
-  let decompressEsbuild (esbuildVersion: string<Semver> option) (path: Task<string option>) =
+  let decompressEsbuild
+    (esbuildVersion: string<Semver> option)
+    (path: Task<string option>)
+    =
     task {
       match! path with
       | Some path ->
-        let extract() =
+        let extract () =
           use stream = new GZipInputStream(File.OpenRead path)
 
           use archive =
@@ -218,10 +228,12 @@ module FileSystem =
 
           path |> Path.GetDirectoryName |> archive.ExtractContents
 
-        extract()
+        extract ()
 
         if Env.IsWindows |> not then
-          Logger.log $"Executing: chmod +x on \"{EsbuildBinaryPath esbuildVersion}\""
+          Logger.log
+            $"Executing: chmod +x on \"{EsbuildBinaryPath esbuildVersion}\""
+
           let res = chmodBinCmd(esbuildVersion).ExecuteAsync()
           do! res.Task :> Task
 
@@ -312,7 +324,9 @@ module FileSystem =
 
 type FileSystem =
 
-  static member PerlaConfigText(?fromDirectory: string<SystemPath>) =
+  static member PerlaConfigText
+    ([<Optional>] ?fromDirectory: string<SystemPath>)
+    =
 
     let path = FileSystem.GetConfigPath Constants.PerlaConfigName fromDirectory
 
@@ -321,14 +335,14 @@ type FileSystem =
     with :? FileNotFoundException ->
       None
 
-  static member SetCwdToPerlaRoot(?fromPath) =
+  static member SetCwdToPerlaRoot([<Optional>] ?fromPath) =
     FileSystem.GetConfigPath Constants.PerlaConfigName fromPath
     |> UMX.untag
     |> Path.GetDirectoryName
     |> Path.GetFullPath
     |> Directory.SetCurrentDirectory
 
-  static member GetImportMap(?fromDirectory: string<SystemPath>) =
+  static member GetImportMap([<Optional>] ?fromDirectory: string<SystemPath>) =
     let path = FileSystem.GetConfigPath Constants.ImportMapName fromDirectory
 
     try
@@ -428,7 +442,11 @@ type FileSystem =
     ) =
     Logger.log "Checking whether esbuild is present..."
 
-    if File.Exists(FileSystem.EsbuildBinaryPath(Some esbuildVersion) |> UMX.untag) then
+    if
+      File.Exists(
+        FileSystem.EsbuildBinaryPath(Some esbuildVersion) |> UMX.untag
+      )
+    then
       Logger.log "esbuild is present."
       Task.FromResult(())
     else
