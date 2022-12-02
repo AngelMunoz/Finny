@@ -151,20 +151,24 @@ module FileSystem =
     with ex ->
       Logger.log ($"There was an error removing: {path}", ex = ex)
 
-  let EsbuildBinaryPath () : string<SystemPath> =
+  let EsbuildBinaryPath (version: string<Semver> option) : string<SystemPath> =
     let bin = if Env.IsWindows then "" else "bin"
     let exec = if Env.IsWindows then ".exe" else ""
+    let version =
+      match version with
+      | Some version -> UMX.untag version
+      | None -> Perla.Constants.Esbuild_Version
 
-    (UMX.untag PerlaArtifactsRoot) / "package" / bin / $"esbuild{exec}"
+    (UMX.untag PerlaArtifactsRoot) / version / "package" / bin / $"esbuild{exec}"
     |> Path.GetFullPath
     |> UMX.tag
 
-  let chmodBinCmd () =
+  let chmodBinCmd (esbuildVersion: string<Semver> option) =
     Cli
       .Wrap("chmod")
       .WithStandardErrorPipe(PipeTarget.ToStream(Console.OpenStandardError()))
       .WithStandardOutputPipe(PipeTarget.ToStream(Console.OpenStandardOutput()))
-      .WithArguments($"+x {EsbuildBinaryPath()}")
+      .WithArguments($"+x {EsbuildBinaryPath(esbuildVersion)}")
 
   let tryDownloadEsBuild
     (
@@ -172,7 +176,7 @@ module FileSystem =
       cancellationToken: CancellationToken option
     ) : Task<string option> =
     let binString = $"esbuild-{Env.PlatformString}-{Env.ArchString}"
-    let compressedFile = (UMX.untag PerlaArtifactsRoot) / "esbuild.tgz"
+    let compressedFile = (UMX.untag PerlaArtifactsRoot) / esbuildVersion / "esbuild.tgz"
 
     let url =
       $"https://registry.npmjs.org/{binString}/-/{binString}-{esbuildVersion}.tgz"
@@ -202,21 +206,23 @@ module FileSystem =
         return None
     }
 
-  let decompressEsbuild (path: Task<string option>) =
+  let decompressEsbuild (esbuildVersion: string<Semver> option) (path: Task<string option>) =
     task {
       match! path with
       | Some path ->
+        let extract() =
+          use stream = new GZipInputStream(File.OpenRead path)
 
-        use stream = new GZipInputStream(File.OpenRead path)
+          use archive =
+            TarArchive.CreateInputTarArchive(stream, Text.Encoding.UTF8)
 
-        use archive =
-          TarArchive.CreateInputTarArchive(stream, Text.Encoding.UTF8)
+          path |> Path.GetDirectoryName |> archive.ExtractContents
 
-        path |> Path.GetDirectoryName |> archive.ExtractContents
+        extract()
 
         if Env.IsWindows |> not then
-          Logger.log $"Executing: chmod +x on \"{EsbuildBinaryPath()}\""
-          let res = chmodBinCmd().ExecuteAsync()
+          Logger.log $"Executing: chmod +x on \"{EsbuildBinaryPath esbuildVersion}\""
+          let res = chmodBinCmd(esbuildVersion).ExecuteAsync()
           do! res.Task :> Task
 
         Logger.log "Cleaning up!"
@@ -422,7 +428,7 @@ type FileSystem =
     ) =
     Logger.log "Checking whether esbuild is present..."
 
-    if File.Exists(FileSystem.EsbuildBinaryPath() |> UMX.untag) then
+    if File.Exists(FileSystem.EsbuildBinaryPath(Some esbuildVersion) |> UMX.untag) then
       Logger.log "esbuild is present."
       Task.FromResult(())
     else
@@ -440,7 +446,7 @@ type FileSystem =
           |> (fun path ->
             context.Status <- "Extracting esbuild..."
             path)
-          |> FileSystem.decompressEsbuild
+          |> FileSystem.decompressEsbuild (Some esbuildVersion)
           |> (fun path ->
             context.Status <- "Cleaning up extra files..."
             path)

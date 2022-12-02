@@ -40,7 +40,7 @@ module FileSystem =
         username: string * repository: string * branch: string -> stream: Stream -> string<SystemPath>
 
     val RemoveTemplateDirectory: path: string<SystemPath> -> unit
-    val EsbuildBinaryPath: unit -> string<SystemPath>
+    val EsbuildBinaryPath: string<Semver> option -> string<SystemPath>
     val TryReadTsConfig: unit -> string option
     val GetTempDir: unit -> string
     val TplRepositoryChildTemplates: path: string<SystemPath> -> string<SystemPath> seq

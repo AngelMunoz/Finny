@@ -935,7 +935,6 @@ module Handlers =
   let private getFileChanges
     (
       index: string,
-      injects: string list,
       mountDirectories,
       perlaFilesChanges
     ) =
@@ -965,7 +964,7 @@ module Handlers =
         { content = ""; extension = extension })
 
     VirtualFileSystem.GetFileChangeStream mountDirectories
-    |> VirtualFileSystem.ApplyVirtualOperations injects
+    |> VirtualFileSystem.ApplyVirtualOperations
     |> Observable.merge perlaFilesChanges
 
   let runServe (cancel: CancellationToken, options: ServeOptions) =
@@ -1020,7 +1019,6 @@ module Handlers =
       let fileChanges =
         getFileChanges (
           UMX.untag config.index,
-          config.esbuild.injects |> Seq.toList,
           config.mountDirectories,
           perlaChanges
         )
@@ -1146,7 +1144,6 @@ module Handlers =
       let fileChanges =
         getFileChanges (
           UMX.untag config.index,
-          config.esbuild.injects |> Seq.toList,
           config.mountDirectories,
           perlaChanges
         )
