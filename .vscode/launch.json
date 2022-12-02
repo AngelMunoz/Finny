@@ -9,7 +9,7 @@
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build",
-            "program": "${workspaceFolder}/src/Perla/bin/Debug/net6.0/Perla.dll",
+            "program": "${workspaceFolder}/src/Perla/bin/Debug/net7.0/Perla.dll",
             "args": [
                 "serve"
             ],
@@ -22,7 +22,7 @@
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build",
-            "program": "${workspaceFolder}/src/Perla/bin/Debug/net6.0/Perla.dll",
+            "program": "${workspaceFolder}/src/Perla/bin/Debug/net7.0/Perla.dll",
             "args": [
                 "build"
             ],
@@ -35,7 +35,7 @@
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build",
-            "program": "${workspaceFolder}/src/Perla/bin/Debug/net6.0/Perla.dll",
+            "program": "${workspaceFolder}/src/Perla/bin/Debug/net7.0/Perla.dll",
             "args": [
                 "test",
                 "-w"
@@ -49,7 +49,7 @@
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build",
-            "program": "${workspaceFolder}/src/Perla/bin/Debug/net6.0/Perla.dll",
+            "program": "${workspaceFolder}/src/Perla/bin/Debug/net7.0/Perla.dll",
             "args": [
                 "test"
             ],
@@ -62,7 +62,7 @@
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build",
-            "program": "${workspaceFolder}/src/Perla/bin/Debug/net6.0/Perla.dll",
+            "program": "${workspaceFolder}/src/Perla/bin/Debug/net7.0/Perla.dll",
             "args": [
                 "test",
                 "--headless",
@@ -78,7 +78,7 @@
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build",
-            "program": "${workspaceFolder}/src/Perla/bin/Debug/net6.0/Perla.dll",
+            "program": "${workspaceFolder}/src/Perla/bin/Debug/net7.0/Perla.dll",
             "args": [
                 "templates:add",
                 "AngelMunoz/perla-templates",
@@ -93,7 +93,7 @@
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build",
-            "program": "${workspaceFolder}/src/Perla/bin/Debug/net6.0/Perla.dll",
+            "program": "${workspaceFolder}/src/Perla/bin/Debug/net7.0/Perla.dll",
             "args": [
                 "init",
                 "-k",
@@ -108,7 +108,7 @@
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build",
-            "program": "${workspaceFolder}/src/Perla/bin/Debug/net6.0/Perla.dll",
+            "program": "${workspaceFolder}/src/Perla/bin/Debug/net7.0/Perla.dll",
             "args": [
                 "serve"
             ],
@@ -121,7 +121,7 @@
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build",
-            "program": "${workspaceFolder}/src/Perla/bin/Debug/net6.0/Perla.dll",
+            "program": "${workspaceFolder}/src/Perla/bin/Debug/net7.0/Perla.dll",
             "args": [
                 "add",
                 "lit"
@@ -135,7 +135,7 @@
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build",
-            "program": "${workspaceFolder}/src/Perla/bin/Debug/net6.0/Perla.dll",
+            "program": "${workspaceFolder}/src/Perla/bin/Debug/net7.0/Perla.dll",
             "args": [
                 "add",
                 "@shoelace-style/shoelace"
@@ -149,7 +149,7 @@
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build",
-            "program": "${workspaceFolder}/src/Perla/bin/Debug/net6.0/Perla.dll",
+            "program": "${workspaceFolder}/src/Perla/bin/Debug/net7.0/Perla.dll",
             "args": [
                 "build"
             ],
