@@ -27,6 +27,10 @@ type Dependencies =
         packages: seq<string> * [<Optional>] ?provider: Provider * [<Optional>] ?runConfig: RunConfiguration ->
             Task<Result<string seq * ImportMap, string>>
 
+    static member GetMapAndDependencies:
+        map: ImportMap * [<Optional>] ?provider: Provider * [<Optional>] ?runConfig: RunConfiguration ->
+            Task<Result<string seq * ImportMap, string>>
+
     static member Remove:
         package: string * map: ImportMap * provider: Provider * [<Optional>] ?runConfig: RunConfiguration ->
             Task<Result<ImportMap, string>>

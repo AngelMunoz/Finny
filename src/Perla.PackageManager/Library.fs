@@ -156,7 +156,8 @@ module PackageManager =
       (
         packages: string seq,
         environments: GeneratorEnv seq,
-        [<Optional>] ?provider: Provider
+        [<Optional>] ?provider: Provider,
+        [<Optional>] ?importMap: ImportMap
       ) =
       task {
         match!
@@ -164,7 +165,8 @@ module PackageManager =
             packages,
             environments,
             flattenScope = true,
-            ?provider = provider
+            ?provider = provider,
+            ?inputMap = importMap
           )
         with
         | Ok response -> return Ok response

@@ -195,8 +195,8 @@ type Dependencies =
   static member Restore
     (
       package: string,
-      ?provider: Provider,
-      ?runConfig: RunConfiguration
+      [<Optional>] ?provider: Provider,
+      [<Optional>] ?runConfig: RunConfiguration
     ) =
     PackageManager.AddJspm(
       package,
@@ -229,8 +229,8 @@ type Dependencies =
   static member GetMapAndDependencies
     (
       packages: string seq,
-      ?provider: Provider,
-      ?runConfig: RunConfiguration
+      [<Optional>] ?provider: Provider,
+      [<Optional>] ?runConfig: RunConfiguration
     ) =
     PackageManager.Regenerate(
       packages,
@@ -247,8 +247,8 @@ type Dependencies =
   static member GetMapAndDependencies
     (
       map: ImportMap,
-      ?provider: Provider,
-      ?runConfig: RunConfiguration
+      [<Optional>] ?provider: Provider,
+      [<Optional>] ?runConfig: RunConfiguration
     ) =
     let packages = map.imports |> Map.toList
 
@@ -265,6 +265,7 @@ type Dependencies =
         | Some RunConfiguration.Production -> GeneratorEnv.Production
         | Some RunConfiguration.Development
         | None -> GeneratorEnv.Production ],
+      importMap = map,
       ?provider = provider
     )
     |> TaskResult.map (fun result -> result.staticDeps, result.map)
@@ -274,7 +275,7 @@ type Dependencies =
       package: string,
       map: ImportMap,
       provider: Provider,
-      ?runConfig: RunConfiguration
+      [<Optional>] ?runConfig: RunConfiguration
     ) =
     taskResult {
       let packages =
@@ -310,7 +311,7 @@ type Dependencies =
     (
       map: ImportMap,
       provider: Provider,
-      ?runConfig: RunConfiguration
+      [<Optional>] ?runConfig: RunConfiguration
     ) =
     taskResult {
       let packages = map.imports |> Map.toList

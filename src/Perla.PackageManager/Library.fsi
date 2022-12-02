@@ -3,6 +3,7 @@
 open System.Threading.Tasks
 open Perla.PackageManager.Types
 open Perla.PackageManager.Jspm
+open System.Runtime.InteropServices
 
 [<AutoOpen>]
 module PackageManager =
@@ -40,7 +41,10 @@ module PackageManager =
         /// <param name="environments">JSPM Generator Environment hints to provide the best assets possible</param>
         /// <param name="provider">The current dependency list, this list is useful to differentiate between dev/prod/testing dependencies</param>
         static member AddJspm:
-            packages: seq<string> * environments: seq<GeneratorEnv> * ?importMap: ImportMap * ?provider: Provider ->
+            packages: seq<string> *
+            environments: seq<GeneratorEnv> *
+            [<Optional>] ?importMap: ImportMap *
+            [<Optional>] ?provider: Provider ->
                 Task<Result<ImportMap, string>>
 
         /// <summary>
@@ -60,7 +64,10 @@ module PackageManager =
         /// <param name="environments">JSPM Generator Environment hints to provide the best assets possible</param>
         /// <param name="provider">The current dependency list, this list is useful to differentiate between dev/prod/testing dependencies</param>
         static member AddJspm:
-            package: string * environments: seq<GeneratorEnv> * ?importMap: ImportMap * ?provider: Provider ->
+            package: string *
+            environments: seq<GeneratorEnv> *
+            [<Optional>] ?importMap: ImportMap *
+            [<Optional>] ?provider: Provider ->
                 Task<Result<ImportMap, string>>
 
         /// <summary>
@@ -80,7 +87,10 @@ module PackageManager =
         /// <param name="importMap">An existing map to keep existing resolutions intact if possible.</param>
         /// <param name="esVersion">In case you need to support older browsers, you can pass a valid Ecmascript version. Example: es2020</param>
         static member AddSkypack:
-            packages: seq<string> * envTarget: EnvTarget * ?importMap: ImportMap * ?esVersion: string ->
+            packages: seq<string> *
+            envTarget: EnvTarget *
+            [<Optional>] ?importMap: ImportMap *
+            [<Optional>] ?esVersion: string ->
                 Task<Result<ImportMap, string>>
 
         /// <summary>
@@ -100,7 +110,10 @@ module PackageManager =
         /// <param name="importMap">An existing map to keep existing resolutions intact if possible.</param>
         /// <param name="esVersion">In case you need to support older browsers, you can pass a valid Ecmascript version. Example: es2020</param>
         static member AddSkypack:
-            package: string * envTarget: EnvTarget * ?importMap: ImportMap * ?esVersion: string ->
+            package: string *
+            envTarget: EnvTarget *
+            [<Optional>] ?importMap: ImportMap *
+            [<Optional>] ?esVersion: string ->
                 Task<Result<ImportMap, string>>
 
         /// <summary>
@@ -112,6 +125,10 @@ module PackageManager =
         /// <param name="packages">An sequence of packages to install.</param>
         /// <param name="environments">JSPM Generator Environment hints to provide the best assets possible</param>
         /// <param name="provider">The current dependency list, this list is useful to differentiate between dev/prod/testing dependencies</param>
+        /// <param name="importMap">An existing import map to respect custom resolutions</param>
         static member Regenerate:
-            packages: seq<string> * environments: seq<GeneratorEnv> * ?provider: Provider ->
+            packages: seq<string> *
+            environments: seq<GeneratorEnv> *
+            [<Optional>] ?provider: Provider *
+            [<Optional>] ?importMap: ImportMap ->
                 Task<Result<InstallResponse, string>>
