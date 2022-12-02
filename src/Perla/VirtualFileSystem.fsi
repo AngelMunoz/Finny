@@ -65,9 +65,7 @@ module VirtualFileSystem =
         tempDir: string<SystemPath> * mountedFileSystem: IFileSystem * physicalFileSystem: IFileSystem -> string
 
     val internal updateInVirtualFs:
-        serverFs: IFileSystem ->
-        event: FileChangedEvent * transform: FileTransform ->
-            FileChangedEvent * FileTransform
+        serverFs: IFileSystem -> event: FileChangedEvent * transform: FileTransform -> FileChangedEvent * FileTransform
 
     val internal normalizeEventStream:
         stream: IObservable<FileChangedEvent> *
@@ -75,7 +73,7 @@ module VirtualFileSystem =
         withReadFile: (string -> Task<string>) ->
             IObservable<FileChangedEvent * FileTransform>
 
-    val ApplyVirtualOperations:  stream: IObservable<FileChangedEvent> -> IObservable<FileChangedEvent * FileTransform>
+    val ApplyVirtualOperations: stream: IObservable<FileChangedEvent> -> IObservable<FileChangedEvent * FileTransform>
 
     val Mount: config: PerlaConfig -> Async<unit>
 

@@ -286,7 +286,8 @@ module VirtualFileSystem =
       event.path
       |> UMX.untag
       |> IO.Path.GetExtension
-      |> (fun extension -> HasPluginsForExtension extension || extension = ".js")
+      |> (fun extension ->
+        HasPluginsForExtension extension || extension = ".js")
 
     normalizeEventStream (stream, withFilter, withReadFile)
     |> Observable.map (updateInVirtualFs withFs)
@@ -294,6 +295,7 @@ module VirtualFileSystem =
   let Mount config =
     async {
       use fs = new PhysicalFileSystem()
+
       return!
         mountDirectories
           ApplyPlugins
