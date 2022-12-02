@@ -70,14 +70,14 @@ type Build =
 
     Build.insertCssFiles (document, cssPaths)
 
+    // importmap needs to go first
+    Build.insertImportMap (document, importMap)
+
     // if we have module preloads
     Build.insertModulePreloads (
       document,
       defaultArg staticDependencies Seq.empty
     )
-
-    Build.insertImportMap (document, importMap)
-
     // remove any existing entry points, we don't need them at this point
     document.QuerySelectorAll("[data-entry-point][type=module]")
     |> Seq.iter (fun f -> f.Remove())
