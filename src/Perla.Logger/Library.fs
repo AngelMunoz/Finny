@@ -119,7 +119,7 @@ type Logger =
         | PrefixKind.Build -> [ Log; Build ]
         | PrefixKind.Serve -> [ Log; Serve ]
         | PrefixKind.Esbuild -> [ Log; Esbuild ]
-        | PrefixKind.Browser -> [Log; Browser]
+        | PrefixKind.Browser -> [ Log; Browser ]
 
     Logger.logCustom (message, prefixes = target, ?ex = ex, ?escape = escape)
 
@@ -156,7 +156,7 @@ type Logger =
         | PrefixKind.Build -> [ Log; Build ]
         | PrefixKind.Serve -> [ Log; Serve ]
         | PrefixKind.Esbuild -> [ Log; Esbuild ]
-        | PrefixKind.Browser -> [Log; Browser]
+        | PrefixKind.Browser -> [ Log; Browser ]
 
     let title = Internals.format prefix title
     let status = AnsiConsole.Status()
@@ -177,7 +177,7 @@ type Logger =
         | PrefixKind.Build -> [ Log; Build ]
         | PrefixKind.Serve -> [ Log; Serve ]
         | PrefixKind.Esbuild -> [ Log; Esbuild ]
-        | PrefixKind.Browser -> [Log; Browser]
+        | PrefixKind.Browser -> [ Log; Browser ]
 
     let title = Internals.format prefix title
     let status = AnsiConsole.Status()
