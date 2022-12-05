@@ -1,4 +1,3 @@
-import { marked } from "marked";
 //@ts-ignore
 import hljs from "highlight.js/lib/core";
 //@ts-ignore
@@ -21,21 +20,18 @@ hljs.registerLanguage("bash", bash);
 hljs.registerLanguage("json", json);
 hljs.registerLanguage("html", xml);
 
-marked.setOptions({
-  smartLists: true,
-  smartypants: true,
-  headerIds: true,
-  langPrefix: "hljs language-",
-  highlight(code, language) {
-    return hljs.highlight(code, { language }).value;
-  },
-});
-
-export async function fetchMarkdown(url: string) {
-  const res = await fetch(url);
-  if (res.ok) {
-    const content = await res.text();
-    return marked.parse(content);
-  }
-  return Promise.reject(`${res.status} - ${res.statusText}`);
+const parser = new DOMParser();
+export async function fetchHtml(url: string) {
+  const response = await fetch(url).then((response) => {
+    if (!response.ok) {
+      return Promise.reject(new Error(response.statusText));
+    }
+    return response.text();
+  });
+  const elements = parser.parseFromString(response, "text/html");
+  elements?.querySelectorAll?.("pre code")?.forEach?.((element) => {
+    if (!element) return;
+    hljs.highlightElement(element);
+  });
+  return elements.body.innerHTML;
 }

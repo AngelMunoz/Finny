@@ -7,7 +7,11 @@ open Markdig
 
 
 let pipeline =
-    lazy (MarkdownPipelineBuilder().UseAdvancedExtensions().DisableHtml().Build())
+    lazy
+        (MarkdownPipelineBuilder()
+            .UseAdvancedExtensions()
+            .UsePreciseSourceLocation()
+            .Build())
 
 let shouldProcess: FilePredicate =
     fun extension -> [ ".md"; ".markdown" ] |> List.contains extension

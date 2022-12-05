@@ -1,5 +1,5 @@
 importScripts(
-  "https://storage.googleapis.com/workbox-cdn/releases/6.4.1/workbox-sw.js"
+  "https://storage.googleapis.com/workbox-cdn/releases/6.5.4/workbox-sw.js"
 );
 
 workbox.setConfig({ debug: true });
@@ -7,13 +7,17 @@ const { strategies, routing } = workbox;
 const pathEndsWith = (url, ext) => url?.pathname?.endsWith(ext);
 const hostContains = (url, ext) => url?.host?.includes(ext);
 const isGet = (request) => request.method === "GET";
+const isIndex = (url) =>
+  url?.pathname === "/" ||
+  url?.pathname === "" ||
+  url?.pathname.endsWith("index.html");
 
 routing.registerRoute(({ event, request, url }) => {
   return isGet(request) && request.destination === "image";
 }, new strategies.CacheFirst({ cacheName: "images" }));
 
 routing.registerRoute(({ event, request, url }) => {
-  return isGet(request) && pathEndsWith(url, ".md");
+  return isGet(request) ** !isIndex(url) && pathEndsWith(url, ".html");
 }, new strategies.CacheFirst({ cacheName: "markdown" }));
 
 routing.registerRoute(

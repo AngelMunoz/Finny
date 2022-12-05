@@ -78,7 +78,6 @@ function Navbar({ requestMenu }: { requestMenu?: () => void }) {
 const content = signal(<Index />);
 
 Page.subscribe((page: Page) => {
-  console.log(page);
   if (page === "Home") {
     content.value = <Index />;
   } else {

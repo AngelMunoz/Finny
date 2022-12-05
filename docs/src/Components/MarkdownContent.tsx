@@ -3,7 +3,7 @@ import "./MarkdownContent.css";
 import { useEffect } from "preact/hooks";
 //@ts-ignore
 import { useSignal } from "@preact/signals";
-import { fetchMarkdown } from "../markdown.js";
+import { fetchHtml } from "../highlight.js";
 import { buildUrl } from "../utils.js";
 import { ToC } from "./ToC.js";
 
@@ -27,14 +27,13 @@ export function MarkdownContent({ filename, section }: MarkdownContentProps) {
   const error = useSignal("");
 
   useEffect(() => {
-    const url = buildUrl(filename, section);
-    fetchMarkdown(url)
+    fetchHtml(buildUrl(filename, section))
       .then((response) => (content.value = response))
       .catch((err) => {
         content.value = "";
         error.value = err;
       });
-  });
+  }, [filename, section]);
 
   return (
     <article className="markdown-page">
