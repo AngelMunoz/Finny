@@ -104,7 +104,7 @@
             "console": "integratedTerminal"
         },
         {
-            "name": "Perla serve tsx",
+            "name": "Perla serve docs",
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build",
@@ -112,7 +112,7 @@
             "args": [
                 "serve"
             ],
-            "cwd": "${workspaceFolder}/src/docs",
+            "cwd": "${workspaceFolder}/docs",
             "stopAtEntry": false,
             "console": "integratedTerminal"
         },
