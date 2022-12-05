@@ -17,8 +17,10 @@ type Fsi =
         [<Optional>] ?argv: string seq * [<Optional>] ?stdout: TextWriter * [<Optional>] ?stderr: TextWriter ->
             FsiEvaluationSession
 
+[<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
 module Plugin =
     val CachedPlugins: unit -> seq<PluginInfo>
+    val TryGetPluginByName: name: string -> PluginInfo option
 
 [<Class>]
 type Plugin =

@@ -84,6 +84,7 @@ module ConfigDecoders =
     { index: string<SystemPath> option
       runConfiguration: RunConfiguration option
       provider: Provider option
+      plugins: string list option
       build: DecodedBuild option
       devServer: DecodedDevServer option
       fable: DecodedFableConfig option
@@ -207,6 +208,7 @@ module ConfigDecoders =
         runConfiguration =
           get.Optional.Field "runConfiguration" runConfigDecoder
         provider = get.Optional.Field "provider" providerDecoder
+        plugins = get.Optional.Field "plugins" (Decode.list Decode.string)
         build = get.Optional.Field "build" BuildDecoder
         devServer = get.Optional.Field "devServer" DevServerDecoder
         fable = get.Optional.Field "fable" FableFileDecoder

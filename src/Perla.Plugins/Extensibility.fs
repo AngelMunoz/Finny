@@ -12,7 +12,6 @@ open FsToolkit.ErrorHandling
 
 open Perla.Plugins
 open Perla.Logger
-open System.Collections.Generic
 
 type Fsi =
   static member GetSession
@@ -43,6 +42,7 @@ type Fsi =
       true
     )
 
+[<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
 module Plugin =
   let FsiSessions =
     lazy (ConcurrentDictionary<string, FsiEvaluationSession option>())
@@ -51,6 +51,11 @@ module Plugin =
 
   let CachedPlugins () =
     PluginCache |> Seq.map (fun entry -> entry.Value)
+
+  let TryGetPluginByName name =
+    match PluginCache.TryGetValue name with
+    | true, plugin -> Some plugin
+    | false, _ -> None
 
 type Plugin =
 
@@ -85,7 +90,7 @@ type Plugin =
 
     match evaluation with
     | Some value when value.ReflectionType = typeof<PluginInfo> ->
-      let plugin = unbox plugin
+      let plugin = unbox value.ReflectionValue
 
       if not skipCache then
         match Plugin.PluginCache.TryAdd(plugin.name, plugin) with

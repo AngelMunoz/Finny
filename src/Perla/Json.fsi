@@ -56,6 +56,7 @@ module ConfigDecoders =
         { index: string<SystemPath> option
           runConfiguration: RunConfiguration option
           provider: Provider option
+          plugins: string list option
           build: DecodedBuild option
           devServer: DecodedDevServer option
           fable: DecodedFableConfig option

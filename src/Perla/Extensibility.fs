@@ -9,7 +9,14 @@ open Perla.Esbuild
 
 module Plugins =
 
-  let PluginList () = Plugin.SupportedPlugins()
+  let PluginList (pluginOrder: string list) =
+    let plugins =
+      [ for plugin in pluginOrder do
+          match Plugin.TryGetPluginByName plugin with
+          | Some plugin -> plugin
+          | None -> () ]
+
+    Plugin.SupportedPlugins(plugins)
 
   let LoadPlugins (config: EsbuildConfig) =
     Esbuild.GetPlugin(config) |> Plugin.AddPlugin

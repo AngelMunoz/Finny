@@ -93,6 +93,7 @@ module Defaults =
     { index = UMX.tag Constants.IndexFile
       runConfiguration = RunConfiguration.Production
       provider = Provider.Jspm
+      plugins = [ "perla-esbuild-plugin" ]
       build = BuildConfig
       devServer = DevServerConfig
       esbuild = EsbuildConfig
@@ -380,6 +381,12 @@ let fromFile (fileContent: JsonObject option) (config: PerlaConfig) =
                 defaultArg testing.browserMode config.testing.browserMode }
         | None -> config.testing
 
+      let plugins =
+        match decoded.plugins with
+        | Some [] -> config.plugins
+        | None -> config.plugins
+        | Some others -> others
+
       { config with
           fable = fable
           devServer = devServer
@@ -390,6 +397,7 @@ let fromFile (fileContent: JsonObject option) (config: PerlaConfig) =
           runConfiguration =
             defaultArg decoded.runConfiguration config.runConfiguration
           provider = defaultArg decoded.provider config.provider
+          plugins = plugins
           mountDirectories =
             defaultArg decoded.mountDirectories config.mountDirectories
           enableEnv = defaultArg decoded.enableEnv config.enableEnv

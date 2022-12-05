@@ -98,6 +98,7 @@ module Types =
     { index: string<SystemPath>
       runConfiguration: RunConfiguration
       provider: Provider
+      plugins: string list
       build: BuildConfig
       devServer: DevServerConfig
       fable: FableConfig option
