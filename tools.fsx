@@ -15,12 +15,12 @@ let runtimes =
 
 let projects = [ "Perla" ]
 
-let libraries = [ "Perla.PackageManager"; "Perla.Plugins" ]
+let libraries = [ "Perla.PackageManager"; "Perla.Plugins"; "Perla.Logger" ]
 
 let NugetApiKey = EnvVar.getOrFail "NUGET_DEPLOY_KEY"
 
 [<Literal>]
-let PackageVersion = "1.0.0-beta-002"
+let PackageVersion = "1.0.0-beta-003"
 
 let fsSources =
     Glob.create "*.fsx"
@@ -84,7 +84,7 @@ module Operations =
 
     let buildBinaries (project: string) (runtime: string) =
         let cmd =
-            let framework = "net6.0"
+            let framework = "net7.0"
             let outdir = $"{outDir}/{runtime}"
             $"publish {project} -c Release -f {framework} -r {runtime} --self-contained -p:Version={PackageVersion} -o {outdir}"
 
@@ -191,10 +191,18 @@ module Pipelines =
 
     let pushNugets = Pipeline.createFrom packNuget "push:nuget" { run Steps.pushNugets }
 
+    let pushExistingNugets =
+        Pipeline.create "push:existing:nuget" { run Steps.pushNugets }
+
     let buildRelease =
-        Pipeline.createFrom packNuget "build:release" {
+        Pipeline.create "build:release" {
+            run Steps.clean
+            run Steps.installTools
+            run Steps.restore
+            run Steps.packNugets
             run Steps.buildBin
             run Steps.zip
+            run Steps.pushNugets
         }
 
     let buildRuntime =
@@ -214,6 +222,7 @@ Pipelines.create {
     add Pipelines.buildRuntime
     add Pipelines.build
     add Pipelines.test
+    add Pipelines.pushExistingNugets
     default_pipeline Pipelines.build
 }
 |> Pipelines.runWithArgsAndExit fsi.CommandLineArgs
