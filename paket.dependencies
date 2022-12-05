@@ -1,7 +1,7 @@
 source https://api.nuget.org/v3/index.json
 
 nuget FSharp.UMX 1.1.0
-nuget FSharp.Compiler.Service 41.0.6
+nuget FSharp.Compiler.Service 42.7.101
 nuget FSharp.Control.AsyncSeq 3.2.1
 nuget FSharp.Control.Reactive 5.0.5
 nuget FsToolkit.ErrorHandling 3.0.0
@@ -25,11 +25,6 @@ nuget System.CommandLine >= 2.0.0-beta4.22272.1 prerelease
 nuget Microsoft.Extensions.Logging 6.0.0
 nuget Yarp.ReverseProxy 1.1.1
 nuget Microsoft.Playwright 1.27.2
-
-# Experiments specific packages
-
-nuget Argu 6.1.1
-nuget Giraffe 6.0.0
 
 group Samples
     source https://api.nuget.org/v3/index.json
