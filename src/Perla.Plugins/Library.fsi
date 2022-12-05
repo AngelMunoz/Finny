@@ -99,7 +99,7 @@ type PerlaPluginBuilder =
         state: PluginFunctions list * [<InlineIfLambda>] transform: TransformAsync -> PluginFunctions list
     member Run: state: PluginFunctions list -> PluginInfo
 
-[<AutoOpen>]
+[<AutoOpen; CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
 module Plugin =
     /// <summary>
     /// This is the Perla Plugins builder, there should be a single plugin call at

@@ -7,6 +7,7 @@ open Perla.PackageManager.Types
 open Perla.Logger
 open System.Runtime.InteropServices
 
+[<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
 module Types =
 
   type DevServerField =
@@ -41,6 +42,7 @@ module Types =
 open Types
 open System.Text.Json.Nodes
 
+[<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
 module Defaults =
 
   let FableConfig: FableConfig =
@@ -106,7 +108,7 @@ module Defaults =
       dependencies = Seq.empty
       devDependencies = Seq.empty }
 
-
+[<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
 module Json =
   open Perla.FileSystem
   open Perla.Json

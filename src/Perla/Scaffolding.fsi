@@ -3,12 +3,16 @@ namespace Perla
 open System
 open System.Threading.Tasks
 open LiteDB
-open Flurl.Http
-open Perla.FileSystem
 open FSharp.UMX
+open Perla.Types
 
 module Scaffolding =
     open Units
+
+    [<Literal>]
+    val ScaffoldConfiguration: string = "TemplateConfiguration"
+
+    val getConfigurationFromScript: content: string -> obj option
 
     [<CLIMutable>]
     type PerlaTemplateRepository =

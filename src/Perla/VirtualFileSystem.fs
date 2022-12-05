@@ -9,6 +9,7 @@ open Perla.Types
 open Perla.Units
 open Perla.Logger
 open Perla.Plugins
+open Perla.Extensibility
 open Perla.FileSystem
 
 open FSharp.UMX
@@ -41,7 +42,8 @@ type internal PathInfo =
     localPath: string<UserPath>
     url: string<ServerUrl> }
 
-type internal ApplyPluginsFn = string * string -> Async<FileTransform>
+type internal ApplyPluginsFn = FileTransform -> Async<FileTransform>
+
 
 [<RequireQualifiedAccess>]
 module VirtualFileSystem =
@@ -136,11 +138,12 @@ module VirtualFileSystem =
     )
 
   let internal processFiles
+    (plugins: string list)
     (url: string<ServerUrl>)
     (userPath: string<UserPath>)
     (physicalFileSystem: IFileSystem)
     (memoryFileSystem: IFileSystem)
-    (applyPlugins: string * string -> Async<FileTransform>)
+    (applyPlugins: ApplyPluginsFn)
     (globPath: string)
     =
     async {
@@ -160,13 +163,20 @@ module VirtualFileSystem =
 
       let isInFableMdules = globPath.FullName.Contains("fable_modules")
 
-      if not (HasPluginsForExtension extension) || isInFableMdules then
+      if
+        not (PluginRegistry.HasPluginsForExtension plugins extension)
+        || isInFableMdules
+      then
         return
           copyFileWithoutPlugins pathInfo memoryFileSystem physicalFileSystem
       else
         let url = UMX.untag pathInfo.url
         let content = physicalFileSystem.ReadAllText globPath
-        let! transform = applyPlugins (content, extension)
+
+        let! transform =
+          applyPlugins
+            { content = content
+              extension = extension }
 
         let parentDir = UMX.untag url |> UPath
 
@@ -181,58 +191,35 @@ module VirtualFileSystem =
         return memoryFileSystem.WriteAllText(path, transform.content)
     }
 
-  let internal mountDirectories
-    (applyPlugins: ApplyPluginsFn)
-    (directories: Map<string<ServerUrl>, string<UserPath>>)
-    (serverPaths: IFileSystem)
-    (fs: IFileSystem)
-    =
-    async {
-      let cwd = FileSystem.CurrentWorkingDirectory()
+  let tryReadFile (readFile: string -> Task<string>) (event: FileChangedEvent) =
+    taskOption {
+      try
+        let! content = readFile (UMX.untag event.path)
 
-      for KeyValue(url, path) in directories do
-        Logger.log ($"Mounting {path} into {url}...")
+        return
+          event,
+          { content = content
+            extension = IO.Path.GetExtension(UMX.untag event.path) }
+      with ex ->
+        Logger.log (
+          $"[bold yellow]Could not process file {event.path}",
+          ex = ex
+        )
 
-        do!
-          IO.Path.Combine(UMX.untag cwd, UMX.untag path)
-          |> IO.Path.GetFullPath
-          |> getGlobbedFiles
-          |> Seq.map (processFiles url path fs serverPaths applyPlugins)
-          |> Async.Parallel
-          |> Async.Ignore
-
-      return ()
+        return! None
     }
 
-  let internal tryCompileFile
-    (readFile: string -> Task<string>)
-    (event: FileChangedEvent)
+  let tryCompileFile
+    (applyPlugins: ApplyPluginsFn)
+    (readFileResult: (FileChangedEvent * FileTransform) option)
     : Async<(FileChangedEvent * FileTransform) option> =
     asyncOption {
-      let! file =
-        task {
-          try
-            let! content = readFile (UMX.untag event.path)
-            return Some content
-          with ex ->
-            Logger.log (
-              $"[bold yellow]Could not process file {event.path}",
-              ex = ex
-            )
+      let! (event, file) = readFileResult
+      let! transform = applyPlugins file
 
-            return None
-        }
-        |> Async.AwaitTask
-
-      let extension = IO.Path.GetExtension(UMX.untag event.path)
-
-      if extension = ".js" then
-        return event, { content = file; extension = ".js" }
-      else
-        let! transform = Plugins.ApplyPlugins(file, extension)
-
-        return (event, transform)
+      return (event, transform)
     }
+
 
   let internal copyToDisk
     (
@@ -268,17 +255,9 @@ module VirtualFileSystem =
 
     event, transform
 
-
-  let internal normalizeEventStream (stream, withFilter, withReadFile) =
-    stream
-    |> Observable.filter withFilter
-    |> Observable.map (tryCompileFile withReadFile)
-    |> Observable.switchAsync
-    |> Observable.choose id
-
   let serverPaths = lazy (new MemoryFileSystem())
 
-  let ApplyVirtualOperations stream =
+  let ApplyVirtualOperations plugins stream =
     let withReadFile path = IO.File.ReadAllTextAsync path
     let withFs = serverPaths.Value
 
@@ -286,22 +265,37 @@ module VirtualFileSystem =
       event.path
       |> UMX.untag
       |> IO.Path.GetExtension
-      |> (fun extension ->
-        HasPluginsForExtension extension || extension = ".js")
+      |> PluginRegistry.HasPluginsForExtension plugins
 
-    normalizeEventStream (stream, withFilter, withReadFile)
+    stream
+    |> Observable.filter withFilter
+    |> Observable.map (tryReadFile withReadFile)
+    |> Observable.switchTask
+    |> Observable.map (tryCompileFile (PluginRegistry.ApplyPlugins plugins))
+    |> Observable.switchAsync
+    |> Observable.choose id
     |> Observable.map (updateInVirtualFs withFs)
 
   let Mount config =
     async {
       use fs = new PhysicalFileSystem()
 
-      return!
-        mountDirectories
-          ApplyPlugins
-          config.mountDirectories
-          serverPaths.Value
-          fs
+      let cwd = FileSystem.CurrentWorkingDirectory()
+      let applyPlugins = PluginRegistry.ApplyPlugins config.plugins
+      let serverPaths = serverPaths.Value
+
+      for KeyValue(url, path) in config.mountDirectories do
+        Logger.log ($"Mounting {path} into {url}...")
+
+        do!
+          IO.Path.Combine(UMX.untag cwd, UMX.untag path)
+          |> IO.Path.GetFullPath
+          |> getGlobbedFiles
+          |> Seq.map (
+            processFiles config.plugins url path fs serverPaths applyPlugins
+          )
+          |> Async.Parallel
+          |> Async.Ignore
     }
 
   let CopyToDisk () =

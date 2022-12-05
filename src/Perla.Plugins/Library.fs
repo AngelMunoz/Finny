@@ -160,7 +160,8 @@ type PerlaPluginBuilder(name: string) =
       shouldProcessFile = shouldTransform
       transform = transform }
 
-[<AutoOpen>]
+[<AutoOpen;
+  CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
 module Plugin =
   /// <summary>
   /// This is the Perla Plugins builder, there should be a single plugin call at

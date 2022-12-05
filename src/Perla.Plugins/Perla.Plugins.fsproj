@@ -17,11 +17,6 @@
   <ItemGroup>
     <Compile Include="Library.fsi" />
     <Compile Include="Library.fs" />
-    <Compile Include="Extensibility.fsi" />
-    <Compile Include="Extensibility.fs" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\Perla.Logger\Perla.Logger.fsproj" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

@@ -125,8 +125,12 @@ type Build =
       yield! config.esbuild.externals
     }
 
-  static member CopyGlobs(config: BuildConfig) =
-    let cwd = FileSystem.CurrentWorkingDirectory() |> UMX.untag
+  static member CopyGlobs(config: BuildConfig, ?tempDir: string<SystemPath>) =
+    let cwd =
+      tempDir
+      |> Option.defaultWith (fun _ -> FileSystem.CurrentWorkingDirectory())
+      |> UMX.untag
+
     let outDir = UMX.untag config.outDir |> Path.GetFullPath
 
     let filesToCopy: LazyGlobbingPattern =

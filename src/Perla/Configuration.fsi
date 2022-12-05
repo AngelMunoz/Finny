@@ -4,6 +4,7 @@ open Perla.Types
 open Perla.PackageManager.Types
 open System.Runtime.InteropServices
 
+[<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
 module Types =
     type DevServerField =
         | Port of int
@@ -35,8 +36,9 @@ module Types =
         | Fable of FableField seq
 
 open Types
-open System.Text.Json.Nodes
 
+
+[<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
 module Defaults =
     val FableConfig: FableConfig
     val DevServerConfig: DevServerConfig
@@ -47,6 +49,7 @@ module Defaults =
 
 /// <summary>
 /// </summary>
+[<Class>]
 type Configuration =
     new: unit -> Configuration
     member CurrentConfig: PerlaConfig

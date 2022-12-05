@@ -8,9 +8,23 @@ open Flurl.Http
 open Perla.FileSystem
 
 open FSharp.UMX
+open Perla.Extensibility
+
 
 module Scaffolding =
   open Units
+
+  [<Literal>]
+  let ScaffoldConfiguration = "TemplateConfiguration"
+
+  let getConfigurationFromScript content =
+    use session = Fsi.GetSession()
+
+    session.EvalInteractionNonThrowing(content) |> ignore
+
+    match session.TryFindBoundValue ScaffoldConfiguration with
+    | Some bound -> Some bound.Value.ReflectionValue
+    | None -> None
 
   [<CLIMutable>]
   type PerlaTemplateRepository =

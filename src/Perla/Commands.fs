@@ -8,7 +8,6 @@ open System.Threading
 open System.Threading.Tasks
 
 open Microsoft.Playwright
-open Perla.Plugins
 open Spectre.Console
 
 open FSharp.Control
@@ -33,9 +32,9 @@ open Perla.Json
 open Perla.Scaffolding
 open Perla.Configuration.Types
 open Perla.Configuration
+open Perla.Extensibility
 
-open Perla.Plugins.Extensibility
-
+open Perla.Plugins
 open Perla.PackageManager
 open Perla.PackageManager.Types
 
@@ -785,7 +784,7 @@ module Handlers =
       with _ ->
         ()
 
-      LoadPlugins(config.esbuild)
+      PluginRegistry.LoadPlugins(config.esbuild)
 
       do!
         Logger.spinner (
@@ -911,7 +910,7 @@ module Handlers =
       fs.WriteAllText(UPath.Combine(outDir, "index.html"), indexContent)
 
       // copy any glob files
-      Build.CopyGlobs(config.build)
+      Build.CopyGlobs(config.build, tempDirectory)
       // copy any root files
       fs.EnumerateFileEntries(tmp, "*.*", SearchOption.TopDirectoryOnly)
       |> Seq.iter (fun file ->
@@ -947,7 +946,8 @@ module Handlers =
     (
       index: string,
       mountDirectories,
-      perlaFilesChanges
+      perlaFilesChanges,
+      plugins: string list
     ) =
     let perlaFilesChanges =
       perlaFilesChanges
@@ -975,7 +975,7 @@ module Handlers =
         { content = ""; extension = extension })
 
     VirtualFileSystem.GetFileChangeStream mountDirectories
-    |> VirtualFileSystem.ApplyVirtualOperations
+    |> VirtualFileSystem.ApplyVirtualOperations plugins
     |> Observable.merge perlaFilesChanges
 
   let runServe (cancel: CancellationToken, options: ServeOptions) =
@@ -1020,7 +1020,7 @@ module Handlers =
 
       do! FileSystem.SetupEsbuild(config.esbuild.version, cancel)
 
-      LoadPlugins(config.esbuild)
+      PluginRegistry.LoadPlugins(config.esbuild)
 
       do! VirtualFileSystem.Mount(config)
 
@@ -1031,7 +1031,8 @@ module Handlers =
         getFileChanges (
           UMX.untag config.index,
           config.mountDirectories,
-          perlaChanges
+          perlaChanges,
+          config.plugins
         )
 
       // TODO: Grab these from esbuild
@@ -1145,7 +1146,7 @@ module Handlers =
       do! firstCompileFinished isWatch fableEvents
 
 
-      LoadPlugins config.esbuild
+      PluginRegistry.LoadPlugins config.esbuild
 
       do! VirtualFileSystem.Mount config
 
@@ -1156,7 +1157,8 @@ module Handlers =
         getFileChanges (
           UMX.untag config.index,
           config.mountDirectories,
-          perlaChanges
+          perlaChanges,
+          config.plugins
         )
       // TODO: Grab these from esbuild
       let compilerErrors = Observable.empty

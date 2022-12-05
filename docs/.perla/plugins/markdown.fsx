@@ -4,8 +4,6 @@
 open Perla.Plugins
 open Markdig
 
-
-
 let pipeline =
     lazy
         (MarkdownPipelineBuilder()
