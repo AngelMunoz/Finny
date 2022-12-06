@@ -1,7 +1,11 @@
 {
-  "$schema": "https://raw.githubusercontent.com/AngelMunoz/Perla/dev/perla.schema.json",
+  "$schema": "../perla.schema.json",
   "runConfiguration": "development",
   "provider": "jspm",
+  "plugins": [
+    "perla-esbuild-plugin",
+    "markdown-plugin"
+  ],
   "mountDirectories": {
     "/": "./sw",
     "/assets": "./assets",
