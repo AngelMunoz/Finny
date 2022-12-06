@@ -17,7 +17,7 @@
   },
   "build": {
     "includes": [
-      "**/assets/**/*.html"
+      "vfs:**/assets/**/*.html"
     ]
   },
   "dependencies": [

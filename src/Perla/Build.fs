@@ -125,42 +125,78 @@ type Build =
       yield! config.esbuild.externals
     }
 
-  static member CopyGlobs(config: BuildConfig, ?tempDir: string<SystemPath>) =
-    let cwd =
-      tempDir
-      |> Option.defaultWith (fun _ -> FileSystem.CurrentWorkingDirectory())
-      |> UMX.untag
+  static member CopyGlobs(config: BuildConfig, tempDir: string<SystemPath>) =
 
     let outDir = UMX.untag config.outDir |> Path.GetFullPath
 
-    let filesToCopy: LazyGlobbingPattern =
-      { BaseDirectory = UMX.untag cwd
-        Includes = config.includes |> Seq.toList
-        Excludes = config.excludes |> Seq.toList }
+    let chooseGlobs (startsWith: string) (contains: string) (glob: string) =
+      if glob.StartsWith startsWith then
+        Some(glob.Substring startsWith.Length)
+      elif not (glob.Contains contains) then
+        Some(glob)
+      else
+        None
+
+
+    let lfsGlob =
+
+      let localIncludes =
+        config.includes |> Seq.choose (chooseGlobs "lfs:" "vfs:") |> Seq.toList
+
+      let localExcludes =
+        config.excludes |> Seq.choose (chooseGlobs "lfs:" "vfs:") |> Seq.toList
+
+      { BaseDirectory = FileSystem.CurrentWorkingDirectory() |> UMX.untag
+        Includes = localIncludes
+        Excludes = localExcludes }
+
+    let vfsGlob =
+      let virtualIncludes =
+        config.includes |> Seq.choose (chooseGlobs "vfs:" "lfs:") |> Seq.toList
+
+      let virtualExcludes =
+        config.excludes |> Seq.choose (chooseGlobs "vfs:" "lfs:") |> Seq.toList
+
+      { BaseDirectory = UMX.untag tempDir
+        Includes = virtualIncludes
+        Excludes = virtualExcludes }
+
+    let copyAndIncrement (cwd: string) (tsk: ProgressTask) (file: string) =
+      tsk.Increment 1
+      let targetPath = file.Replace(cwd, outDir)
+
+      try
+        Path.GetDirectoryName targetPath |> Directory.CreateDirectory |> ignore
+      with _ ->
+        ()
+
+      File.Copy(file, targetPath)
+
 
     AnsiConsole
       .Progress()
       .Start(fun ctx ->
-        let tsk =
+        let lfsTask =
           ctx.AddTask(
-            "Copying Files to out directory",
+            "Copy Local Files to Output",
             true,
-            filesToCopy |> Seq.length |> float
+            lfsGlob |> Seq.length |> float
           )
 
-        filesToCopy
-        |> Seq.toArray
-        |> Array.iter (fun file ->
-          tsk.Increment(1)
-          let targetPath = file.Replace(cwd, outDir)
+        let vfsTask =
+          ctx.AddTask(
+            "Copy virtual files to Output",
+            true,
+            vfsGlob |> Seq.length |> float
+          )
 
-          try
-            Path.GetDirectoryName targetPath
-            |> Directory.CreateDirectory
-            |> ignore
-          with _ ->
-            ()
+        let copyLocal =
+          copyAndIncrement
+            (UMX.untag (FileSystem.CurrentWorkingDirectory()))
+            lfsTask
 
-          File.Copy(file, targetPath))
+        let copyVirtual = copyAndIncrement (UMX.untag tempDir) vfsTask
 
-        tsk.StopTask())
+        vfsGlob |> Seq.toArray |> Array.Parallel.iter copyVirtual
+
+        lfsGlob |> Seq.toArray |> Array.Parallel.iter copyLocal)
