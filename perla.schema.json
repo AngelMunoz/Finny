@@ -1,5 +1,5 @@
-﻿{
-  "$schema": "https://json-schema.org/schema",
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Perla",
   "description": "A Node'less dev server for frontend developers",
   "type": "object",
@@ -8,16 +8,109 @@
       "description": "The main index file to be processed by perla, this file should be outside of the static mounted paths.",
       "type": "string"
     },
+    "runConfiguration": {
+      "description": "Whether perla runs in production or dev mode, production is (and should be) the default",
+      "type": "string",
+      "enum": [
+        "production",
+        "development"
+      ]
+    },
+    "provider": {
+      "type": "string",
+      "enum": [
+        "jspm",
+        "skypack",
+        "unpkg",
+        "jsdelivr",
+        "jspmSystem"
+      ]
+    },
+    "plugins": {
+      "description": "The list of plugins to use by perla, if the list is not specified, the default esbuild plugin will be used",
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string"
+      },
+      "contains": {
+        "type": "string",
+        "enum": [
+          "perla-esbuild-plugin"
+        ]
+      },
+      "examples": [
+        [
+          "perla-esbuild-plugin",
+          "markdown-plugin"
+        ]
+      ]
+    },
+    "mountDirectories": {
+      "description": "A key/value object that mounts the physical path specified by the key on the route specified by the value.",
+      "type": "object",
+      "default": {
+        "/src": "./src"
+      },
+      "examples": [
+        {
+          "/src": "./src"
+        },
+        {
+          "./sw": "/",
+          "./public": "/static"
+        }
+      ]
+    },
+    "enableEnv": {
+      "description": "Enable providing environmental variables at dev time",
+      "type": "boolean",
+      "default": true
+    },
+    "envPath": {
+      "description": "Select the rooted url where to serve the env vars for perla e.g /my-api/env.js",
+      "type": "string",
+      "default": "/env.js",
+      "examples": [
+        "/env.js",
+        "/my-api/env.js",
+        "/api/env.js"
+      ]
+    },
+    "dependencies": {
+      "description": "An array of dependencies of this ",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "$ref": "#/$defs/perlaDependency"
+      }
+    },
+    "devDependencies": {
+      "description": "The main index file to be processed by perla, this file should be outside of the static mounted paths.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "$ref": "#/$defs/perlaDependency"
+      }
+    },
     "fable": {
-      "$ref": "#/definitions/fable"
+      "$ref": "#/$defs/fable"
     },
     "devServer": {
-      "$ref": "#/definitions/devServer"
+      "$ref": "#/$defs/devServer"
     },
     "build": {
-      "$ref": "#/definitions/build"
+      "$ref": "#/$defs/build"
+    },
+    "esbuild": {
+      "$ref": "#/$defs/esbuild"
+    },
+    "testing": {
+      "$ref": "#/$defs/testing"
     },
     "packages": {
+      "deprecated": true,
       "description": "A list of third party packages with the URL to their source, the key of the object can be any string, not necessarily the name of the package. This is used to generate an import map for the browser",
       "type": "object",
       "examples": [
@@ -31,10 +124,95 @@
       ]
     }
   },
-  "required": [
-    "index"
-  ],
-  "definitions": {
+  "$defs": {
+    "perlaDependency": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "required": true
+        },
+        "version": {
+          "type": "string",
+          "required": true,
+          "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\\+([0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*))?$"
+        }
+      },
+      "required": [
+        "name",
+        "version"
+      ],
+      "examples": [
+        {
+          "name": "@preact/signals",
+          "version": "1.1.2"
+        }
+      ]
+    },
+    "testing": {
+      "description": "Configuration to run perla's testing features powered by playwright",
+      "type": "object",
+      "properties": {
+        "browsers": {
+          "description": "browsers to run the testing suites with",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "chromium",
+              "webkit",
+              "firefox",
+              "edge",
+              "chrome"
+            ]
+          },
+          "minItems": 1,
+          "examples": [
+            [
+              "chromium"
+            ],
+            [
+              "chromium",
+              "webkit"
+            ]
+          ]
+        },
+        "includes": {
+          "description": "A relative path or globbing pattern to include test files",
+          "type": "string",
+          "examples": [
+            "**/featureA/*.spec.js",
+            "**/*.test.js"
+          ]
+        },
+        "excludes": {
+          "description": "A relative path or globbing pattern to exclude test files",
+          "type": "string",
+          "examples": [
+            "**/feature-b/*.spec.js",
+            "**/*.e2e.js"
+          ]
+        },
+        "watch": {
+          "description": "Run the tests in watch mode (re-run on change)",
+          "type": "boolean",
+          "default": false
+        },
+        "headless": {
+          "description": "Run the browser without or with a GUI Display (window)",
+          "type": "boolean",
+          "default": true
+        },
+        "browserMode": {
+          "description": "How should the test suites run with several browsers",
+          "type": "string",
+          "enum": [
+            "parallel",
+            "sequential"
+          ]
+        }
+      }
+    },
     "fable": {
       "description": "Fable Compiler configuration options (optional)",
       "type": "object",
@@ -42,7 +220,8 @@
         "autoStart": {
           "description": "Enable/Disable the Fable compilation at the start of the dev server",
           "type": "boolean",
-          "default": true
+          "default": true,
+          "deprecated": true
         },
         "project": {
           "description": "A relative path to the Fable project to compile",
@@ -52,6 +231,11 @@
         "extension": {
           "description": "The extension to use for compiled js files",
           "type": "string"
+        },
+        "sourceMaps": {
+          "description": "Enable/Disable Fable source maps",
+          "type": "boolean",
+          "default": true
         },
         "outDir": {
           "description": "A relative path that tells to output the js files",
@@ -63,11 +247,6 @@
       "description": "Configuration options for the saturn server running on the background at dev time",
       "type": "object",
       "properties": {
-        "autoStart": {
-          "description": "Enable/Disable the saturn server auto start feature",
-          "type": "boolean",
-          "default": true
-        },
         "host": {
           "description": "A host to bind the dev server to, defaults to localhost",
           "type": "string",
@@ -77,6 +256,32 @@
           "description": "A port to listen connections at for the dev server",
           "type": "integer",
           "default": 7331
+        },
+        "useSSL": {
+          "description": "Enable SSL and HSTS for Local development",
+          "type": "boolean",
+          "default": false
+        },
+        "liveReload": {
+          "description": "Enable/Disable the live reload feature",
+          "type": "boolean",
+          "default": true
+        },
+        "proxy": {
+          "description": "A mapping object between browser URLs -> Server URL for development",
+          "type": "object",
+          "examples": [
+            {
+              "/api/{**catch-all}": "http://localhost:5000",
+              "/ws": "http://localhost:8080/sockets"
+            }
+          ]
+        },
+        "autoStart": {
+          "description": "Enable/Disable the saturn server auto start feature",
+          "type": "boolean",
+          "default": true,
+          "deprecated": true
         },
         "mountDirectories": {
           "description": "A key/value object that mounts the physical path specified by the key on the route specified by the value.",
@@ -95,17 +300,14 @@
             {
               "./public": ""
             }
-          ]
-        },
-        "useSSL": {
-          "description": "Enable SSL and HSTS for Local development",
-          "type": "boolean",
-          "default": false
+          ],
+          "deprecated": true
         },
         "enableEnv": {
           "description": "Enable providing environmental variables at dev time",
           "type": "boolean",
-          "default": true
+          "default": true,
+          "deprecated": true
         },
         "envPath": {
           "description": "Select the rooted url where to serve the env vars for perla e.g /my-api/env.js",
@@ -115,12 +317,8 @@
             "/env.js",
             "/my-api/env.js",
             "/api/env.js"
-          ]
-        },
-        "liveReload": {
-          "description": "Enable/Disable the live reload feature",
-          "type": "boolean",
-          "default": true
+          ],
+          "deprecated": true
         },
         "watchConfig": {
           "description": "Modify the way files are watched in the system",
@@ -141,25 +339,128 @@
                 "./src"
               ]
             }
-          }
+          },
+          "deprecated": true
         }
       }
     },
-    "build": {
-      "description": "",
+    "esbuild": {
+      "description": "esbuild configuration parameters",
       "type": "object",
       "properties": {
         "esBuildPath": {
           "description": "An absolute path to the esbuild executable, on Windows it must include the .exe extension.",
           "type": "string"
         },
-        "esbuildVersion": {
+        "version": {
           "description": "A Semantic versioning  *version* of an esbuild release, this must match a package in the npm js registry",
           "type": "string",
           "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\\+([0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*))?$",
           "default": "0.12.28"
         },
+        "ecmaVersion": {
+          "description": "Any target defined by esbuild, check https://esbuild.github.io/api/#target",
+          "type": "string",
+          "default": "es2020"
+        },
+        "minify": {
+          "description": "Enable/disable minification",
+          "type": "boolean"
+        },
+        "injects": {
+          "description": "A list of files to inject at the transformation phase, this is injected only at build time",
+          "type": "array",
+          "examples": [
+            [
+              "./LICENSE.js"
+            ],
+            [
+              "./VERSION.js"
+            ]
+          ]
+        },
+        "externals": {
+          "description": "Third party libraries that you want esbuild to ignore (i.e. bare specifiers), eg. excluding lit from the bundle from \"import { LitElement from 'lit'\" by default perla excludes all of the specifiers that are in the packages map.",
+          "type": "array",
+          "examples": [
+            [
+              "my-undeclared-dependency",
+              "@undeclared/dep"
+            ]
+          ]
+        },
+        "fileLoaders": {
+          "description": "An object with file extensions and the kind of loaders you want for them see https://esbuild.github.io/content-types  providing these options will override the defaults, please ensure your options are covered when building for the first time",
+          "type": "object",
+          "default": {
+            ".png": "file",
+            ".woff": "file",
+            ".woff2": "file",
+            ".svg": "file"
+          }
+        },
+        "jsxAutomatic": {
+          "description": "Tells esbuild to automatically inject the jsx function helpers h and Fragment and react equivalents",
+          "type": "boolean"
+        },
+        "jsxImportSource": {
+          "description": "Tells esbuild to set the source of the jsx helper imports e.g. Do not set it if you're using react",
+          "type": "string",
+          "examples": [
+            "preact",
+            "inferno"
+          ]
+        }
+      }
+    },
+    "build": {
+      "description": "Configurations for perla's production build features",
+      "type": "object",
+      "properties": {
+        "outDir": {
+          "description": "A relative path that tells to output the js files",
+          "type": "string",
+          "default": "./dist"
+        },
+        "includes": {
+          "type": "array",
+          "description": "A relative path or glob that indicates file to copy",
+          "items": {
+            "type": "string"
+          },
+          "examples": [
+            "**/**/*.html",
+            "./assets/**/*.png"
+          ]
+        },
+        "excludes": {
+          "type": "array",
+          "description": "A relative path or glob that indicates file to exclude while copying files",
+          "items": {
+            "type": "string"
+          },
+          "examples": [
+            "**/*.exclude-me.*"
+          ]
+        },
+        "emitEnvFile": {
+          "type": "boolean",
+          "default": true
+        },
+        "esBuildPath": {
+          "description": "An absolute path to the esbuild executable, on Windows it must include the .exe extension.",
+          "type": "string",
+          "deprecated": true
+        },
+        "esbuildVersion": {
+          "description": "A Semantic versioning  *version* of an esbuild release, this must match a package in the npm js registry",
+          "type": "string",
+          "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\\+([0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*))?$",
+          "default": "0.12.28",
+          "deprecated": true
+        },
         "copyPaths": {
+          "deprecated": true,
           "description": "Include/Exclude content to be copied to the final bundle",
           "type": "object",
           "properties": {
@@ -192,39 +493,41 @@
           }
         },
         "target": {
+          "deprecated": true,
           "description": "Any target defined by esbuild, check https://esbuild.github.io/api/#target",
           "type": "string",
           "default": "es2015"
         },
-        "outDir": {
-          "description": "A relative path that tells to output the js files",
-          "type": "string",
-          "default": "./dist"
-        },
         "format": {
+          "deprecated": true,
           "description": "Any format defined by esbuild, check https://esbuild.github.io/api/#format",
           "type": "string",
           "default": "esm"
         },
         "bundle": {
+          "deprecated": true,
           "description": "Enable/disable bundling",
           "type": "boolean",
           "default": true
         },
         "minify": {
+          "deprecated": true,
           "description": "Enable/disable minification",
           "type": "boolean",
           "default": true
         },
         "jsxFactory": {
+          "deprecated": true,
           "description": "This sets the function that is called for each JSX element.",
           "type": "string"
         },
         "jsxFragment": {
+          "deprecated": true,
           "description": "This sets the function that is called for each JSX fragment.",
           "type": "string"
         },
         "externals": {
+          "deprecated": true,
           "description": "Third party libraries that you want esbuild to ignore (i.e. bare specifiers), eg. excluding lit from the bundle from \"import { LitElement from 'lit'\" by default perla excludes all of the specifiers that are in the packages map.",
           "type": "array",
           "examples": [
@@ -235,6 +538,7 @@
           ]
         },
         "injects": {
+          "deprecated": true,
           "description": "A list of files to inject at the transformation phase, i.e import React from 'react' or import { h, Fragment } from 'preact', so you don't have to do it by hand on every file",
           "type": "array",
           "examples": [
@@ -247,6 +551,7 @@
           ]
         },
         "fileLoaders": {
+          "deprecated": true,
           "description": "An object with file extensions and the kind of loaders you want for them see https://esbuild.github.io/content-types  providing these options will override the defaults, please ensure your options are covered when building for the first time",
           "type": "object",
           "default": {
