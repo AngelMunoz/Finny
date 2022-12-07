@@ -1,17 +1,15 @@
 .markdown-page {
   display: flex;
-  gap: 2rem;
-  justify-content: space-evenly;
+  gap: 1em;
   position: relative;
-  height: 100%;
-  overflow: auto;
+  flex-direction: column;
+  overflow-y: auto;
 }
 
 .markdown-content {
-  margin-right: auto;
-  padding: 0 1em;
   display: flex;
   flex-direction: column;
+  flex: 1 0;
 }
 
 .markdown-content li {
@@ -34,14 +32,6 @@
   text-align: center;
 }
 
-.markdown-aside {
-  border-right: 1px inset rgb(var(--sl-color-primary-500));
-  overflow-y: auto;
-  min-width: 20vw;
-  position: sticky;
-  top: 0;
-}
-
 .markdown-content .remarks {
   margin-top: auto;
   margin-left: auto;
@@ -49,15 +39,13 @@
   max-width: 80%;
 }
 
-.markdown-content__section {
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-start;
-}
-
 .markdown-content__header {
   display: flex;
   justify-content: flex-end;
+  flex: 0 1;
+  position: relative;
+  top: 1em;
+  right: 1em;
 }
 
 @media (max-width: 768px) {

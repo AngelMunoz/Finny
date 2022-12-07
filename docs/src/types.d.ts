@@ -1,6 +1,26 @@
+type DocsVersion = `v${number}`;
+
+type ContentKind = "Content" | "Docs" | "Blogs";
+
 type MarkdownContentProps = {
   filename: string;
   section?: string;
+  version?: DocsVersion;
+  contentKind?: ContentKind;
+};
+
+type OffCanvasProps = {
+  isOpen?: boolean;
+  onClose?(): void;
+};
+
+type NavbarProps = {
+  requestMenu?(): void;
+};
+
+type ToCProps = {
+  isAside?: boolean;
+  version?: DocsVersion;
 };
 
 type FeatureListItemProps = {
@@ -12,7 +32,10 @@ type FeatureListProps = {
   features: FeatureListItemProps[];
 };
 
-type Page = "Home" | ["Content" | "Docs" | "Blog", string | undefined, string];
+type Page =
+  | ["Home"]
+  | ["Blogs"]
+  | [ContentKind, DocsVersion, string | undefined, string];
 
 type ToCLink = {
   title: string;
@@ -22,11 +45,19 @@ type ToCLink = {
 type ToCSection = {
   label: string;
   sections: ToCLink[];
+  open?: boolean;
 };
 
-type ToC = {
-  Features: ToCSection;
+type TableOfContents = {
   GettingStarted: ToCSection;
+  [key: DocsVersion]: Record<string, ToCSection>;
+};
+
+type Blog = {
+  title: string;
+  summary: string;
+  date: string;
+  url: string;
 };
 
 // NAVIGO TYPES
@@ -52,3 +83,15 @@ type Route = {
   handler: Function;
   hooks: RouteHooks;
 };
+
+// json modules
+
+declare module "*toc.json?module" {
+  var toc: TableOfContents;
+  export default toc;
+}
+
+declare module "*blogs.json?module" {
+  var blogs: Blog[];
+  export default blogs;
+}

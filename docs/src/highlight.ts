@@ -21,7 +21,7 @@ hljs.registerLanguage("json", json);
 hljs.registerLanguage("html", xml);
 
 const parser = new DOMParser();
-export async function fetchHtml(url: string) {
+export async function fetchDocs(url: string) {
   const response = await fetch(url).then((response) => {
     if (!response.ok) {
       return Promise.reject(new Error(response.statusText));

@@ -2,7 +2,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 1px inset rgb(var(--sl-color-primary-500));
+  border-bottom: 1px inset var(--sl-color-primary-500);
 }
 
 .perla-nav .nav-links,
@@ -69,8 +69,26 @@
 .card {
   width: 304px;
   height: 168px;
-  border: 1px solid rgb(var(--sl-color-primary-500));
+  border: 1px solid var(--sl-color-primary-500);
   border-radius: 5px;
+}
+
+.perla-sidenav {
+  grid-area: sidenav;
+  display: flex;
+  overflow-y: auto;
+}
+
+.perla-sidenav.hide {
+  display: none;
+}
+
+main.Home {
+  grid-template-areas: "content";
+  grid-template-columns: auto;
+}
+main.Home .perla-sidenav {
+  display: none;
 }
 
 @media (min-width: 1024px) {
@@ -89,5 +107,15 @@
   }
   .features__feature-list-item {
     padding: 0 0.5em;
+  }
+  main {
+    grid-template-areas: "content";
+    grid-template-columns: auto;
+  }
+  .perla-sidenav {
+    display: none;
+  }
+  .off-canvas-sidenav .perla-sidenav {
+    display: flex;
   }
 }

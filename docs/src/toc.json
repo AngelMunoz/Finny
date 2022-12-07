@@ -1,90 +1,157 @@
 {
-    "GettingStarted": {
-        "label": "Getting Started",
-        "sections": [
-            {
-                "title": "Overview",
-                "url": "/#/content/index"
-            },
-            {
-                "title": "Install",
-                "url": "/#/content/install"
-            },
-            {
-                "title": "Project Structure",
-                "url": "/#/content/project-structure"
-            },
-            {
-                "title": "Import Maps",
-                "url": "/#/content/import-maps"
-            },
-            {
-                "title": "Alternatives",
-                "url": "/#/content/alternatives"
-            }
-        ]
-    },
+  "GettingStarted": {
+    "label": "Getting Started",
+    "sections": [
+      {
+        "title": "Overview",
+        "url": "/#/content/index"
+      },
+      {
+        "title": "Install",
+        "url": "/#/content/install"
+      },
+      {
+        "title": "Project Structure",
+        "url": "/#/content/project-structure"
+      },
+      {
+        "title": "Import Maps",
+        "url": "/#/content/import-maps"
+      },
+      {
+        "title": "Alternatives",
+        "url": "/#/content/alternatives"
+      }
+    ]
+  },
+  "v0": {
     "Features": {
-        "label": "Development",
-        "sections": [
-            {
-                "title": "CLI",
-                "url": "/#/docs/features/cli"
-            },
-            {
-                "title": "Scaffolding",
-                "url": "/#/docs/features/scaffolding"
-            },
-            {
-                "title": "Dev Server",
-                "url": "/#/docs/features/development"
-            },
-            {
-                "title": "Package Manager",
-                "url": "/#/docs/features/package-manager"
-            },
-            {
-                "title": "Fable",
-                "url": "/#/docs/features/fable"
-            },
-            {
-                "title": "Transpilation",
-                "url": "/#/docs/features/transpilation"
-            },
-            {
-                "title": "JSX/TSX",
-                "url": "/#/docs/features/jsx-tsx"
-            },
-            {
-                "title": "CSS/JSON",
-                "url": "/#/docs/features/css-json"
-            },
-            {
-                "title": "Dev Proxy",
-                "url": "/#/docs/features/dev-proxy"
-            }
-        ]
+      "label": "Development",
+      "sections": [
+        {
+          "title": "CLI",
+          "url": "/#/v0/docs/features/cli"
+        },
+        {
+          "title": "Scaffolding",
+          "url": "/#/v0/docs/features/scaffolding"
+        },
+        {
+          "title": "Dev Server",
+          "url": "/#/v0/docs/features/development"
+        },
+        {
+          "title": "Package Manager",
+          "url": "/#/v0/docs/features/package-manager"
+        },
+        {
+          "title": "Fable",
+          "url": "/#/v0/docs/features/fable"
+        },
+        {
+          "title": "Transpilation",
+          "url": "/#/v0/docs/features/transpilation"
+        },
+        {
+          "title": "JSX/TSX",
+          "url": "/#/v0/docs/features/jsx-tsx"
+        },
+        {
+          "title": "CSS/JSON",
+          "url": "/#/v0/docs/features/css-json"
+        },
+        {
+          "title": "Dev Proxy",
+          "url": "/#/v0/docs/features/dev-proxy"
+        }
+      ]
     },
     "Build": {
-        "label": "Build",
-        "sections": [
-            {
-                "title": "Production Builds",
-                "url": "/#/docs/build/production-builds"
-            }
-        ]
+      "label": "Build",
+      "sections": [
+        {
+          "title": "Production Builds",
+          "url": "/#/v0/docs/build/production-builds"
+        }
+      ]
     },
     "Reference": {
-        "label": "Reference",
-        "sections": [
-            {
-                "title": "CLI",
-                "url": "/#/docs/reference/cli"
-            },
-            {
-                "title": "perla.json",
-                "url": "/#/docs/reference/perla"
-            }
-        ]
+      "label": "Reference",
+      "sections": [
+        {
+          "title": "CLI",
+          "url": "/#/v0/docs/reference/cli"
+        },
+        {
+          "title": "perla.json",
+          "url": "/#/v0/docs/reference/perla"
+        }
+      ]
     }
+  },
+  "v1": {
+    "Features": {
+      "label": "Development",
+      "sections": [
+        {
+          "title": "CLI",
+          "url": "/#/v1/docs/features/cli"
+        },
+        {
+          "title": "Scaffolding",
+          "url": "/#/v1/docs/features/scaffolding"
+        },
+        {
+          "title": "Dev Server",
+          "url": "/#/v1/docs/features/development"
+        },
+        {
+          "title": "Package Manager",
+          "url": "/#/v1/docs/features/package-manager"
+        },
+        {
+          "title": "Fable",
+          "url": "/#/v1/docs/features/fable"
+        },
+        {
+          "title": "Transpilation",
+          "url": "/#/v1/docs/features/transpilation"
+        },
+        {
+          "title": "JSX/TSX",
+          "url": "/#/v1/docs/features/jsx-tsx"
+        },
+        {
+          "title": "CSS/JSON",
+          "url": "/#/v1/docs/features/css-json"
+        },
+        {
+          "title": "Dev Proxy",
+          "url": "/#/v1/docs/features/dev-proxy"
+        }
+      ]
+    },
+    "Build": {
+      "label": "Build",
+      "sections": [
+        {
+          "title": "Production Builds",
+          "url": "/#/docs/v1/build/production-builds"
+        }
+      ]
+    },
+    "Reference": {
+      "label": "Reference",
+      "sections": [
+        {
+          "title": "CLI",
+          "url": "/#/v1/docs/reference/cli"
+        },
+        {
+          "title": "perla.json",
+          "url": "/#/v1/docs/reference/perla"
+        }
+      ]
+    }
+  }
 }

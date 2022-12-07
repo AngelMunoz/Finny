@@ -9,9 +9,10 @@ function FeatureListItem({ header, content }: FeatureListItemProps) {
 
 function FeatureList({ features }: FeatureListProps) {
   return (
+    //@ts-ignore
     <ul className="features__feature-list">
       {features.map((feature) => (
-        <FeatureListItem {...feature} />
+        <FeatureListItem header={feature.header} content={feature.content} />
       ))}
     </ul>
   );
@@ -22,12 +23,10 @@ const rows = [
     {
       header: "Fast",
       content: (
-        <>
-          <p>
-            Perla uses <b>.NET</b> and <b>Go</b> under the hood for a performant
-            development experience!
-          </p>
-        </>
+        <p>
+          Perla uses <b>.NET</b> and <b>Go</b> under the hood for a performant
+          development experience!
+        </p>
       ),
     },
     {
@@ -98,6 +97,7 @@ const rows = [
 
 export function Index() {
   return (
+    //@ts-ignore
     <article className="page index-page">
       <header className="index-header">
         <h1>Welcome to Perla!</h1>
@@ -113,7 +113,7 @@ export function Index() {
           size="large"
           variant="primary"
           outline
-          href="#/content/install"
+          href={`#/content/install`}
         >
           Get Started
         </sl-button>
@@ -121,7 +121,7 @@ export function Index() {
           size="large"
           variant="primary"
           outline
-          href="/#/content/index"
+          href={`/#/content/index`}
         >
           Learn More
         </sl-button>

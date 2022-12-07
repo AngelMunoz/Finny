@@ -3,31 +3,47 @@ import "./MarkdownContent.css";
 import { useEffect } from "preact/hooks";
 //@ts-ignore
 import { useSignal } from "@preact/signals";
-import { fetchHtml } from "../highlight.js";
+import { fetchDocs } from "../highlight.js";
 import { buildUrl } from "../utils.js";
-import { ToC } from "./ToC.js";
 
 const errorContent = (error: string) => [
   <p>Well, Well, Well... How the turntables have turned...</p>,
   <p>{error}</p>,
 ];
 
-const getUrlForPage = (filename: string, section?: string) => {
-  let url =
-    "https://github.com/AngelMunoz/Perla/edit/main/src/docs/assets/docs";
+function getUrlForPage(
+  kind: ContentKind | undefined,
+  version: DocsVersion | undefined,
+  filename: string,
+  section?: string
+) {
+  const contentKind = kind ?? "Docs";
+  let url = `https://github.com/AngelMunoz/Perla/edit/main/src/${contentKind.toLowerCase()}/assets`;
+  if (version) {
+    url += `/${version}`;
+  }
+
+  url += "/docs";
+
   if (section) {
     url += `/${section}`;
   }
+
   url += `/${filename}.md`;
   return url;
-};
+}
 
-export function MarkdownContent({ filename, section }: MarkdownContentProps) {
+export function MarkdownContent({
+  filename,
+  section,
+  version,
+  contentKind,
+}: MarkdownContentProps) {
   const content = useSignal("");
   const error = useSignal("");
 
   useEffect(() => {
-    fetchHtml(buildUrl(filename, section))
+    fetchDocs(buildUrl(contentKind ?? "Docs", filename, section, version))
       .then((response) => (content.value = response))
       .catch((err) => {
         content.value = "";
@@ -35,30 +51,37 @@ export function MarkdownContent({ filename, section }: MarkdownContentProps) {
       });
   }, [filename, section]);
 
+  let pageContent;
+
+  if (content.value) {
+    pageContent = (
+      //@ts-ignore
+      <article
+        className="markdown-content"
+        dangerouslySetInnerHTML={{ __html: content.value }}
+      ></article>
+    );
+  } else {
+    pageContent = (
+      <article className="markdown-content markdown-error">
+        {error.value ? errorContent(error.value) : null}
+      </article>
+    );
+  }
+
   return (
-    <article className="markdown-page">
-      <ToC isAside={true} />
-      <section className="markdown-content__section">
-        <header className="markdown-content__header">
-          <sl-button
-            type="text"
-            target="_blank"
-            href={getUrlForPage(filename, section)}
-          >
-            Edit this page
-          </sl-button>
-        </header>
-        {content.value ? (
-          <article
-            className="markdown-content"
-            dangerouslySetInnerHTML={{ __html: content.value }}
-          ></article>
-        ) : (
-          <article className="markdown-content markdown-error">
-            {error.value ? errorContent(error.value) : null}
-          </article>
-        )}
-      </section>
-    </article>
+    //@ts-ignore
+    <section className="markdown-page">
+      <header className="markdown-content__header">
+        <sl-button
+          type="text"
+          target="_blank"
+          href={getUrlForPage(contentKind, version, filename, section)}
+        >
+          Edit this page
+        </sl-button>
+      </header>
+      {pageContent}
+    </section>
   );
 }
