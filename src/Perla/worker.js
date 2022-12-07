@@ -1,4 +1,6 @@
-﻿self.addEventListener("connect", function (e) {
+﻿//@ts-check
+
+self.addEventListener("connect", function (e) {
   console.log("connected");
 });
 
@@ -29,6 +31,7 @@ function connectToSource() {
   });
 
   source.addEventListener("error", function (event) {
+    //@ts-ignore
     if (event.target.readyState === EventSource.CONNECTING) {
       needsReload = true;
     }
@@ -42,14 +45,11 @@ function connectToSource() {
     });
   });
   source.addEventListener("replace-css", function (event) {
-    const { oldName, name, content } = tryParse(event.data);
-    console.log(`Css Changed: ${oldName ? oldName : name}`);
-    self.postMessage({
-      event: "replace-css",
-      oldName,
-      name,
-      content,
-    });
+    const data = tryParse(event.data);
+    console.log(
+      `Css Changed: ${data.oldName ? data.oldName : data?.url ?? data.name}`
+    );
+    self.postMessage({ event: "replace-css", ...data });
   });
 
   source.addEventListener("compile-err", function (event) {

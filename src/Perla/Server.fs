@@ -209,20 +209,31 @@ module LiveReload =
       transform: FileTransform,
       response: HttpResponse
     ) =
+
+    let oldPath =
+      event.oldPath
+      |> Option.map (fun oldPath ->
+        $"{oldPath}".Replace(Path.DirectorySeparatorChar, '/'))
+
+    let replaced =
+      if Env.IsWindows then
+        (UMX.untag event.name).Replace(Path.DirectorySeparatorChar, '/')
+      else
+        (UMX.untag event.name)
+
+    let userPath = $"{event.userPath}/{replaced}"
+
     let data =
       Json.ToText(
-        {| oldName =
-            if transform.extension = ".css" then event.oldName else None
-           name =
-            if Env.IsWindows then
-              (UMX.untag event.path).Replace(Path.DirectorySeparatorChar, '/')
-            else
-              UMX.untag event.path
-           content = transform.content |},
-        true
+        {| oldName = event.oldName
+           oldPath = oldPath
+           name = replaced
+           url = $"{event.serverPath}/{replaced}"
+           localPath = userPath
+           content = transform.content |}
       )
 
-    Logger.log ($"HMR: CSS File Changed: {event.name}", target = Serve)
+    Logger.log ($"HMR: CSS File Changed: {userPath}", target = Serve)
     response.WriteAsync $"event:replace-css\ndata:{data}\n\n"
 
   let WriteCompileError (error: string option, response: HttpResponse) =
@@ -249,7 +260,7 @@ module Middleware =
       content: string
     ) : Task =
     let processCssAsJs (content, url: string) =
-      $"""const style=document.createElement('style');style.setAttribute("filename", "{url}");
+      $"""const style=document.createElement('style');style.setAttribute("url", "{url}");
 document.head.appendChild(style).innerHTML=`{content}`;"""
 
     let processJsonAsJs content = $"""export default {content};"""
