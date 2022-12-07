@@ -128,6 +128,7 @@ module PluginRegistry =
 
   let LoadPlugins (config: EsbuildConfig) =
     Esbuild.GetPlugin(config) |> AddPlugin
+
     for (path, content) in FileSystem.PluginFiles() do
       FromText(path, content) |> ignore
 
@@ -146,7 +147,7 @@ module PluginRegistry =
       }
 
     plugins |> AsyncSeq.ofSeq |> AsyncSeq.foldAsync folder fileInput
-  
+
 
 
 [<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
