@@ -1,11 +1,11 @@
-[dev server]: /#/docs/features/development
-[build tool]: /#/docs/build/javascript
-[package manager]: /#/docs/features/package-manager
-[pacakge search]: /#/docs/features/package-manager
-[fable]: /#/docs/features/fable
+[dev server]: /#/v0/docs/features/development
+[build tool]: /#/v0/docs/build/javascript
+[package manager]: /#/v0/docs/features/package-manager
+[pacakge search]: /#/v0/docs/features/package-manager
+[fable]: /#/v0/docs/features/fable
 [esbuild]: https://esbuild.github.io/
-[perla.jsonc]: /#/docs/reference/perla
-[scaffolding]: /#/docs/features/scaffolding
+[perla.jsonc]: /#/v0/docs/reference/perla
+[scaffolding]: /#/v0/docs/features/scaffolding
 
 # Perla CLI
 

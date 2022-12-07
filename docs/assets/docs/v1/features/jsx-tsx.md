@@ -1,4 +1,4 @@
-[typescript]: /#/docs/features/transpilation
+[typescript]: /#/v1/docs/features/transpilation
 [perla samples]: https://github.com/AngelMunoz/perla-templates
 [react]: https://reactjs.org/
 

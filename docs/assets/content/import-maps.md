@@ -1,4 +1,4 @@
-[package manager]: /#/docs/features/package-manager
+[package manager]: /#/v1/docs/features/package-manager
 
 # Import Maps
 

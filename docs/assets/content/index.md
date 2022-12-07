@@ -3,14 +3,14 @@
 [jspm]: https://jspm.org/docs/cdn
 [unpkg]: https://unpkg.com/
 [install]: /#/content/install
-[run]: /#/docs/features/development
-[build]: /#/docs/features/cli
-[jsx]: /#/docs/build/jsx-tsx
-[tsx]: /#/docs/build/jsx-tsx
+[run]: /#/v1/docs/features/development
+[build]: /#/v1/docs/features/cli
+[jsx]: /#/v1/docs/build/jsx-tsx
+[tsx]: /#/v1/docs/build/jsx-tsx
 [import maps]: /#/content/import-maps
 [perla samples]: https://github.com/AngelMunoz/perla-templates
 [real world fable]: https://github.com/AngelMunoz/real-world-fable
-[scaffolding]: /#/docs/features/scaffolding
+[scaffolding]: /#/v1/docs/features/scaffolding
 
 # Perla Dev Server
 
