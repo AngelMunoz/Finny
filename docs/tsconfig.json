@@ -1,25 +1,21 @@
 {
   "compilerOptions": {
-    "target": "ESNext",
+    "target": "ES2020",
     "useDefineForClassFields": true,
-    "lib": [
-      "DOM",
-      "DOM.Iterable",
-      "ESNext"
-    ],
-    "allowJs": false,
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "strict": true,
     "forceConsistentCasingInFileNames": true,
-    "module": "ESNext",
-    "moduleResolution": "Node",
+    "module": "ES2020",
+    "moduleResolution": "NodeNext",
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "react-jsx",
     "jsxImportSource": "preact",
-    "preserveValueImports": true
+    "preserveValueImports": true,
+    "allowJs": true,
+    "checkJs": true
   },
   "include": [
     "./src"
@@ -29,6 +25,7 @@
     "include": [
       "preact",
       "@preact/signals",
+      "preact/jsx-runtime",
       "@shoelace-style/shoelace",
       "navigo",
       "rxjs"
