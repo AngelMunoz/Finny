@@ -1,21 +1,14 @@
-FSharp.Control.AsyncSeq
-FSharp.Control.Reactive
-FSharp.SystemCommandLine
-FsToolkit.ErrorHandling.TaskResult
+FSharp.Core
+
+AngleSharp
 FSharp.UMX
 Thoth.Json.Net
-Fake.IO.FileSystem
-AngleSharp
+FsToolkit.ErrorHandling
+FsToolkit.ErrorHandling.TaskResult
 CliWrap
-Flurl.Http
-SharpZipLib
-LiteDB
-Scriban
-Zio
-Yarp.ReverseProxy
-Hellang.Middleware.SpaFallback
+
 group Tests
-Microsoft.NET.Test.Sdk
-xunit
-xunit.runner.visualstudio
-coverlet.collector
+    Microsoft.NET.Test.Sdk
+    xunit
+    xunit.runner.visualstudio
+    coverlet.collector

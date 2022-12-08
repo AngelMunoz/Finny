@@ -1,11 +1,15 @@
+framework: auto-detect
+storage: none
+
 source https://api.nuget.org/v3/index.json
 
+nuget FSharp.Core 7.0.0
 nuget FSharp.UMX 1.1.0
 nuget FSharp.Compiler.Service 42.7.101
 nuget FSharp.Control.AsyncSeq 3.2.1
 nuget FSharp.Control.Reactive 5.0.5
-nuget FsToolkit.ErrorHandling 3.0.0
-nuget FsToolkit.ErrorHandling.TaskResult 3.0.0
+nuget FsToolkit.ErrorHandling 4.0.0
+nuget FsToolkit.ErrorHandling.TaskResult 4.0.0
 nuget FSharp.SystemCommandLine >= 0.13.0-beta4 prerelease
 
 nuget AngleSharp 0.17.1
@@ -26,6 +30,10 @@ nuget Microsoft.Extensions.Logging 6.0.0
 nuget Yarp.ReverseProxy 1.1.1
 nuget Microsoft.Playwright 1.27.2
 
+# referenced by multple groups 
+nuget System.Buffers
+nuget System.Runtime.CompilerServices.Unsafe
+
 group Samples
     source https://api.nuget.org/v3/index.json
 
@@ -40,3 +48,4 @@ group Tests
     nuget xunit 2.4.2
     nuget xunit.runner.visualstudio 2.4.5
     nuget coverlet.collector 3.1.2
+    nuget System.Buffers
