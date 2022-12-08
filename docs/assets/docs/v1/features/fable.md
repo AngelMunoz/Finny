@@ -20,7 +20,7 @@ Fable projects are farly straight forward the project structure doesn't differ t
 .config/
     dotnet-tools.json
 index.html
-perla.jsonc
+perla.json
 src/
     App.fsproj
     Main.fs

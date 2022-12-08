@@ -5,7 +5,7 @@
 
 Perla is built using [Saturn] which in turn is build with [asp.net] making it a blazing fast development server.
 
-by default Perla uses these options if you don't specify them in the `perla.jsonc` > `devServer` object
+by default Perla uses these options if you don't specify them in the `perla.json` > `devServer` object
 
 - autoStart - true
 

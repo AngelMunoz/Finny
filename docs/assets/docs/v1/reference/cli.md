@@ -42,7 +42,7 @@
 
     - Skip prompts - `perla init -k full -y true`, `perla init --init-kind full --yes true`
 
-  Generate an empty `perla.jsonc` file:
+  Generate an empty `perla.json` file:
 
   - Path - `perla init -k simple -p ./client`, `perla init --init-kind simple --path ./client`
 

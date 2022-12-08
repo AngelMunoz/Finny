@@ -1,6 +1,6 @@
 ## Dev Proxy
 
-Perla offers a simple proxy implementation if you place a `proxy-config.json` next to `perla.jsonc`, Perla will automatically register any mappings you have done to it.
+Perla offers a simple proxy implementation if you place a `proxy-config.json` next to `perla.json`, Perla will automatically register any mappings you have done to it.
 
 The mapings you can use are very simple at the moment they are just a `origin -> target` kind of mapping.
 

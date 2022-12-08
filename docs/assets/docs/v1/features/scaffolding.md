@@ -55,7 +55,7 @@ Sometimes, you want to change certain parts of your template based on user input
 1. Create a github repository
 2. Add a new directory named my-template
    1. Add index.tpl.html
-   2. Add perla.jsonc
+   2. Add perla.json
    3. Add ./src/main.js
    4. Add templating.fsx
 3. upload to github
@@ -94,7 +94,7 @@ the content of the `index.tpl.html` would look like this:
 </html>
 ```
 
-`perla.jsonc`
+`perla.json`
 
 ```json
 {

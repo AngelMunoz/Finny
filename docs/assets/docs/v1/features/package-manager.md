@@ -16,7 +16,7 @@ Sometimes a package might now work in a particular source, you can simply choose
 
 ## Add Package
 
-Next to your `perla.jsonc` type and enter
+Next to your `perla.json` type and enter
 
 - `perla add <Package Name>`
 

@@ -4,10 +4,10 @@
 
 Once you have Perla [up and running](/#/content/install), you can pick a template from the [Perla Samples] and simply type `perla serve` for your dev server to start working.
 
-Perla has a set of defaults which allow you to keep a very basic structure, in reality you just need an `index.html` and an empty `perla.jsonc` file but the most ideal structure would be something like this
+Perla has a set of defaults which allow you to keep a very basic structure, in reality you just need an `index.html` and an empty `perla.json` file but the most ideal structure would be something like this
 
 ```sh
-perla.jsonc
+perla.json
 index.html
 src/
   index.js
@@ -15,7 +15,7 @@ src/
 
 With that, Perla will know what should be served and where
 
-- `perla.jsonc` must have at least these fields
+- `perla.json` must have at least these fields
 
 ```json
 {

@@ -4,7 +4,7 @@
 [pacakge search]: /#/v1/docs/features/package-manager
 [fable]: /#/v1/docs/features/fable
 [esbuild]: https://esbuild.github.io/
-[perla.jsonc]: /#/v1/docs/reference/perla
+[perla.json]: /#/v1/docs/reference/perla
 [scaffolding]: /#/v1/docs/features/scaffolding
 
 # Perla CLI
@@ -22,15 +22,15 @@ The Perla CLI is (hopefully) very straight forward it provides the following fun
 
 > Please visit [Dev Server] for a more complete introduction.
 
-The dev server is as simple as typing `perla serve`, Perla will try to look for the `perla.jsonc` configuration file and depending on the content it will start derving the content in `localhost:7331` by default, if you're not using [Fable] this is instantaneous and you can start modyfing files right away. When you use [Fable] while the dev server is running but your Fable build is still running, once it finishes the website will load as usual and recurrent changes will auto-reload as soon as the files are compiled.
+The dev server is as simple as typing `perla serve`, Perla will try to look for the `perla.json` configuration file and depending on the content it will start derving the content in `localhost:7331` by default, if you're not using [Fable] this is instantaneous and you can start modyfing files right away. When you use [Fable] while the dev server is running but your Fable build is still running, once it finishes the website will load as usual and recurrent changes will auto-reload as soon as the files are compiled.
 
-In your [perla.jsonc] look for the `devServer` object to configure it.
+In your [perla.json] look for the `devServer` object to configure it.
 
 ## Build Tool
 
-The build command is also as simple as `perla build` this will grab your `index.html` and `perla.jsonc` and produce a minified, tree-shaken, production ready courtesy of [esbuild] you can also configure
+The build command is also as simple as `perla build` this will grab your `index.html` and `perla.json` and produce a minified, tree-shaken, production ready courtesy of [esbuild] you can also configure
 
-In your [perla.jsonc] look for the `build` object to configure it.
+In your [perla.json] look for the `build` object to configure it.
 
 ## Package Manager
 

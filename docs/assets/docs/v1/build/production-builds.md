@@ -3,7 +3,7 @@
 
 ## Production Builds
 
-Perla sets a few defaults when it comes to final builds/bundles which can be overriden in the `build` property in the `perla.jsonc` configuration file.
+Perla sets a few defaults when it comes to final builds/bundles which can be overriden in the `build` property in the `perla.json` configuration file.
 
 ### Target (target)
 

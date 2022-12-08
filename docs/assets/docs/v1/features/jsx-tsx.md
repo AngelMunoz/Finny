@@ -17,14 +17,14 @@ At the moment we offer no out-of the box support for react/preact or similar cas
 
 ## React
 
-In your JSX/TSX React projects you should create a `react-shim.js` file next to your `perla.jsonc` with the following content:
+In your JSX/TSX React projects you should create a `react-shim.js` file next to your `perla.json` with the following content:
 
 ```javascript
 import * as React from "react";
 export { React };
 ```
 
-then inside your `perla.jsonc` file you need to add the `injects` array property to the `build` object:
+then inside your `perla.json` file you need to add the `injects` array property to the `build` object:
 
 ```json
 {
@@ -38,7 +38,7 @@ then inside your `perla.jsonc` file you need to add the `injects` array property
     // This property
     "injects": [
       // you can chose where to put your shim as well
-      // but we recommend it to be next to your perla.jsonc file
+      // but we recommend it to be next to your perla.json file
       "./react-shim.js"
     ]
     // other build options
@@ -51,7 +51,7 @@ then inside your `perla.jsonc` file you need to add the `injects` array property
 
 ## Preact and others
 
-In the case of JSX/TSX Preact or other similar libraries' projects, you should create a `jsx-shim.js` file next to your `perla.jsonc` with the following content:
+In the case of JSX/TSX Preact or other similar libraries' projects, you should create a `jsx-shim.js` file next to your `perla.json` with the following content:
 
 ```javascript
 import { h, Fragment } from "preact";
@@ -60,7 +60,7 @@ export { h, Fragment };
 
 Of course if you're using something other than `preact` do the correct imports
 
-then inside your `perla.jsonc` file you need to add the `injects` array property to the `build` object:
+then inside your `perla.json` file you need to add the `injects` array property to the `build` object:
 
 ```json
 {
@@ -74,7 +74,7 @@ then inside your `perla.jsonc` file you need to add the `injects` array property
     // This property
     "injects": [
       // you can chose where to put your shim as well
-      // but we recommend it to be next to your perla.jsonc file
+      // but we recommend it to be next to your perla.json file
       "./jsx-shim.js"
     ]
     // other build options
