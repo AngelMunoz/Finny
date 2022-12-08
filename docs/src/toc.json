@@ -21,6 +21,10 @@
       {
         "title": "Alternatives",
         "url": "/#/content/alternatives"
+      },
+      {
+        "title": "Migration Guides",
+        "url": "/#/content/migrate"
       }
     ]
   },
@@ -158,10 +162,6 @@
         {
           "title": "perla.json",
           "url": "/#/v1/docs/reference/perla"
-        },
-        {
-          "title": "Migrate",
-          "url": "/#/v1/docs/reference/migrate"
         }
       ]
     }
