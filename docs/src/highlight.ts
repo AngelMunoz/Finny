@@ -12,6 +12,8 @@ import bash from "highlight.js/lib/languages/bash";
 import json from "highlight.js/lib/languages/json";
 //@ts-ignore
 import xml from "highlight.js/lib/languages/xml";
+//@ts-ignore
+import diff from "highlight.js/lib/languages/diff";
 
 hljs.registerLanguage("", text);
 hljs.registerLanguage("javascript", javascript);
@@ -19,6 +21,7 @@ hljs.registerLanguage("fsharp", fsharp);
 hljs.registerLanguage("bash", bash);
 hljs.registerLanguage("json", json);
 hljs.registerLanguage("html", xml);
+hljs.registerLanguage("diff", diff);
 
 const parser = new DOMParser();
 export async function fetchDocs(url: string) {

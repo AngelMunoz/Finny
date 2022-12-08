@@ -12,6 +12,7 @@
     "highlight.js/lib/languages/json": "https://ga.jspm.io/npm:highlight.js@11.7.0/es/languages/json.js",
     "highlight.js/lib/languages/plaintext": "https://ga.jspm.io/npm:highlight.js@11.7.0/es/languages/plaintext.js",
     "highlight.js/lib/languages/xml": "https://ga.jspm.io/npm:highlight.js@11.7.0/es/languages/xml.js",
+    "highlight.js/lib/languages/diff": "https://ga.jspm.io/npm:highlight.js@11.7.0/es/languages/diff.js",
     "navigo": "https://ga.jspm.io/npm:navigo@8.11.1/lib/navigo.min.js",
     "preact": "https://ga.jspm.io/npm:preact@10.11.3/dist/preact.module.js",
     "preact/hooks": "https://ga.jspm.io/npm:preact@10.11.3/hooks/dist/hooks.module.js",
