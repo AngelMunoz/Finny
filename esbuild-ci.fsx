@@ -11,7 +11,7 @@ open ICSharpCode.SharpZipLib.GZip
 open ICSharpCode.SharpZipLib.Tar
 
 let EsbuildBinaryPath () : string =
-    "/home/runner/.local/share/perla/package/bin/esbuild" |> Path.GetFullPath
+    "/home/runner/.local/share/perla/0.15.16/package/bin/esbuild" |> Path.GetFullPath
 
 let chmodBinCmd () =
     Cli
