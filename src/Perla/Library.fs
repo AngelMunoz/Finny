@@ -17,10 +17,11 @@ module Lib =
       None
 
   let ExtractDependencyInfoFromUrl url =
+
     match url with
-    | ParseRegex (Regex(@"https://cdn.skypack.dev/pin/(@?[^@]+)@v([\d.]+)(-?[-]\w+[\d.]?[\d+]+)?")) [ name
-                                                                                                      version
-                                                                                                      preview ] ->
+    | ParseRegex (Regex(@"https://cdn.skypack.dev/pin/(@?[^@]+)@v([\d.]+)(-?\w+(?!\w+)[\d.]?[\d+]+)?")) [ name
+                                                                                                          version
+                                                                                                          preview ] ->
       Some(Provider.Skypack, name, $"{version}{preview}")
     | ParseRegex (Regex(@"https://cdn.jsdelivr.net/npm/(@?[^@]+)@([\d.]+)(-?[-]\w+[\d.]?[\d+]+)?")) [ name
                                                                                                       version
