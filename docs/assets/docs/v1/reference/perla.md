@@ -9,11 +9,11 @@ The `perla.json` file es the main configuration file with this file you an contr
 The `perla.json.importmap` is the actual [import map] used by your application in both development and production
 You can write comments on this file to keep tabs on why are things the way they are.
 
-We offer a [JSON schema] for the `perla.json` file so you can get autocompletition in editors like VSCode and any other that supports [JSON Schemas]
+We offer a [JSON schema] for the `perla.json` file so you can get intellisense in editors like VSCode and any other that supports [JSON Schemas]
 
-Most of the options in the `perla.json` file are optional, we have set defaults already for these properties.
+All of the options in the `perla.json` file are optional, we have set defaults already for these properties.
 
-> If you set any property in the `perla.json` file you will override the defaults, we don't do any kind of _merge_ strategy on objects or arrays, so if you do it you need to provide the whole object. If this is a concern for you please raise an issue to be aware of it.
+> If you set any property in the `perla.json` file you will override the defaults, while in v1 we have made sure to update parts of the schema to tell you if yu're missing something vital, we don't do any kind of _merge_ strategy on objects or arrays, so if you do it you need to provide the whole object. If this is a concern for you please raise an issue to be aware of it.
 
 A full `perla.json` file looks like this:
 
@@ -155,3 +155,5 @@ A full `perla.json` file looks like this:
   }
 }
 ```
+
+Please keep in mind that most of the time you need at most like 4-5 properties and a couple of nodes, the less you have to configure in your app the better if you think we could simplfy things even more please let us know!

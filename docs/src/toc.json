@@ -98,20 +98,28 @@
           "url": "/#/v1/docs/features/cli"
         },
         {
-          "title": "Scaffolding",
-          "url": "/#/v1/docs/features/scaffolding"
+          "title": "Package Manager",
+          "url": "/#/v1/docs/features/package-manager"
         },
         {
           "title": "Dev Server",
           "url": "/#/v1/docs/features/development"
         },
         {
-          "title": "Package Manager",
-          "url": "/#/v1/docs/features/package-manager"
-        },
-        {
           "title": "Fable",
           "url": "/#/v1/docs/features/fable"
+        },
+        {
+          "title": "Plugins",
+          "url": "/#/v1/docs/features/plugins"
+        },
+        {
+          "title": "Testing",
+          "url": "/#/v1/docs/features/testing"
+        },
+        {
+          "title": "Scaffolding",
+          "url": "/#/v1/docs/features/scaffolding"
         },
         {
           "title": "Transpilation",
@@ -150,6 +158,10 @@
         {
           "title": "perla.json",
           "url": "/#/v1/docs/reference/perla"
+        },
+        {
+          "title": "Migrate",
+          "url": "/#/v1/docs/reference/migrate"
         }
       ]
     }
