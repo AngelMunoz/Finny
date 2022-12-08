@@ -179,7 +179,10 @@
         },
         "includes": {
           "description": "A relative path or globbing pattern to include test files",
-          "type": "string",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
           "examples": [
             "**/featureA/*.spec.js",
             "**/*.test.js"
@@ -187,7 +190,10 @@
         },
         "excludes": {
           "description": "A relative path or globbing pattern to exclude test files",
-          "type": "string",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
           "examples": [
             "**/feature-b/*.spec.js",
             "**/*.e2e.js"
