@@ -13,7 +13,7 @@ val Default_Templates_Repository: string = "AngelMunoz/perla-templates"
 val Default_Templates_Repository_Branch: string = "main"
 
 [<Literal>]
-val PerlaConfigName: string = "perla.jsonc"
+val PerlaConfigName: string = "perla.json"
 
 [<Literal>]
 val IndexFile: string = "index.html"
@@ -37,7 +37,7 @@ val TemplatesDatabase: string = "templates.db"
 val TemplatesDirectory: string = "templates"
 
 [<Literal>]
-val ImportMapName: string = "perla.jsonc.importmap"
+val ImportMapName: string = "perla.json.importmap"
 
 [<Literal>]
 val TemplatingScriptName: string = "templating.fsx"

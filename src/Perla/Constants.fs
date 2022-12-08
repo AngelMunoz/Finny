@@ -16,7 +16,7 @@ let ArtifactsDirectoryname = "perla"
 let Default_Templates_Repository_Branch = "main"
 
 [<Literal>]
-let PerlaConfigName = "perla.jsonc"
+let PerlaConfigName = "perla.json"
 
 [<Literal>]
 let IndexFile = "index.html"
@@ -40,7 +40,7 @@ let TemplatesDatabase = "templates.db"
 let TemplatesDirectory = "templates"
 
 [<Literal>]
-let ImportMapName = "perla.jsonc.importmap"
+let ImportMapName = "perla.json.importmap"
 
 [<Literal>]
 let TemplatingScriptName = "templating.fsx"

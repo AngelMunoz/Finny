@@ -409,7 +409,7 @@ let fromFile (fileContent: JsonObject option) (config: PerlaConfig) =
             defaultArg decoded.devDependencies config.devDependencies }
     | Error err ->
       Logger.log (
-        $"[bold red] Filed to deserialize perla.jsonc with error {err}"
+        $"[bold red] Filed to deserialize perla.json with error {err}"
       )
 
       config

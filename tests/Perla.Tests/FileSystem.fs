@@ -23,7 +23,7 @@ type FileSystem() =
     Assert.Contains(UMX.untag FileSystem.PerlaArtifactsRoot, templates)
 
   [<Fact>]
-  member _.``GetConfigPath brings Perla perla.jsonc path correctly``() =
+  member _.``GetConfigPath brings Perla perla.json path correctly``() =
     let expected = FileSystem.CurrentWorkingDirectory() |> UMX.untag
 
     let actual =
