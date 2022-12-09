@@ -14,7 +14,7 @@ module Types =
     | Port of int
     | Host of string
     | LiveReload of bool
-    | UseSSl of bool
+    | UseSSL of bool
 
   [<RequireQualifiedAccess>]
   type TestingField =
@@ -55,7 +55,7 @@ module Defaults =
     { port = 7331
       host = "127.0.0.1"
       liveReload = true
-      useSSL = true
+      useSSL = false
       proxy = Map.empty }
 
   let EsbuildConfig: EsbuildConfig =
@@ -109,22 +109,17 @@ module Defaults =
       devDependencies = Seq.empty }
 
 [<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
-module Json =
-  open Perla.FileSystem
+module internal Json =
   open Perla.Json
 
-  let getConfigDocument () : JsonObject option =
-    match FileSystem.PerlaConfigText() with
-    | Some content ->
-      JsonObject
-        .Parse(
-          content,
-          nodeOptions = Json.DefaultJsonNodeOptions(),
-          documentOptions = Json.DefaultJsonDocumentOptions()
-        )
-        .AsObject()
-      |> Some
-    | None -> None
+  let getConfigDocument (perlaJsonText: string) : JsonObject =
+    JsonObject
+      .Parse(
+        perlaJsonText,
+        nodeOptions = Json.DefaultJsonNodeOptions(),
+        documentOptions = Json.DefaultJsonDocumentOptions()
+      )
+      .AsObject()
 
   let updateFileFields
     (jsonContents: byref<JsonObject option>)
@@ -258,7 +253,14 @@ let fromCli
   let configuration = defaultArg runConfig Defaults.PerlaConfig.runConfiguration
   let provider = defaultArg provider Defaults.PerlaConfig.provider
 
-  let serverOptions = defaultArg serverOptions []
+  let serverOptions =
+    match serverOptions |> Option.defaultValue Seq.empty |> Seq.toList with
+    | [] ->
+      [ DevServerField.Port config.devServer.port
+        DevServerField.Host config.devServer.host
+        DevServerField.LiveReload config.devServer.liveReload
+        DevServerField.UseSSL config.devServer.useSSL ]
+    | other -> other
 
   let defaults =
     Defaults.DevServerConfig.port,
@@ -274,7 +276,7 @@ let fromCli
            | Port port -> port, host, liveReload, useSSL
            | Host host -> port, host, liveReload, useSSL
            | LiveReload liveReload -> port, host, liveReload, useSSL
-           | UseSSl useSSL -> port, host, liveReload, useSSL)
+           | UseSSL useSSL -> port, host, liveReload, useSSL)
          defaults
 
   let testing =
@@ -415,16 +417,24 @@ let fromFile (fileContent: JsonObject option) (config: PerlaConfig) =
       config
   | None -> config
 
-/// <summary>
-/// </summary>
-type Configuration() =
+type ConfigurationManager
+  (
+    readPerlaJsonText: unit -> string option,
+    writePerlaJsonText: JsonObject option -> unit
+  ) =
+
+  let _getPerlaText () =
+    match readPerlaJsonText () with
+    | Some text -> text |> Json.getConfigDocument |> Some
+    | None -> None
 
   let mutable _runConfig = None
   let mutable _provider = None
   let mutable _serverOptions = None
 
   let mutable _testingOptions = None
-  let mutable _fileConfig = Json.getConfigDocument ()
+
+  let mutable _fileConfig = _getPerlaText ()
 
   let mutable _configContents =
     Defaults.PerlaConfig
@@ -457,13 +467,17 @@ type Configuration() =
     runPipeline ()
 
   member _.UpdateFromFile() =
-    _fileConfig <- Json.getConfigDocument ()
+    _fileConfig <- _getPerlaText ()
     runPipeline ()
 
   member _.WriteFieldsToFile(newValues: PerlaWritableField seq) =
     Json.updateFileFields &_fileConfig newValues
-    FileSystem.FileSystem.WritePerlaConfig(?config = _fileConfig)
+    writePerlaJsonText _fileConfig
     runPipeline ()
 
 
-let Configuration = Configuration()
+let ConfigurationManager =
+  ConfigurationManager(
+    FileSystem.FileSystem.PerlaConfigText,
+    (fun content -> FileSystem.FileSystem.WritePerlaConfig(?config = content))
+  )

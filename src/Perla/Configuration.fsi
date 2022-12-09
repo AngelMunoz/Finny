@@ -1,8 +1,11 @@
 module Perla.Configuration
 
 open Perla.Types
+open Perla.Units
+open FSharp.UMX
 open Perla.PackageManager.Types
 open System.Runtime.InteropServices
+open System.Text.Json.Nodes
 
 [<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
 module Types =
@@ -10,7 +13,7 @@ module Types =
         | Port of int
         | Host of string
         | LiveReload of bool
-        | UseSSl of bool
+        | UseSSL of bool
 
     [<RequireQualifiedAccess>]
     type TestingField =
@@ -47,11 +50,34 @@ module Defaults =
     val TestConfig: TestConfig
     val PerlaConfig: PerlaConfig
 
+val internal fromEnv: config: PerlaConfig -> PerlaConfig
+
+val internal fromCli:
+    runConfig: RunConfiguration option ->
+    provider: Provider option ->
+    serverOptions: DevServerField seq option ->
+    testingOptions: TestingField seq option ->
+    config: PerlaConfig ->
+        PerlaConfig
+
+val internal fromFile: fileContent: JsonObject option -> config: PerlaConfig -> PerlaConfig
+
+[<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
+module internal Json =
+
+    val getConfigDocument: perlaJsonText: string -> JsonObject
+
 /// <summary>
+/// Represents a store for the perla configuration for the current session
+/// This class ensures there's a central way to update perla's configuration
+/// either by CLI, or the perla.json file, this also ensures some of the
+/// configuration fields are written correctly to perla.json
 /// </summary>
 [<Class>]
-type Configuration =
-    new: unit -> Configuration
+type ConfigurationManager =
+    new:
+        readPerlaJsonText: (unit -> string option) * writePerlaJsonText: (JsonObject option -> unit) ->
+            ConfigurationManager
     member CurrentConfig: PerlaConfig
     member UpdateFromCliArgs:
         [<Optional>] ?runConfig: RunConfiguration *
@@ -62,4 +88,4 @@ type Configuration =
     member UpdateFromFile: unit -> unit
     member WriteFieldsToFile: newValues: seq<PerlaWritableField> -> unit
 
-val Configuration: Configuration
+val ConfigurationManager: ConfigurationManager

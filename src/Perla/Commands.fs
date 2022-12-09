@@ -488,7 +488,7 @@ module Handlers =
 
   let runList (options: ListPackagesOptions) =
     task {
-      let config = Configuration.CurrentConfig
+      let config = ConfigurationManager.CurrentConfig
 
       match options.format with
       | ListFormat.HumanReadable ->
@@ -608,7 +608,7 @@ module Handlers =
     task {
       let name = options.package
       Logger.log ($"Removing: [red]{name}[/]", escape = false)
-      let config = Configuration.CurrentConfig
+      let config = ConfigurationManager.CurrentConfig
 
       let map = FileSystem.GetImportMap()
 
@@ -625,7 +625,7 @@ module Handlers =
 
         deps, devDeps
 
-      Configuration.WriteFieldsToFile(
+      ConfigurationManager.WriteFieldsToFile(
         [ PerlaWritableField.Dependencies dependencies
           PerlaWritableField.DevDependencies devDependencies ]
       )
@@ -655,12 +655,12 @@ module Handlers =
 
   let runAdd (options: AddPackageOptions) =
     task {
-      Configuration.UpdateFromCliArgs(
+      ConfigurationManager.UpdateFromCliArgs(
         ?runConfig = options.mode,
         ?provider = options.source
       )
 
-      let config = Configuration.CurrentConfig
+      let config = ConfigurationManager.CurrentConfig
       let package, packageVersion = parsePackageName options.package
 
       match options.alias with
@@ -713,7 +713,9 @@ module Handlers =
           PerlaWritableField.Dependencies deps,
           PerlaWritableField.DevDependencies devDeps
 
-        Configuration.WriteFieldsToFile([ dependencies; devDependencies ])
+        ConfigurationManager.WriteFieldsToFile(
+          [ dependencies; devDependencies ]
+        )
 
         FileSystem.WriteImportMap(map) |> ignore
         return 0
@@ -724,12 +726,12 @@ module Handlers =
 
   let runRestore (options: RestoreOptions) =
     task {
-      Configuration.UpdateFromCliArgs(
+      ConfigurationManager.UpdateFromCliArgs(
         ?runConfig = options.mode,
         ?provider = options.source
       )
 
-      let config = Configuration.CurrentConfig
+      let config = ConfigurationManager.CurrentConfig
 
       Logger.log "Regenerating import map..."
 
@@ -768,8 +770,8 @@ module Handlers =
 
   let runBuild (cancel: CancellationToken, args: BuildOptions) =
     task {
-      Configuration.UpdateFromCliArgs(?runConfig = args.mode)
-      let config = Configuration.CurrentConfig
+      ConfigurationManager.UpdateFromCliArgs(?runConfig = args.mode)
+      let config = ConfigurationManager.CurrentConfig
 
       do! maybeFable (config, cancel)
 
@@ -988,16 +990,16 @@ module Handlers =
           | Some host -> DevServerField.Host host
           | None -> ()
           match options.ssl with
-          | Some ssl -> DevServerField.UseSSl ssl
+          | Some ssl -> DevServerField.UseSSL ssl
           | None -> () ]
 
-      Configuration.UpdateFromCliArgs(
+      ConfigurationManager.UpdateFromCliArgs(
         ?runConfig = options.mode,
         serverOptions = cliArgs
       )
 
 
-      let config = Configuration.CurrentConfig
+      let config = ConfigurationManager.CurrentConfig
 
       let fableEvents =
         match config.fable with
@@ -1048,7 +1050,7 @@ module Handlers =
       |> Observable.map (fun _ -> app.StopAsync() |> Async.AwaitTask)
       |> Observable.switchAsync
       |> Observable.add (fun _ ->
-        Configuration.UpdateFromFile()
+        ConfigurationManager.UpdateFromFile()
         app <- Server.GetServerApp(config, fileChanges, compilerErrors)
         app.StartAsync(cancel) |> ignore)
 
@@ -1096,7 +1098,7 @@ module Handlers =
 
   let runTesting (cancel: CancellationToken, options: TestingOptions) =
     task {
-      Configuration.UpdateFromCliArgs(
+      ConfigurationManager.UpdateFromCliArgs(
         testingOptions =
           [ match options.browsers with
             | Some value -> TestingField.Browsers value
@@ -1119,9 +1121,9 @@ module Handlers =
       )
 
       let config =
-        { Configuration.CurrentConfig with
+        { ConfigurationManager.CurrentConfig with
             mountDirectories =
-              Configuration.CurrentConfig.mountDirectories
+              ConfigurationManager.CurrentConfig.mountDirectories
               |> Map.add
                    (UMX.tag<ServerUrl> "/tests")
                    (UMX.tag<UserPath> "./tests") }
@@ -1194,7 +1196,7 @@ module Handlers =
       |> Observable.map (fun _ -> app.StopAsync() |> Async.AwaitTask)
       |> Observable.switchAsync
       |> Observable.map (fun _ ->
-        Configuration.UpdateFromFile()
+        ConfigurationManager.UpdateFromFile()
         app <- Server.GetServerApp(config, fileChanges, compilerErrors)
         app.StartAsync(cancel) |> Async.AwaitTask)
       |> Observable.switchAsync
