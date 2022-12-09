@@ -145,6 +145,24 @@ Page.subscribe(
   }
 );
 
+function NoticesBanner() {
+  return (
+    <sl-alert variant="primary" open closable>
+      <sl-icon slot="icon" name="info-circle"></sl-icon>
+      <strong>Perla V1.0.0 betas are out!</strong>
+      <p>
+        Hello there, the next Perla version is in the works as well as the
+        documentation website, please keep in mind that some of the docs (even
+        those in the v1 section) are still out of date, we're updating them as
+        soon as we can.
+        <br /> Feeling Adventurous? Get the latest bits:
+        <br />
+        <strong>dotnet tool install --global Perla --prerelease</strong>
+      </p>
+    </sl-alert>
+  );
+}
+
 export function App() {
   const isOpen = useSignal(false);
 
@@ -161,6 +179,7 @@ export function App() {
           isOpen.value = false;
         }}
       />
+      <NoticesBanner />
       <main className={`${route.value}`}>
         {sidenav}
         {content.value}

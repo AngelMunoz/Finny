@@ -4,6 +4,8 @@
 [unpkg]: https://unpkg.com/
 [snowpack remote sources]: https://www.snowpack.dev/reference/configuration#packageoptionssourceremote
 
+> **_NOTE_**: This documentation is still being updated to reflect changes for V1, the contents may be outdated while this notice is still present
+
 # Package Manager
 
 Perla tries to simplify the tooling for your applications reducing the amount of tools you need to build/develop the applications themselves in the case of Perla we go a step further (inspired by [snowpack remote sources]) and pull your dependencies directly from the cloud using the following Content Delivery Networks

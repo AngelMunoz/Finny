@@ -1,6 +1,8 @@
 [esbuild]: https://esbuild.github.io/
 [esbuild has some caveats]: https://esbuild.github.io/content-types/#typescript-caveats
 
+> **_NOTE_**: This documentation is still being updated to reflect changes for V1, the contents may be outdated while this notice is still present
+
 # Transpilation
 
 Perla supports Typescript, JSX, TSX, and of course Modern Javascript, Mainly thanks to [esbuild].

@@ -1,6 +1,8 @@
 [target]: https://esbuild.github.io/api/#target
 [development]: /#/v1/docs/features/development?id=environment-variable-support
 
+> **_NOTE_**: This documentation is still being updated to reflect changes for V1, the contents may be outdated while this notice is still present
+
 ## Production Builds
 
 Perla sets a few defaults when it comes to final builds/bundles which can be overriden in the `build` property in the `perla.json` configuration file.

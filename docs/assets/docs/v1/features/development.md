@@ -1,9 +1,10 @@
-[saturn]: https://saturnframework.org/
 [asp.net]: https://dotnet.microsoft.com/apps/aspnet
+
+> **_NOTE_**: This documentation is still being updated to reflect changes for V1, the contents may be outdated while this notice is still present
 
 # Development Server
 
-Perla is built using [Saturn] which in turn is build with [asp.net] making it a blazing fast development server.
+Perla is built using [asp.net] making it a performant, solid and battle tested development server.
 
 by default Perla uses these options if you don't specify them in the `perla.json` > `devServer` object
 

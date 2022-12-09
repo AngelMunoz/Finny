@@ -2,6 +2,8 @@
 [perla samples]: https://github.com/AngelMunoz/perla-templates
 [react]: https://reactjs.org/
 
+> **_NOTE_**: This documentation is still being updated to reflect changes for V1, the contents may be outdated while this notice is still present
+
 # JSX/TSX
 
 JSX is an XML like dialect of javascript created by [React] as with [typescript] we use esbuild to transpile these files on the fly there's nothing in particular needed to support JSX/TSX besides two things:

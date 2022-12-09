@@ -32,8 +32,8 @@ Perla provides two ways for installation
    - Windows
      - Press <kbd>Win</kbd>+<kbd>R</kbd>
      - Type `SystemPropertiesAdvanced.exe` and press enter
-     - Press the `Environment Variables` button
-     - Update the `PATH` variable with the location of your `Perla.exe` file
+     - Press the `Environment Variables` button at the bottom of the dialog
+     - Update the `PATH` variable with the location of your `perla.exe` file
      - Log out and Log in again for it to make effect
 
 # .NET Users
@@ -42,12 +42,14 @@ The easiest way to install Perla is using .NET since we provide it as a .NET too
 
 To install it as a tool:
 
+> **_NOTE_**: Perla V1 is in the works, and early previews are out already, if you want to try the early bits, provide feedback or just get a feel of what's next pleas add the `--prerelease` flag to the commands below
+
 - As a global tool:
   ```sh
-  dotnet tool install --global Perla
+  dotnet tool install --global Perla # --prerelease # grab the latest pre-release
   ```
 - As a local tool:
   ```sh
   dotnet new tool-manifest # if you are setting up for the first time
-  dotnet tool install --local Perla
+  dotnet tool install --local Perla # --prerelease # grab the latest pre-release
   ```

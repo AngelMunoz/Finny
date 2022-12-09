@@ -1,6 +1,8 @@
 [css module scripts]: https://web.dev/css-module-scripts/
 [lit]: https://lit.dev
 
+> **_NOTE_**: This documentation is still being updated to reflect changes for V1, the contents may be outdated while this notice is still present
+
 # CSS
 
 CSS Files are supported out of the box when you import them as "side effect" files

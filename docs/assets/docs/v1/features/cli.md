@@ -7,6 +7,8 @@
 [perla.json]: /#/v1/docs/reference/perla
 [scaffolding]: /#/v1/docs/features/scaffolding
 
+> **_NOTE_**: This documentation is still being updated to reflect changes for V1, the contents may be outdated while this notice is still present
+
 # Perla CLI
 
 The Perla CLI is (hopefully) very straight forward it provides the following functionalities

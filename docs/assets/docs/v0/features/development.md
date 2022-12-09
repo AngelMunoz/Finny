@@ -3,7 +3,7 @@
 
 # Development Server
 
-Perla is built using [Saturn] which in turn is build with [asp.net] making it a blazing fast development server.
+Perla is built using [asp.net] making it a performant, solid and battle tested development server.
 
 by default Perla uses these options if you don't specify them in the `perla.jsonc` > `devServer` object
 

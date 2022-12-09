@@ -8,7 +8,7 @@
 [jsx]: /#/v1/docs/build/jsx-tsx
 [tsx]: /#/v1/docs/build/jsx-tsx
 [import maps]: /#/content/import-maps
-[perla samples]: https://github.com/AngelMunoz/perla-templates
+[perla templates]: https://github.com/AngelMunoz/perla-templates
 [real world fable]: https://github.com/AngelMunoz/real-world-fable
 [scaffolding]: /#/v1/docs/features/scaffolding
 
@@ -25,30 +25,30 @@ Our Belief is that you shouldn't be obligated to learn node.js nor have a comple
 
 If you are learning or are a seasoned developer, the priority should be on your application, not the tooling around it.
 
-Perla leverages the blazing fast **.NET** and **Go** ecosystems to give you a simple and effective development server.
+Perla leverages the excelent **.NET** and **Go** ecosystems to give you a simple and effective development server.
 
 Once you [install] it simply run:
 
 ```sh
-# run once after you install it
-perla init -k full # download templates
+perla init
+
 # generate a new project
-perla new -t perla-templates/vue-jsx -n my-vue-project
-cd my-vue-project
-perla serve # start developing
+perla new my-preact-project perla-templates/preact-jsx && cd my-preact-project
+
+perla serve
 ```
 
 > Looking for other frameworks?
 >
 > Check the complete list of default templates
 >
-> - `perla -lt` (or the long name: `perla --list-templates`)
+> - `perla templates:list`
 
 Check [scaffolding] to see how you can author your own templates as well!
 
 ### How do Perla projects look like?
 
-Check the [perla samples] where you can projects written in:
+Check the [perla templates] where you can projects written in:
 
 - Javascript (Lit)
 - Typescript (Lit)

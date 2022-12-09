@@ -1,16 +1,18 @@
 ## Dev Proxy
 
-Perla offers a simple proxy implementation if you place a `proxy-config.json` next to `perla.json`, Perla will automatically register any mappings you have done to it.
+Perla offers a simple reverse proxy implementation, to add a dev proxy, add the `devServer.proxy` node within `perla.json`, Perla will automatically register any mappings you have put in.
 
 The mapings you can use are very simple at the moment they are just a `origin -> target` kind of mapping.
 
 ```json
 {
-  // matches a literal endpoint
-  "/api/configuration": "https://my-api.com/configuration"
-  // matches anything that comes after /v1/api/
-  "/v1/api/{**catch-all}": "http://localhost:5000/api",
-  // matches anything that comes after /vnext/api/
-  "/vnext/api/{**catch-all}": "https://dev.my-api.com:7000/api/vnext"
+  "devServer": {
+    "proxy": {
+      // matches a literal endpoint: https://my-api.com/api/configuration
+      "/api/configuration": "https://my-api.com",
+      // matches anything that comes after /api/: http://localhost:5000/v1/api/products
+      "/api/{**catch-all}": "http://localhost:5000/v1"
+    }
+  }
 }
 ```

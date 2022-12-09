@@ -15,14 +15,31 @@ src/
 
 With that, Perla will know what should be served and where
 
-- `perla.json` must have at least these fields
+- `perla.json` isn't actually required to be there for very simple functionality, for most cases all of the settings are optional as we provide defaults for every section of the file but for clarity we'll use the following example
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/AngelMunoz/Perla/v0.14.0/perla.schema.json",
-  "index": "./index.html"
+  "$schema": "https://raw.githubusercontent.com/AngelMunoz/Perla/v1.0.0/perla.schema.json",
+  "index": "./index.html",
+  "provider": "jspm",
+  "runConfiguration": "production",
+  "mountDirectories": {
+    "/src": "./src"
+  },
+  "devServer": {
+    "port": 7331,
+    "host": "127.0.0.1"
+  }
 }
 ```
+
+> **_NOTE_**: The Json Schema version should always point to the closest released version you're currenly using to ensure you get the correct intellisense by your editor. In the case of previews you can point to the latest pre-release tag like:
+>
+> - `AngelMunoz/Perla/v1.0.0-beta-005/perla.schema.json`
+>
+> or to the dev branch:
+>
+> - `AngelMunoz/Perla/dev/perla.schema.json`
 
 - `index.html` must have at least these fields
 
@@ -37,7 +54,7 @@ With that, Perla will know what should be served and where
     <!-- This shim is required for import maps to work propperly-->
     <script
       async
-      src="https://ga.jspm.io/npm:es-module-shims@1.0.0/dist/es-module-shims.js"
+      src="https://ga.jspm.io/npm:es-module-shims@1.6.2/dist/es-module-shims.js"
       crossorigin="anonymous"
     ></script>
   </head>
@@ -51,4 +68,10 @@ With that, Perla will know what should be served and where
 </html>
 ```
 
-- `index.js` should be a JS module
+- `index.js` a non-empty javascript module e.g.
+
+```js
+function greeting() {
+  console.log("Hello, there!");
+}
+```

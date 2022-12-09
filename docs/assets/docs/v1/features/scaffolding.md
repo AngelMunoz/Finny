@@ -1,6 +1,8 @@
 [scriban]: https://github.com/scriban/scriban
 [scriban templates]: https://github.com/scriban/scriban/blob/master/doc/language.md
 
+> **_NOTE_**: This documentation is still being updated to reflect changes for V1, the contents may be outdated while this notice is still present
+
 ## Scaffolding
 
 Getting started with Perla projects is very simple
