@@ -18,7 +18,7 @@ routing.registerRoute(({ event, request, url }) => {
 
 routing.registerRoute(({ event, request, url }) => {
   return isGet(request) ** !isIndex(url) && pathEndsWith(url, ".html");
-}, new strategies.CacheFirst({ cacheName: "markdown" }));
+}, new strategies.StaleWhileRevalidate({ cacheName: "markdown" }));
 
 routing.registerRoute(
   ({ event, request, url }) =>
