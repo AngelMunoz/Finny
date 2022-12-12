@@ -1,13 +1,8 @@
-import { html, render, LitElement } from "lit";
-import styles from "./csmod.css?assertion" assert { type: "css" };
+import { html, LitElement } from "lit";
 
 class MySampleEl extends LitElement {
-  static styles = [styles];
   render() {
-    return html`
-      <header>This is a Lit Web Component</header>
-      <section>Using CSS Module Assertions :)</section>
-    `;
+    return html` <header>This is a Lit Web Component</header> `;
   }
 }
 
