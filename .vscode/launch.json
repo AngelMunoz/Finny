@@ -95,7 +95,7 @@
             "preLaunchTask": "build",
             "program": "${workspaceFolder}/src/Perla/bin/Debug/net6.0/Perla.dll",
             "args": [
-                "templates:add",
+                "templates:update",
                 "AngelMunoz/perla-templates",
                 "dev"
             ],

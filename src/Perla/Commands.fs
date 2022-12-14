@@ -570,6 +570,12 @@ module Handlers =
           Templates.FindOne(TemplateSearchKind.FullName(username, repository))
         with
         | Some template ->
+          let branch =
+            if String.IsNullOrWhiteSpace branch then
+              opts.branch
+            else
+              branch
+
           match!
             Logger.spinner ("Updating Template", updateTemplate template branch)
           with
