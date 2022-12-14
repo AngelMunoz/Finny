@@ -84,7 +84,7 @@ module Operations =
 
     let buildBinaries (project: string) (runtime: string) =
         let cmd =
-            let framework = "net7.0"
+            let framework = "net6.0"
             let outdir = $"{outDir}/{runtime}"
             $"publish {project} -c Release -f {framework} -r {runtime} --self-contained -p:Version={PackageVersion} -o {outdir}"
 
