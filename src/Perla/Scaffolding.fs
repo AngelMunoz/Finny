@@ -166,7 +166,10 @@ module Scaffolding =
           )
         with
         | Some repo ->
-          let updated = { repo with updatedAt = Nullable(DateTime.Now) }
+          let updated =
+            { repo with
+                updatedAt = Nullable(DateTime.Now)
+                branch = template.branch }
 
           try
             let! path =
