@@ -133,7 +133,7 @@ module FileSystem =
     try
       Directory.Delete(targetPath, true)
     with ex ->
-      Logger.log ex.Message
+      ()
 
     use zip = new ZipArchive(stream)
     zip.ExtractToDirectory(UMX.untag Templates, true)
