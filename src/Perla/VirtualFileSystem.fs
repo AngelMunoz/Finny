@@ -61,10 +61,17 @@ module VirtualFileSystem =
     path
     : IObservable<FileChangedEvent> =
     let watcher =
+      let filters =
+        (IO.NotifyFilters.FileName
+         ||| IO.NotifyFilters.Size
+         ||| IO.NotifyFilters.LastWrite
+         ||| IO.NotifyFilters.CreationTime
+         ||| IO.NotifyFilters.DirectoryName)
+
       new IO.FileSystemWatcher(
-        path,
+        IO.Path.GetFullPath(path),
         IncludeSubdirectories = true,
-        NotifyFilter = (IO.NotifyFilters.FileName ||| IO.NotifyFilters.Size),
+        NotifyFilter = filters,
         EnableRaisingEvents = true
       )
 
@@ -95,9 +102,9 @@ module VirtualFileSystem =
       |> Observable.map (fun m ->
         { serverPath = serverPath
           userPath = userPath
-          oldPath = None
-          oldName = None
-          changeType = Created
+          oldPath = Some(UMX.tag m.FullPath)
+          oldName = Some(UMX.tag m.Name)
+          changeType = Deleted
           path = UMX.tag m.FullPath
           name = UMX.tag m.Name })
 
@@ -191,7 +198,10 @@ module VirtualFileSystem =
         return memoryFileSystem.WriteAllText(path, transform.content)
     }
 
-  let tryReadFile (readFile: string -> Task<string>) (event: FileChangedEvent) =
+  let tryReadFile
+    (readFile: string -> Task<string option>)
+    (event: FileChangedEvent)
+    =
     taskOption {
       try
         let! content = readFile (UMX.untag event.path)
@@ -251,14 +261,24 @@ module VirtualFileSystem =
     | Created
     | Renamed
     | Changed -> serverFs.WriteAllText(updatadPath, transform.content)
-    | Deleted -> ()
+    | Deleted ->
+      match serverFs.TryGetFileSystemEntry(updatadPath) |> Option.ofObj with
+      | Some entry -> entry.Delete()
+      | None -> ()
 
     event, transform
 
   let serverPaths = lazy (new MemoryFileSystem())
 
   let ApplyVirtualOperations plugins stream =
-    let withReadFile path = IO.File.ReadAllTextAsync path
+    let withReadFile path =
+      taskOption {
+        try
+          return! IO.File.ReadAllTextAsync path
+        with ex ->
+          return! None
+      }
+
     let withFs = serverPaths.Value
 
     let withFilter event =
