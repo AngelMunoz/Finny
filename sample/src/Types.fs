@@ -8,19 +8,23 @@ type Language =
   | EnUs
   | DeDe
   | EsMx
+  | Unknown of mappingName: string
 
   member this.AsString =
     match this with
     | EnUs -> "en-US"
     | DeDe -> "de-DE"
     | EsMx -> "es-MX"
+    | Unknown mappingName -> mappingName
 
-  static member FromString (value: string) =
+  static member FromString(value: string) =
     match value.ToLowerInvariant() with
     | "en-us" -> EnUs
     | "es-mx" -> EsMx
     | "de-de" -> DeDe
-    | value -> failwith $"'%s{value}' is not a known value"
+    | value ->
+      JS.console.warn ($"'%s{value}' is not a known value")
+      Unknown value
 
 
 [<AbstractClass>]

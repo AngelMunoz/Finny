@@ -66,20 +66,25 @@ describe("Translations", () => {
       OnError(err) {},
     });
     obs
-      .Broadcast([null, Language.FromString("de-de")])
-      .Broadcast([
-        { "en-us": { lastName: "Last Name" } },
-        Language.FromString("en-us"),
-      ])
       .Broadcast([
         { "es-mx": { lastName: "Apellido" } },
         Language.FromString("es-mx"),
+      ])
+      .Broadcast([null, Language.FromString("de-de")])
+      .Broadcast([
+        { "fr-fr": { lastName: "Nom de famille" } },
+        Language.FromString("fr-fr"),
+      ])
+      .Broadcast([
+        { "en-us": { lastName: "Last Name" } },
+        Language.FromString("en-us"),
       ]);
 
     sub.Dispose();
     expect(values).to.include("Vorname");
     expect(values).to.include("Last Name");
     expect(values).to.include("Apellido");
+    expect(values).to.include("Nom de famille");
     obs.Complete();
   });
 });

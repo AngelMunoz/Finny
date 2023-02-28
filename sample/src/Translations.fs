@@ -15,10 +15,13 @@ let matchTranslationLanguage
     language: Language
   )
   =
+
   match translations, language with
+  | None, _ -> None
   | Some translations, EnUs -> translations["en-us"]
   | Some translations, DeDe -> translations["de-de"]
-  | _, _ -> None
+  | Some translations, EsMx -> translations["es-mx"]
+  | Some translations, Unknown mappingName -> translations[mappingName]
 
 let getTranslationValue
   (translationKey: string)
