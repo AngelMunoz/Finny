@@ -7,6 +7,7 @@
     "lit-element/lit-element.js": "https://ga.jspm.io/npm:lit-element@3.2.2/lit-element.js",
     "lit-html": "https://ga.jspm.io/npm:lit-html@2.4.0/lit-html.js",
     "lit-html/is-server.js": "https://ga.jspm.io/npm:lit-html@2.4.0/is-server.js",
+    "lit/directives/": "https://ga.jspm.io/npm:lit-html@2.5.0/directives/",
     "rxjs": "https://ga.jspm.io/npm:rxjs@7.5.7/dist/esm5/index.js",
     "tslib": "https://ga.jspm.io/npm:tslib@2.4.0/tslib.es6.js"
   }
