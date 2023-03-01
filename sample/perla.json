@@ -17,6 +17,11 @@
       "assets/manifest.webmanifest"
     ]
   },
+  "testing": {
+    "fable": {
+      "project": "./tests/App.Tests.fsproj"
+    }
+  },
   "dependencies": [
     {
       "name": "fsharp-components",

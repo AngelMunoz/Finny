@@ -27,19 +27,15 @@ type Language =
       Unknown value
 
 
-[<AbstractClass>]
 type TranslationMap =
 
   [<EmitIndexer>]
-  member _.Item
-    with get (key: string): string option = jsNative
+  abstract Item: string -> string option with get
 
-[<AbstractClass>]
 type TranslationCollection =
 
   [<EmitIndexer>]
-  member _.Item
-    with get (key: string): TranslationMap option = jsNative
+  abstract Item: string -> TranslationMap option with get
 
 
 [<AttachMembers>]

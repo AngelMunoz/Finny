@@ -50,7 +50,8 @@ module ConfigDecoders =
           excludes: string seq option
           watch: bool option
           headless: bool option
-          browserMode: BrowserMode option }
+          browserMode: BrowserMode option
+          fable: DecodedFableConfig option }
 
     type DecodedPerlaConfig =
         { index: string<SystemPath> option

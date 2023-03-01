@@ -1139,7 +1139,7 @@ module Handlers =
       let! dependencies = setupDependencies (config, cancel)
 
       let fableEvents =
-        match config.fable with
+        match config.testing.fable with
         | Some fable -> Fable.Observe(fable, isWatch)
         | None -> Observable.single FableEvent.WaitingForChanges
 

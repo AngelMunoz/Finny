@@ -83,13 +83,21 @@ module Defaults =
       outDir = UMX.tag "./dist"
       emitEnvFile = true }
 
+  let TestFableConfig =
+    { project = UMX.tag "./tests/App.Tests.fsproj"
+      extension = UMX.tag ".fs.js"
+      sourceMaps = true
+      outDir = None }
+
   let TestConfig =
     { browsers = [ Browser.Chromium ]
-      includes = [ "**/*.test.js"; "**/*.spec.js" ]
+      includes =
+        [ "**/*.test.js"; "**/*.spec.js"; "**/*.Test.fs.js"; "**/*.Spec.fs.js" ]
       excludes = []
       watch = false
       headless = true
-      browserMode = BrowserMode.Parallel }
+      browserMode = BrowserMode.Parallel
+      fable = None }
 
   let PerlaConfig =
     { index = UMX.tag Constants.IndexFile
@@ -373,6 +381,28 @@ let fromFile (fileContent: JsonObject option) (config: PerlaConfig) =
         | None -> config.esbuild
 
       let testing =
+        let getFable
+          (testingFable: Json.ConfigDecoders.DecodedFableConfig option)
+          =
+          match testingFable with
+          | Some testingFable ->
+            { Defaults.TestFableConfig with
+                project =
+                  defaultArg
+                    testingFable.project
+                    Defaults.TestFableConfig.project
+                extension =
+                  defaultArg
+                    testingFable.extension
+                    Defaults.TestFableConfig.extension
+                sourceMaps =
+                  defaultArg
+                    testingFable.sourceMaps
+                    Defaults.TestFableConfig.sourceMaps
+                outDir = testingFable.outDir }
+            |> Some
+          | None -> None
+
         match decoded.testing with
         | Some testing ->
           { config.testing with
@@ -382,7 +412,8 @@ let fromFile (fileContent: JsonObject option) (config: PerlaConfig) =
               watch = defaultArg testing.watch config.testing.watch
               headless = defaultArg testing.headless config.testing.headless
               browserMode =
-                defaultArg testing.browserMode config.testing.browserMode }
+                defaultArg testing.browserMode config.testing.browserMode
+              fable = getFable testing.fable }
         | None -> config.testing
 
       let plugins =

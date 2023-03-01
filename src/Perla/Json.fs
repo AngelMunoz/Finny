@@ -78,7 +78,8 @@ module ConfigDecoders =
       excludes: string seq option
       watch: bool option
       headless: bool option
-      browserMode: BrowserMode option }
+      browserMode: BrowserMode option
+      fable: DecodedFableConfig option }
 
   type DecodedPerlaConfig =
     { index: string<SystemPath> option
@@ -179,7 +180,8 @@ module ConfigDecoders =
           |> Option.map List.toSeq
         watch = get.Optional.Field "watch" Decode.bool
         headless = get.Optional.Field "headless" Decode.bool
-        browserMode = get.Optional.Field "browserMode" BrowserModeDecoder })
+        browserMode = get.Optional.Field "browserMode" BrowserModeDecoder
+        fable = get.Optional.Field "fable" FableFileDecoder })
 
   let PerlaDecoder: Decoder<DecodedPerlaConfig> =
     Decode.object (fun get ->

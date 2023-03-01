@@ -6,13 +6,17 @@
     <IsPackable>false</IsPackable>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="Library.fs" />
+    <Compile Include="TestingUtils.fs" />
+    <Compile Include="Library.Test.fs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\src\App.fsproj" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="main.test.js" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Fable.Core" Version="4.0.0-theta-007" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

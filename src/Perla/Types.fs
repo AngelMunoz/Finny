@@ -92,7 +92,8 @@ module Types =
       excludes: string seq
       watch: bool
       headless: bool
-      browserMode: BrowserMode }
+      browserMode: BrowserMode
+      fable: FableConfig option }
 
   type PerlaConfig =
     { index: string<SystemPath>
