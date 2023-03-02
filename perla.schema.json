@@ -216,6 +216,9 @@
             "parallel",
             "sequential"
           ]
+        },
+        "fable": {
+          "$ref": "#/$defs/fable"
         }
       }
     },
