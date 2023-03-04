@@ -369,13 +369,14 @@ module Testing =
         $"[bold {color}]{e.Text.EscapeMarkup()}[/]".EscapeMarkup()
 
       let writeRule () =
-        AnsiConsole.Write(
+        let rule =
           Rule(
-            $"[dim blue]{e.Location}[/]",
+            Title = $"[dim blue]{e.Location}[/]",
             Style = Style.Parse("dim"),
-            Alignment = Justify.Right
+            Justification = Justify.Right
           )
-        )
+
+        AnsiConsole.Write(rule)
 
       match e.Type with
       | Debug -> ()

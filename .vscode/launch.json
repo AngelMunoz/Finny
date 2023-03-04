@@ -170,6 +170,40 @@
             "cwd": "${workspaceFolder}/docs",
             "stopAtEntry": false,
             "console": "integratedTerminal"
+        },
+        {
+            "name": "Describe ",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build",
+            "program": "${workspaceFolder}/src/Perla/bin/Debug/net6.0/Perla.dll",
+            "args": [
+                "describe",
+                "fable",
+                "fable.project",
+                "mountDirectories",
+                "provider",
+                "testing.fable.project",
+                "dependencies",
+                "--current"
+            ],
+            "cwd": "${workspaceFolder}/sample",
+            "stopAtEntry": false,
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Describe Current",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build",
+            "program": "${workspaceFolder}/src/Perla/bin/Debug/net6.0/Perla.dll",
+            "args": [
+                "describe",
+                "--current"
+            ],
+            "cwd": "${workspaceFolder}/sample",
+            "stopAtEntry": false,
+            "console": "integratedTerminal"
         }
     ]
 }

@@ -1,7 +1,9 @@
 ﻿namespace Perla
 
 open System
+open System.CommandLine
 open System.CommandLine.Invocation
+open System.CommandLine.Parsing
 open System.IO
 
 open System.Threading
@@ -39,6 +41,7 @@ open Perla.PackageManager
 open Perla.PackageManager.Types
 
 open Perla.Testing
+open Spectre.Console.Rendering
 
 
 module CliOptions =
@@ -101,6 +104,10 @@ module CliOptions =
       watch: bool option
       headless: bool option
       browserMode: BrowserMode option }
+
+  type DescribeOptions =
+    { properties: string[] option
+      current: bool }
 
 open CliOptions
 
@@ -1294,6 +1301,149 @@ module Handlers =
         return 0
     }
 
+  let runDescribe (cancel: CancellationToken, options: DescribeOptions) =
+    task {
+      let { properties = props
+            current = current } =
+        options
+
+      let config = ConfigurationManager.CurrentConfig
+
+      let table = Table().AddColumn("Property")
+
+      AnsiConsole.Write(FigletText("Perla.json"))
+      let descriptions = FileSystem.DescriptionsFile
+
+      match props, current with
+      | Some props, true ->
+        table.AddColumns("Value", "Explanation") |> ignore
+
+        for prop in props do
+          let description =
+            descriptions.Value |> Map.tryFind prop |> Option.defaultValue ""
+
+          match prop with
+          | TopLevelProp prop ->
+            table.AddRow(
+              Text(prop),
+              config[prop] |> Option.defaultValue (Text ""),
+              Text(description)
+            )
+            |> ignore
+          | NestedProp props ->
+            table.AddRow(
+              Text(prop),
+              config[props] |> Option.defaultValue (Text ""),
+              Text(description)
+            )
+            |> ignore
+          | TripleNestedProp props ->
+            table.AddRow(
+              Text(prop),
+              config[props] |> Option.defaultValue (Text ""),
+              Text(description)
+            )
+            |> ignore
+          | InvalidPropPath ->
+            table.AddRow(prop, "", "This is not a valid property") |> ignore
+
+      | Some props, false ->
+        table.AddColumns("Description", "Default Value") |> ignore
+
+        for prop in props do
+          let description =
+            descriptions.Value |> Map.tryFind prop |> Option.defaultValue ""
+
+          match prop with
+          | TopLevelProp prop ->
+            table.AddRow(
+              Text(prop),
+              Text(description),
+              Defaults.PerlaConfig[prop] |> Option.defaultValue (Text "")
+            )
+            |> ignore
+          | NestedProp props ->
+            table.AddRow(
+              Text(prop),
+              Text(description),
+              Defaults.PerlaConfig[props] |> Option.defaultValue (Text "")
+            )
+            |> ignore
+          | TripleNestedProp props ->
+            table.AddRow(
+              Text(prop),
+              Text(description),
+              Defaults.PerlaConfig[props] |> Option.defaultValue (Text "")
+            )
+            |> ignore
+          | InvalidPropPath ->
+            table.AddRow(
+              Text(
+                prop,
+                Style(foreground = Color.Yellow, background = Color.Yellow)
+              ),
+              Text(""),
+              Text(
+                "This is not a valid property",
+                Style(foreground = Color.Yellow)
+              )
+            )
+            |> ignore
+
+      | None, false ->
+        table.AddColumn("Description") |> ignore
+
+        for KeyValue(key, value) in descriptions.Value do
+          table.AddRow(key, value) |> ignore
+      | None, true ->
+        table.AddColumns("Current Value", "Description") |> ignore
+
+        for KeyValue(key, description) in descriptions.Value do
+          match key with
+          | TopLevelProp prop ->
+            table.AddRow(
+              Text(prop),
+              Defaults.PerlaConfig[prop] |> Option.defaultValue (Text ""),
+              Text(description)
+            )
+            |> ignore
+          | NestedProp props ->
+            table.AddRow(
+              Text(key),
+              Defaults.PerlaConfig[props] |> Option.defaultValue (Text ""),
+              Text(description)
+            )
+            |> ignore
+          | TripleNestedProp props ->
+            table.AddRow(
+              Text(key),
+              Defaults.PerlaConfig[props] |> Option.defaultValue (Text ""),
+              Text(description)
+            )
+            |> ignore
+          | InvalidPropPath ->
+            table.AddRow(
+              Text(
+                key,
+                Style(foreground = Color.Yellow, background = Color.Yellow)
+              ),
+              Text(""),
+              Text(
+                "This is not a valid property",
+                Style(foreground = Color.Yellow)
+              )
+            )
+            |> ignore
+
+      table.Caption <-
+        TableTitle(
+          "For more information visit: https://perla-docs.web.app/#/v1/docs/reference/perla"
+        )
+
+      table.DoubleBorder() |> AnsiConsole.Write
+      return 0
+    }
+
 
 module Commands =
 
@@ -1505,14 +1655,14 @@ module Commands =
 
   let SearchPackages =
     let package =
-      Input.Argument(
+      Input.OptionRequired(
         "package",
         "The package you want to search for in the Skypack api"
       )
 
     let page =
-      Input.ArgumentMaybe(
-        "page",
+      Input.OptionMaybe(
+        [| "--page"; "-p" |],
         "change the page number in the search results"
       )
 
@@ -1880,4 +2030,43 @@ module Commands =
       )
 
       setHandler (buildArgs >> Handlers.runTesting)
+    }
+
+  let Describe =
+    let perlaProperties: HandlerInput<string[] option> =
+      Arg<string[] option>(
+        "properties",
+        (fun (result: ArgumentResult) ->
+          match result.Tokens |> Seq.toArray with
+          | [||] -> None
+          | others -> Some(others |> Array.map (fun token -> token.Value))),
+        Description =
+          "A property, properties or json path-like string names to describe",
+        Arity = ArgumentArity.ZeroOrMore
+      )
+      |> HandlerInput.OfArgument
+
+    let describeCurrent: HandlerInput<bool> =
+      Input.Option(
+        [ "--current"; "-c" ],
+        false,
+        "Take my current perla.json file and print my current configuration"
+      )
+
+    let buildArgs
+      (
+        ctx: InvocationContext,
+        properties: string[] option,
+        current: bool
+      ) =
+      ctx.GetCancellationToken(),
+      { properties = properties
+        current = current }
+
+    command "describe" {
+      description
+        "Describes the perla.json file or it's properties as requested"
+
+      inputs (Input.Context(), perlaProperties, describeCurrent)
+      setHandler (buildArgs >> Handlers.runDescribe)
     }

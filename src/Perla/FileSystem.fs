@@ -109,6 +109,11 @@ module FileSystem =
   let MochaRunnerScript =
     lazy File.ReadAllText((UMX.untag AssemblyRoot) / "mocha-runner.js")
 
+  let DescriptionsFile =
+    lazy
+      (File.ReadAllBytes((UMX.untag AssemblyRoot) / "descriptions.json")
+       |> Json.FromBytes<Map<string, string>>)
+
   let ensureFileContent<'T> (path: string<SystemPath>) (content: 'T) =
     try
       File.WriteAllBytes(UMX.untag path, content |> Json.ToBytes)

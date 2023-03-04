@@ -33,6 +33,7 @@ module FileSystem =
     val WorkerScript: Lazy<string>
     val TestingHelpersScript: Lazy<string>
     val MochaRunnerScript: Lazy<string>
+    val DescriptionsFile: Lazy<Map<string, string>>
     val CurrentWorkingDirectory: unit -> string<SystemPath>
     val GetConfigPath: fileName: string -> fromDirectory: string<SystemPath> option -> string<SystemPath>
 

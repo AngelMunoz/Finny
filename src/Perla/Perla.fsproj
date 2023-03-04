@@ -54,6 +54,9 @@
     <Compile Include="Program.fs" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="descriptions.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
     <None Include="livereload.js">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>

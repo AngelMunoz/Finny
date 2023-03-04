@@ -38,7 +38,8 @@ let main argv =
         Commands.ListTemplates
         Commands.RemoveTemplate
         Commands.NewProject
-        Commands.Test ]
+        Commands.Test
+        Commands.Describe ]
   }
   |> Async.AwaitTask
   |> Async.RunSynchronously
