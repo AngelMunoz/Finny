@@ -1,9 +1,16 @@
 image:
   file: .gitpod.Dockerfile
 
+github:
+  prebuilds:
+    master: true
+    pullRequests: true
+    pullRequestsFromForks: true
+    addBadge: true
+
 tasks:
-  - name: Restore Tools
-    init: dotnet tool restore
+  - name: Restore
+    init: dotnet tool restore && dotnet paket restore && dotnet build
 
 vscode:
   extensions:
