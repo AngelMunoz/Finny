@@ -22,6 +22,9 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		global.json = global.json
 		tools.fsx = tools.fsx
 		src\Directory.Build.props = src\Directory.Build.props
+		.gitpod.yml = .gitpod.yml
+		.gitpod.Dockerfile = .gitpod.Dockerfile
+		.config\dotnet-tools.json = .config\dotnet-tools.json
 	EndProjectSection
 EndProject
 Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "Perla.PackageManager", "src\Perla.PackageManager\Perla.PackageManager.fsproj", "{AAE4AEA1-8AC1-4ACC-B9BA-03C0251BB8D2}"

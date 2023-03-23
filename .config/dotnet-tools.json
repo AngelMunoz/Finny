@@ -3,19 +3,19 @@
   "isRoot": true,
   "tools": {
     "fantomas": {
-      "version": "5.1.3",
+      "version": "5.2.4",
       "commands": [
         "fantomas"
       ]
     },
     "fable": {
-      "version": "4.0.0-theta-017",
+      "version": "4.0.1",
       "commands": [
         "fable"
       ]
     },
     "paket": {
-      "version": "7.2.0",
+      "version": "7.2.1",
       "commands": [
         "paket"
       ]
