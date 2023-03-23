@@ -373,7 +373,7 @@ module Testing =
           Rule(
             Title = $"[dim blue]{e.Location}[/]",
             Style = Style.Parse("dim"),
-            Justification = Justify.Right
+            Alignment = Justify.Right
           )
 
         AnsiConsole.Write(rule)
