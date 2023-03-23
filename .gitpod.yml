@@ -9,14 +9,8 @@ github:
     addBadge: true
 
 tasks:
-  - name: Restore Tools
-    init: dotnet tool restore
-
-  - name: Restore Dependencies
-    init: dotnet paket restore
-
-  - name: Build
-    init: dotnet build
+  - name: Restore
+    init: dotnet tool restore && dotnet paket restore && dotnet build
 
 vscode:
   extensions:
