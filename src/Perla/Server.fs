@@ -261,7 +261,7 @@ module Middleware =
     ) : Task =
     let processCssAsJs (content, url: string) =
       $"""const style=document.createElement('style');style.setAttribute("url", "{url}");
-document.head.appendChild(style).innerHTML=`{content}`;"""
+document.head.appendChild(style).innerHTML=String.raw`{content}`;"""
 
     let processJsonAsJs content = $"""export default {content};"""
 
