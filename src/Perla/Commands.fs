@@ -1620,11 +1620,22 @@ module Commands =
          port = port
          host = host
          ssl = ssl })
+    let desc = "Starts the development server and if fable projects are present it also takes care of it."
+    let serve =
+      command "serve" {
+        description desc
+        inputs (Input.Context(), runAsDev, port, host, ssl)
+        setHandler (buildArgs >> Handlers.runServe)
+      }
 
-    command "serve" {
-      inputs (Input.Context(), runAsDev, port, host, ssl)
-      setHandler (buildArgs >> Handlers.runServe)
-    }
+    let serveShorthand =
+      command "s"   {
+        description desc
+        inputs (Input.Context(), runAsDev, port, host, ssl)
+        setHandler (buildArgs >> Handlers.runServe)
+      }
+
+    serve, serveShorthand
 
   let Init =
     let skipPrompts =

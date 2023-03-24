@@ -14,6 +14,8 @@ let main argv =
 
     Task.FromResult 0
 
+  let serve, serveShorthand = Commands.Serve
+
   rootCommand argv {
     description "The Perla Dev Server!"
     inputs (Input.Context(), maybeHelp)
@@ -24,7 +26,8 @@ let main argv =
       pipeline.UseTokenReplacer(fun _ _ _ -> false) |> ignore)
 
     addCommands
-      [ Commands.Serve
+      [ serve
+        serveShorthand
         Commands.Build
         Commands.Init
         Commands.SearchPackages
