@@ -53,7 +53,7 @@ module Defaults =
 
   let DevServerConfig: DevServerConfig =
     { port = 7331
-      host = "127.0.0.1"
+      host = "localhost"
       liveReload = true
       useSSL = false
       proxy = Map.empty }
@@ -177,12 +177,14 @@ module internal Json =
           for field in fields do
             match field with
             | FableField.Project path -> f <- {| f with project = Some path |}
-            | FableField.Extension ext -> f <- {| f with extension = Some ext |}
+            | FableField.Extension ext ->
+              f <- {| f with extension = Some ext |}
             | FableField.SourceMaps sourceMaps ->
               f <-
                 {| f with
                      sourceMaps = Some sourceMaps |}
-            | FableField.OutDir outDir -> f <- {| f with outDir = Some outDir |}
+            | FableField.OutDir outDir ->
+              f <- {| f with outDir = Some outDir |}
 
           Some f
         | _ -> None)
@@ -279,27 +281,27 @@ let fromCli
   let port, host, liveReload, useSSL =
     serverOptions
     |> Seq.fold
-         (fun (port, host, liveReload, useSSL) next ->
-           match next with
-           | Port port -> port, host, liveReload, useSSL
-           | Host host -> port, host, liveReload, useSSL
-           | LiveReload liveReload -> port, host, liveReload, useSSL
-           | UseSSL useSSL -> port, host, liveReload, useSSL)
-         defaults
+      (fun (port, host, liveReload, useSSL) next ->
+        match next with
+        | Port port -> port, host, liveReload, useSSL
+        | Host host -> port, host, liveReload, useSSL
+        | LiveReload liveReload -> port, host, liveReload, useSSL
+        | UseSSL useSSL -> port, host, liveReload, useSSL)
+      defaults
 
   let testing =
     defaultArg testingOptions Seq.empty
     |> Seq.fold
-         (fun current next ->
-           match next with
-           | TestingField.Browsers value -> { current with browsers = value }
-           | TestingField.Includes value -> { current with includes = value }
-           | TestingField.Excludes value -> { current with excludes = value }
-           | TestingField.Watch value -> { current with watch = value }
-           | TestingField.Headless value -> { current with headless = value }
-           | TestingField.BrowserMode value ->
-             { current with browserMode = value })
-         config.testing
+      (fun current next ->
+        match next with
+        | TestingField.Browsers value -> { current with browsers = value }
+        | TestingField.Includes value -> { current with includes = value }
+        | TestingField.Excludes value -> { current with excludes = value }
+        | TestingField.Watch value -> { current with watch = value }
+        | TestingField.Headless value -> { current with headless = value }
+        | TestingField.BrowserMode value ->
+          { current with browserMode = value })
+      config.testing
 
   { config with
       devServer =

@@ -68,7 +68,7 @@ A full `perla.json` file looks like this:
     // port to run the dev server on
     "port": 7331,
     // host to run the dev server like localhost or 0.0.0.0
-    "host": "127.0.0.1",
+    "host": "localhost",
     // enable reload on change for sources
     "liveReload": true,
     // use HTTPs by default

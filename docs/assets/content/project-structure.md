@@ -28,7 +28,7 @@ With that, Perla will know what should be served and where
   },
   "devServer": {
     "port": 7331,
-    "host": "127.0.0.1"
+    "host": "localhost"
   }
 }
 ```
