@@ -922,7 +922,6 @@ module Handlers =
         |> Path.GetFullPath
         |> fs.ConvertPathFromInternal
 
-      fs.WriteAllText(UPath.Combine(outDir, "index.html"), indexContent)
 
       // copy any glob files
       Build.CopyGlobs(config.build, tempDirectory)
@@ -930,6 +929,11 @@ module Handlers =
       fs.EnumerateFileEntries(tmp, "*.*", SearchOption.TopDirectoryOnly)
       |> Seq.iter (fun file ->
         file.CopyTo(UPath.Combine(outDir, file.Name), true) |> ignore)
+
+      // Always copy the index file at the end to avoid
+      // clashing with any index.html file in the root of the virtual file system
+      fs.WriteAllText(UPath.Combine(outDir, "index.html"), indexContent)
+
 
       Logger.log $"Cleaning up temp dir {tempDirectory}"
 
