@@ -58,6 +58,7 @@ module CliOptions =
 
   type BuildOptions =
     { mode: RunConfiguration option
+      enablePreview: bool
       enablePreloads: bool
       rebuildImportMap: bool }
 
@@ -942,6 +943,19 @@ module Handlers =
       with ex ->
         Logger.log ($"Failed to delete {tempDirectory}", ex = ex)
 
+      if args.enablePreview then
+        let app = Server.GetStaticServer(config)
+        do! app.StartAsync(cancel)
+
+        app.Urls
+        |> Seq.iter (fun url ->
+          Logger.log ($"Listening at: {url}", target = Logger.Serve))
+
+        while not cancel.IsCancellationRequested do
+          do! Async.Sleep(1000)
+
+        do! app.StopAsync(cancel)
+
       return 0
     }
 
@@ -1060,6 +1074,10 @@ module Handlers =
       let mutable app = Server.GetServerApp(config, fileChanges, compilerErrors)
       do! app.StartAsync(cancel)
 
+      app.Urls
+      |> Seq.iter (fun url ->
+        Logger.log ($"Listening at: {url}", target = Logger.Serve))
+
       perlaChanges
       |> Observable.choose (function
         | PerlaFileChange.PerlaConfig -> Some()
@@ -1112,7 +1130,6 @@ module Handlers =
       return results[2].Value
     }
 
-
   let runTesting (cancel: CancellationToken, options: TestingOptions) =
     task {
       ConfigurationManager.UpdateFromCliArgs(
@@ -1142,8 +1159,8 @@ module Handlers =
             mountDirectories =
               ConfigurationManager.CurrentConfig.mountDirectories
               |> Map.add
-                   (UMX.tag<ServerUrl> "/tests")
-                   (UMX.tag<UserPath> "./tests") }
+                (UMX.tag<ServerUrl> "/tests")
+                (UMX.tag<UserPath> "./tests") }
 
       let isWatch = config.testing.watch
 
@@ -1183,7 +1200,10 @@ module Handlers =
       let compilerErrors = Observable.empty
 
       let config =
-        { config with devServer = { config.devServer with liveReload = isWatch } }
+        { config with
+            devServer =
+              { config.devServer with
+                  liveReload = isWatch } }
 
       let events = Subject<TestEvent>.replay
 
@@ -1495,7 +1515,8 @@ module Commands =
               (fun result ->
                 match result.Tokens |> Seq.toArray with
                 | [||] -> None
-                | others -> Some(others |> Array.map (fun token -> token.Value)))
+                | others ->
+                  Some(others |> Array.map (fun token -> token.Value)))
           )
 
         match values with
@@ -1566,12 +1587,20 @@ module Commands =
          and generates a new one based on the dependencies listed in the config file."
       )
 
+    let preview =
+      Input.OptionMaybe(
+        [ "-prev"; "--preview" ],
+        "discards the current import map (and custom resolutions)
+         and generates a new one based on the dependencies listed in the config file."
+      )
+
     let buildArgs
       (
         context: InvocationContext,
         runAsDev: bool option,
         enablePreloads: bool option,
-        rebuildImportMap: bool option
+        rebuildImportMap: bool option,
+        enablePreview: bool option
       ) =
       (context.GetCancellationToken(),
        { mode =
@@ -1581,11 +1610,20 @@ module Commands =
              | true -> RunConfiguration.Development
              | false -> RunConfiguration.Production)
          enablePreloads = defaultArg enablePreloads true
-         rebuildImportMap = defaultArg rebuildImportMap false })
+         rebuildImportMap = defaultArg rebuildImportMap false
+         enablePreview = defaultArg enablePreview false })
 
     command "build" {
       description "Builds the SPA application for distribution"
-      inputs (Input.Context(), runAsDev, enablePreloads, rebuildImportMap)
+
+      inputs (
+        Input.Context(),
+        runAsDev,
+        enablePreloads,
+        rebuildImportMap,
+        preview
+      )
+
       setHandler (buildArgs >> Handlers.runBuild)
     }
 
@@ -1624,7 +1662,10 @@ module Commands =
          port = port
          host = host
          ssl = ssl })
-    let desc = "Starts the development server and if fable projects are present it also takes care of it."
+
+    let desc =
+      "Starts the development server and if fable projects are present it also takes care of it."
+
     let serve =
       command "serve" {
         description desc
@@ -1633,7 +1674,7 @@ module Commands =
       }
 
     let serveShorthand =
-      command "s"   {
+      command "s" {
         description desc
         inputs (Input.Context(), runAsDev, port, host, ssl)
         setHandler (buildArgs >> Handlers.runServe)

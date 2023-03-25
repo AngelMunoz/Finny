@@ -657,10 +657,10 @@ module Server =
     app
 
   let addCommonServices isTesting proxy (builder: WebApplicationBuilder) =
+    builder.Services.AddSpaFallback() |> ignore
+
     if proxy |> Map.isEmpty |> not then
       builder.Services.AddHttpForwarder() |> ignore
-
-    builder.Services.AddSpaFallback() |> ignore
 
     builder.Services.AddSingleton<FileExtensionContentTypeProvider>(fun _ ->
       FileExtensionContentTypeProvider())
@@ -675,7 +675,7 @@ module Server =
         if isTesting then
           v.MinimumLevel.Warning()
         else
-          v.MinimumLevel.Information())
+          v.MinimumLevel.Warning())
       |> ignore)
     |> ignore
 
@@ -684,10 +684,11 @@ module Server =
     app.Urls.Add(http)
     app.Urls.Add(https)
 
+    app.UseSpaFallback().UseSerilogRequestLogging() |> ignore
+
     if useSSL then
       app.UseHsts().UseHttpsRedirection() |> ignore
 
-    app.UseSerilogRequestLogging().UseSpaFallback() |> ignore
 
 
 
@@ -868,3 +869,27 @@ type Server =
       mochaOptions
       testEvents
     |> Server.addResolveFile
+
+  static member GetStaticServer(config: PerlaConfig) =
+    let webroot =
+      Path.Combine(".", $"{config.build.outDir}") |> Path.GetFullPath
+
+    let builder =
+      WebApplication.CreateBuilder(WebApplicationOptions(WebRootPath = webroot))
+
+    let proxy = config.devServer.proxy
+
+    let host = config.devServer.host
+    let port = config.devServer.port
+    let useSSL = config.devServer.useSSL
+    let enableEnv = config.enableEnv
+    let envPath = config.envPath
+    Server.addCommonServices false proxy builder
+
+    let app = builder.Build()
+
+    Server.addCommonMiddleware host port useSSL app
+
+    app.UseDefaultFiles().UseStaticFiles() |> ignore
+
+    app |> Server.addProxy proxy |> Server.addEnv enableEnv (UMX.untag envPath)

@@ -29,3 +29,5 @@ type Server =
         [<Optional>] ?fileGlobs: string seq *
         [<Optional>] ?mochaOptions: Map<string, obj> ->
             WebApplication
+
+    static member GetStaticServer: config: PerlaConfig -> WebApplication
