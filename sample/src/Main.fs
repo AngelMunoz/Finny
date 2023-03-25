@@ -13,4 +13,4 @@ importSideEffects "../assets/fonts/fira_code.css"
 
 registerAll ()
 // Start the app
-App.view () |> Program.mountElement "fable-app"
+Program.mount ("fable-app", App.view ()) |> ignore

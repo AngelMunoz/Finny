@@ -343,7 +343,10 @@ module Testing =
             endSuite suite
           | TestImportFailed(_, message, stack) -> failImport (message, stack)
           | TestRunFinished _ ->
-            signalEnd overallStats (suites |> Seq.toList) (errors |> Seq.toList)))
+            signalEnd
+              overallStats
+              (suites |> Seq.toList)
+              (errors |> Seq.toList)))
 
   let getBrowser (browser: Browser, headless: bool, pl: IPlaywright) =
     task {
@@ -371,9 +374,9 @@ module Testing =
       let writeRule () =
         let rule =
           Rule(
-            Title = $"[dim blue]{e.Location}[/]",
+            $"[dim blue]{e.Location}[/]",
             Style = Style.Parse("dim"),
-            Alignment = Justify.Right
+            Justification = Justify.Right
           )
 
         AnsiConsole.Write(rule)

@@ -3,9 +3,8 @@
 open System
 open Feliz
 open Sutil
-open Sutil.Attr
 open Sutil.Styling
-open Sutil.DOM
+open Sutil.CoreElements
 
 open type Feliz.length
 
@@ -21,9 +20,14 @@ let LanguageSelector
   let setDE = setLanguage DeDe
   let setES = setLanguage EsMx
 
-  let isUS =  translations |> Observable.map(fun (_, language) -> language = EnUs)
-  let isDE =  translations |> Observable.map(fun (_, language) -> language = DeDe)
-  let isES =  translations |> Observable.map(fun (_, language) -> language = EsMx)
+  let isUS =
+    translations |> Observable.map (fun (_, language) -> language = EnUs)
+
+  let isDE =
+    translations |> Observable.map (fun (_, language) -> language = DeDe)
+
+  let isES =
+    translations |> Observable.map (fun (_, language) -> language = EsMx)
 
   Html.header [
     Html.section [
@@ -32,36 +36,39 @@ let LanguageSelector
           type' "radio"
           Attr.id "language-en"
           Attr.name "language"
-          Bind.attr("checked", isUS)
+          Bind.attr ("checked", isUS)
           on "change" (fun _ -> setUS translations) []
         ]
-        Html.label [ Html.text "English"; Attr.for' "language-en"]
+        Html.label [ Html.text "English"; Attr.for' "language-en" ]
       ]
       Html.div [
         Html.input [
           type' "radio"
           Attr.id "language-de"
           Attr.name "language"
-          Bind.attr("checked", isDE)
+          Bind.attr ("checked", isDE)
           on "change" (fun _ -> setDE translations) []
         ]
-        Html.label [ Html.text "Deutsch"; Attr.for' "language-de"]
+        Html.label [ Html.text "Deutsch"; Attr.for' "language-de" ]
       ]
       Html.div [
         Html.input [
           type' "radio"
           Attr.id "language-es"
           Attr.name "language"
-          Bind.attr("checked", isES)
+          Bind.attr ("checked", isES)
           on "change" (fun _ -> setES translations) []
         ]
-        Html.label [ Html.text "Español"; Attr.for' "language-es"]
+        Html.label [ Html.text "Español"; Attr.for' "language-es" ]
       ]
     ]
   ]
   |> withStyle [
     rule "header" [ Css.displayFlex; Css.justifyContentFlexEnd ]
-    rule "section" [ Css.displayFlex; Css.custom("justify-content", "space-evenly") ]
+    rule "section" [
+      Css.displayFlex
+      Css.custom ("justify-content", "space-evenly")
+    ]
   ]
 
 let NotificationGenerator

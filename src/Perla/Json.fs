@@ -221,7 +221,8 @@ module ConfigDecoders =
           |> Option.map (fun m ->
             m
             |> Map.toSeq
-            |> Seq.map (fun (k, v) -> UMX.tag<ServerUrl> k, UMX.tag<UserPath> v)
+            |> Seq.map (fun (k, v) ->
+              UMX.tag<ServerUrl> k, UMX.tag<UserPath> v)
             |> Map.ofSeq)
         enableEnv = get.Optional.Field "enableEnv" Decode.bool
         envPath =
@@ -244,8 +245,8 @@ module internal TestDecoders =
         passes = get.Required.Field "passes" Decode.int
         pending = get.Required.Field "pending" Decode.int
         failures = get.Required.Field "failures" Decode.int
-        start = get.Required.Field "start" Decode.datetime
-        ``end`` = get.Optional.Field "end" Decode.datetime })
+        start = get.Required.Field "start" Decode.datetimeUtc
+        ``end`` = get.Optional.Field "end" Decode.datetimeUtc })
 
   let Test: Decoder<Test> =
     Decode.object (fun get ->

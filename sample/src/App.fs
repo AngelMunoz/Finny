@@ -3,8 +3,7 @@
 open Fable.Core
 
 open Sutil
-open Sutil.Attr
-open Sutil.DOM
+open Sutil.CoreElements
 open Sutil.Styling
 
 open type Feliz.length
@@ -40,12 +39,12 @@ let view () =
 
   Html.app [
     Html.main [
-      onCustomEvent Event.Mount (fun _ -> renderLit()) []
+      onMount (fun _ -> renderLit ()) []
       Components.LanguageSelector translations
       Components.NotificationGenerator Tr notifications
       Html.div [ Attr.id "lit-app" ]
       Html.div [ Attr.id "lit-app-2" ]
-      Html.custom("my-sample-el", [])
+      Html.custom ("my-sample-el", [])
     ]
     Components.NotificationArea notifications
   ]
