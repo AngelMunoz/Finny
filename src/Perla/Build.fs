@@ -170,7 +170,7 @@ type Build =
       with _ ->
         ()
 
-      File.Copy(file, targetPath)
+      File.Copy(file, targetPath, true)
 
 
     AnsiConsole

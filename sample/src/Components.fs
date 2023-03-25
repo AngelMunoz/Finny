@@ -73,7 +73,7 @@ let LanguageSelector
 
 let NotificationGenerator
   (Tr: string * string -> IObservable<string>)
-  (notifications: IStore<Notification ResizeArray>)
+  (notifications: IStore<Notification list>)
   =
   let header = Store.make ""
   let content = Store.make ""
@@ -90,9 +90,10 @@ let NotificationGenerator
     Ev.onSubmit (fun e ->
       e.preventDefault ()
 
-      notifications.Value.Add(Notification.Create(header.Value, content.Value))
-
-      Store.set notifications notifications.Value)
+      Store.set
+        notifications
+        (Notification.Create(header.Value, content.Value)
+         :: notifications.Value))
     Html.fieldSet [
       Html.label [
         Attr.for' "header-input"
@@ -139,14 +140,14 @@ let NotificationGenerator
     rule "button" [ Css.marginTop (em 1) ]
   ]
 
-let NotificationArea (notifications: IStore<Notification ResizeArray>) =
-  let notifList = Observable.map (List.ofSeq) notifications
-
+let NotificationArea (notifications: IStore<Notification list>) =
   Html.aside [
     Attr.className "notification-area"
     Bind.each (
-      notifList,
+      notifications,
       fun notif ->
+        printfn "%A" notif
+
         Html.custom (
           "fs-message",
           [
@@ -156,8 +157,11 @@ let NotificationArea (notifications: IStore<Notification ResizeArray>) =
             onCustomEvent
               "fs-close-message"
               (fun _ ->
-                notifications.Value.Remove(notif) |> ignore
-                Store.set notifications notifications.Value)
+
+                Store.set
+                  notifications
+                  (notifications.Value
+                   |> List.filter (fun notification -> notif <> notification)))
               []
           ]
         )

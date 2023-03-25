@@ -30,8 +30,8 @@ let setTranslations
 let view () =
   let translations = Store.make (None, EsMx)
 
-  let notifications: IStore<Notification ResizeArray> =
-    Store.make (ResizeArray())
+  let notifications: IStore<Notification list> =
+    Store.make (List.empty<Notification>)
 
   let Tr = T translations
   setTranslations fetchTranslations translations
