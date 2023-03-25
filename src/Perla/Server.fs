@@ -253,11 +253,11 @@ module Middleware =
 
   let processFile
     (
-      setContentAndWrite: string * string -> Task<_>,
+      setContentAndWrite: string * (byte array) -> Task<_>,
       reqPath: string,
       mimeType: string,
       requestedAs: RequestedAs,
-      content: string
+      content: byte array
     ) : Task =
     let processCssAsJs (content, url: string) =
       $"""const style=document.createElement('style');style.setAttribute("url", "{url}");
@@ -269,12 +269,14 @@ document.head.appendChild(style).innerHTML=String.raw`{content}`;"""
     | "application/json", RequestedAs.JS ->
       setContentAndWrite (
         MimeTypeNames.DefaultJavaScript,
-        processJsonAsJs content
+        (processJsonAsJs (System.Text.Encoding.UTF8.GetString(content))
+         |> System.Text.Encoding.UTF8.GetBytes)
       )
     | "text/css", Normal ->
       setContentAndWrite (
         MimeTypeNames.DefaultJavaScript,
-        processCssAsJs (content, reqPath)
+        (processCssAsJs (System.Text.Encoding.UTF8.GetString(content), reqPath)
+         |> System.Text.Encoding.UTF8.GetBytes)
       )
     | mimeType, ModuleAssertion
     | mimeType, Normal -> setContentAndWrite (mimeType, content)
@@ -299,7 +301,7 @@ document.head.appendChild(style).innerHTML=String.raw`{content}`;"""
           | true, mime ->
             let setContentTypeAndWrite (mimeType, content) =
               ctx.SetContentType mimeType
-              ctx.WriteStringAsync content
+              ctx.WriteBytesAsync content
 
             let requestedAs =
               let query = ctx.Request.Query
@@ -665,8 +667,7 @@ module Server =
     |> ignore
 
     builder.Host.UseSerilog(fun hostingContext configureLogger ->
-      configureLogger
-        .MinimumLevel
+      configureLogger.MinimumLevel
         .Override("Microsoft.AspNetCore", LogEventLevel.Warning)
         .Enrich.FromLogContext()
         .WriteTo.Console()
@@ -862,8 +863,8 @@ type Server =
     |> Server.addLiveReload liveReload fileChangedEvents compileErrorEvents
     |> Server.addEnv enableEnv (UMX.untag envPath)
     |> Server.TestApp.addTestingHandlers
-         fileGlobs
-         config.testing
-         mochaOptions
-         testEvents
+      fileGlobs
+      config.testing
+      mochaOptions
+      testEvents
     |> Server.addResolveFile

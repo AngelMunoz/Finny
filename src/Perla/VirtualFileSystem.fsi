@@ -67,4 +67,4 @@ module VirtualFileSystem =
     val GetFileChangeStream:
         mountedDirectories: Map<string<ServerUrl>, string<UserPath>> -> IObservable<FileChangedEvent>
 
-    val TryResolveFile: url: string<ServerUrl> -> string option
+    val TryResolveFile: url: string<ServerUrl> -> byte[] option

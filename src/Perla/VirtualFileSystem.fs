@@ -343,6 +343,6 @@ module VirtualFileSystem =
 
   let TryResolveFile (url: string<ServerUrl>) =
     try
-      serverPaths.Value.ReadAllText $"{url}" |> Some
+      serverPaths.Value.ReadAllBytes $"{url}" |> Some
     with _ ->
       None
