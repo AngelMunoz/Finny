@@ -15,6 +15,7 @@ module Types =
     | Host of string
     | LiveReload of bool
     | UseSSL of bool
+    | MinifySources of bool
 
   [<RequireQualifiedAccess>]
   type TestingField =
@@ -272,6 +273,14 @@ let fromCli
         DevServerField.UseSSL config.devServer.useSSL ]
     | other -> other
 
+  let minify =
+    serverOptions
+    |> Seq.tryPick (fun opt ->
+      match opt with
+      | MinifySources minify -> Some minify
+      | _ -> None)
+    |> Option.defaultValue Defaults.EsbuildConfig.minify
+
   let defaults =
     Defaults.DevServerConfig.port,
     Defaults.DevServerConfig.host,
@@ -286,7 +295,8 @@ let fromCli
         | Port port -> port, host, liveReload, useSSL
         | Host host -> port, host, liveReload, useSSL
         | LiveReload liveReload -> port, host, liveReload, useSSL
-        | UseSSL useSSL -> port, host, liveReload, useSSL)
+        | UseSSL useSSL -> port, host, liveReload, useSSL
+        | _ -> port, host, liveReload, useSSL)
       defaults
 
   let testing =
@@ -312,6 +322,7 @@ let fromCli
             useSSL = useSSL }
       testing = testing
       runConfiguration = configuration
+      esbuild = { config.esbuild with minify = minify }
       provider = provider }
 
 let fromFile (fileContent: JsonObject option) (config: PerlaConfig) =

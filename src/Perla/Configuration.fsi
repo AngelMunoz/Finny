@@ -14,6 +14,7 @@ module Types =
         | Host of string
         | LiveReload of bool
         | UseSSL of bool
+        | MinifySources of bool
 
     [<RequireQualifiedAccess>]
     type TestingField =
@@ -23,6 +24,7 @@ module Types =
         | Watch of bool
         | Headless of bool
         | BrowserMode of BrowserMode
+
 
     type FableField =
         | Project of string
@@ -78,13 +80,16 @@ type ConfigurationManager =
     new:
         readPerlaJsonText: (unit -> string option) * writePerlaJsonText: (JsonObject option -> unit) ->
             ConfigurationManager
+
     member CurrentConfig: PerlaConfig
+
     member UpdateFromCliArgs:
         [<Optional>] ?runConfig: RunConfiguration *
         [<Optional>] ?provider: Provider *
         [<Optional>] ?serverOptions: seq<DevServerField> *
         [<Optional>] ?testingOptions: seq<TestingField> ->
             unit
+
     member UpdateFromFile: unit -> unit
     member WriteFieldsToFile: newValues: seq<PerlaWritableField> -> unit
 

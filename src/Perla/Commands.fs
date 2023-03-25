@@ -1022,7 +1022,9 @@ module Handlers =
           | None -> ()
           match options.ssl with
           | Some ssl -> DevServerField.UseSSL ssl
-          | None -> () ]
+          | None -> ()
+          // Don't minify sources in dev mode
+          DevServerField.MinifySources false ]
 
       ConfigurationManager.UpdateFromCliArgs(
         ?runConfig = options.mode,
