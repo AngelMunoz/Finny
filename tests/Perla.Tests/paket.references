@@ -3,6 +3,8 @@ FSharp.UMX
 Thoth.Json.Net
 FsToolkit.ErrorHandling.TaskResult
 CliWrap
+Flurl.Http
+
 group Tests
 Microsoft.NET.Test.Sdk
 xunit
