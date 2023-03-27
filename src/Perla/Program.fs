@@ -29,7 +29,7 @@ let main argv =
       [ serve
         serveShorthand
         Commands.Build
-        Commands.Init
+        Commands.Setup
         Commands.SearchPackages
         Commands.ShowPackage
         Commands.RemovePackage

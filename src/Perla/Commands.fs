@@ -41,7 +41,6 @@ open Perla.PackageManager
 open Perla.PackageManager.Types
 
 open Perla.Testing
-open Spectre.Console.Rendering
 
 
 module CliOptions =
@@ -64,7 +63,7 @@ module CliOptions =
 
   type SetupOptions =
     { skipPrompts: bool
-      playwrightDeps: bool }
+      skipPlaywright: bool }
 
   type SearchOptions = { package: string; page: int }
 
@@ -366,35 +365,59 @@ module Handlers =
     |> function
       | None ->
         Logger.log $"Template [{opts.templateName}] was not found"
+
+        Logger.log (
+          $"Please try to specify the template as [bold yellow]repository/template-name[/]",
+          escape = false
+        )
+
+        Logger.log (
+          $"Or the full name mode [bold yellow]github-username/repository/template-name[/]",
+          escape = false
+        )
+
+        Logger.log $"If you don't have the templates installed run"
+
+        Logger.log (
+          $"[yellow]perla templates:add AngelMunoz/perla-templates[/]",
+          escape = false
+        )
+
         1
       | Some n -> n
 
-  let runInit (options: SetupOptions) =
+  let runSetup (options: SetupOptions) =
     task {
       Logger.log "Perla will set up the following resources:"
       Logger.log "- Esbuild"
       Logger.log "- Default Templates"
 
-      Logger.log
-        "- Playwright browsers (requires admin privileges if using --with-playwright-deps)"
+      if not options.skipPlaywright then
+        Logger.log
+          "- Playwright browsers (required for the 'perla test' command)"
+      else
+        Logger.log "- Playwright browsers (skipped)"
 
       Logger.log
-        "After that you should be able to run 'perla build' or 'perla new' or 'perla test'"
+        "After that you should be able to run 'perla build' or 'perla new'"
 
       do! FileSystem.SetupEsbuild(UMX.tag Constants.Esbuild_Version)
       Logger.log ("[bold green]esbuild[/] has been setup!", escape = false)
 
-      match options.skipPrompts, options.playwrightDeps with
-      | true, true -> Testing.SetupPlaywright true
-      | true, false -> Testing.SetupPlaywright false
-      | false, true -> Testing.SetupPlaywright true
+      match options.skipPrompts, options.skipPlaywright with
+      | true, true -> Logger.log ("Skipping Playwright setup")
+      | true, false -> Testing.SetupPlaywright()
+      | false, true -> Logger.log ("Skipping Playwright setup")
       | false, false ->
         if
-          AnsiConsole.Confirm("Install Playwright with dependencies?", false)
+          AnsiConsole.Confirm(
+            "Install Playwright browsers? (required for 'perla test' command)",
+            false
+          )
         then
-          Testing.SetupPlaywright true
+          Testing.SetupPlaywright()
         else
-          Testing.SetupPlaywright false
+          Logger.log ("Skipping Playwright setup")
 
       if options.skipPrompts then
         let username, repository, branch =
@@ -442,44 +465,55 @@ module Handlers =
           )
 
           return 0
-      else
-        let chosen =
-          AnsiConsole.Ask(
-            "Tell us the Username/repository:branch github repository to look for templates",
-            $"{Constants.Default_Templates_Repository}:main"
-          )
+      else if AnsiConsole.Confirm("Add default templates?", false) then
+        let username, repository, branch =
+          PerlaTemplateRepository.DefaultTemplatesRepository
 
-        let mutable chosen = parseFullRepositoryName chosen
-
-        while chosen |> Option.isNone do
-          chosen <-
-            AnsiConsole.Ask(
-              "Tell us the Username/repository:branch github repository to look for templates",
-              $"{Constants.Default_Templates_Repository}:main"
-            )
-            |> parseFullRepositoryName
-
-          match chosen with
-          | None -> ()
-          | parsed -> chosen <- parsed
-
-        let username, repository, branch = chosen.Value
-
-        let! tplId = Templates.Add(username, repository, branch)
-
-        match Templates.FindOne(TemplateSearchKind.Id tplId) with
+        match
+          TemplateSearchKind.FullName(username, repository) |> Templates.FindOne
+        with
         | Some template ->
           Logger.log
-            $"Successfully added {template.ToFullNameWithBranch} at {template.path}"
+            $"{template.ToFullName} is already set up, updating from {template.branch}"
+
+
+          let! result = Templates.Update(template)
+
+          if not result then
+            Logger.log (
+              "We were unable to update the existing [bold red]templates[/].",
+              escape = false
+            )
+
+            return 1
+          else
+            runListTemplates { format = ListFormat.HumanReadable } |> ignore
+
+            Logger.log (
+              "[bold yellow]perla[/] [bold blue]new [/] [bold green]perla-templates/<TEMPLATE_NAME>[/] [bold blue] <PROJECT_NAME>[/]",
+              escape = false
+            )
+
+            Logger.log "Feel  free to create a new perla project"
+            return 0
+        | None ->
+          let! _ =
+            Logger.spinner (
+              "Adding default templates",
+              addTemplate username repository branch
+            )
 
           runListTemplates { format = ListFormat.HumanReadable } |> ignore
+
+          Logger.log (
+            "[bold yellow]perla[/] [bold blue]new [/] [bold green]perla-templates/<TEMPLATE_NAME>[/] [bold blue] <PROJECT_NAME>[/]",
+            escape = false
+          )
+
           return 0
-        | None ->
-          Logger.log
-            $"Template may have been downloaded but for some reason we can't find it, this is likely a bug"
-
-          return 1
-
+      else
+        Logger.log "Skip installing templates"
+        return 0
     }
 
   let runSearch (options: SearchOptions) =
@@ -935,7 +969,6 @@ module Handlers =
       // clashing with any index.html file in the root of the virtual file system
       fs.WriteAllText(UPath.Combine(outDir, "index.html"), indexContent)
 
-
       Logger.log $"Cleaning up temp dir {tempDirectory}"
 
       try
@@ -1103,7 +1136,7 @@ module Handlers =
     task {
       let! results =
         [ task {
-            do Testing.SetupPlaywright false
+            do Testing.SetupPlaywright()
             return None
           }
           task {
@@ -1478,7 +1511,6 @@ module Commands =
 
   [<AutoOpen>]
   module Inputs =
-    open System.CommandLine
 
     type Input with
 
@@ -1684,7 +1716,7 @@ module Commands =
 
     serve, serveShorthand
 
-  let Init =
+  let Setup =
     let skipPrompts =
       Input.OptionMaybe<bool>(
         [ "--skip-prompts"; "-y"; "--yes"; "-sp" ],
@@ -1693,22 +1725,22 @@ module Commands =
 
     let playwrightDeps =
       Input.OptionMaybe<bool>(
-        [ "--with-playwright-deps"; "-wpd"; "--pl-deps" ],
-        "Install Playwright dependencies as well? (requires admin priviledges)"
+        [ "--skip-playwright" ],
+        "Skips installing playwright (defaults to true)"
       )
 
     let buildArgs
       (
         yes: bool option,
-        playwrightDeps: bool option
+        skipPlaywright: bool option
       ) : SetupOptions =
       { skipPrompts = yes |> Option.defaultValue false
-        playwrightDeps = playwrightDeps |> Option.defaultValue false }
+        skipPlaywright = skipPlaywright |> Option.defaultValue true }
 
-    command "init" {
+    command "setup" {
       description "Initialized a given directory or perla itself"
       inputs (skipPrompts, playwrightDeps)
-      setHandler (buildArgs >> Handlers.runInit)
+      setHandler (buildArgs >> Handlers.runSetup)
     }
 
   let SearchPackages =
@@ -1914,18 +1946,18 @@ module Commands =
       )
 
     let branch =
-      Input.Argument("banch", "Whch branch to pick the template from")
+      Input.ArgumentMaybe("banch", "Whch branch to pick the template from")
 
     let yes = Input.OptionMaybe([ "--yes"; "--continue"; "-y" ], "skip prompts")
 
     let buildArgs
       (
         name: string,
-        branch: string,
+        branch: string option,
         yes: bool option
       ) : TemplateRepositoryOptions =
       { fullRepositoryName = name
-        branch = branch
+        branch = branch |> Option.defaultValue "main"
         yes = yes |> Option.defaultValue false }
 
     let add =
@@ -1986,14 +2018,15 @@ module Commands =
     let name = Input.Argument("name", "Name of the new project")
 
     let templateName =
-      Input.Argument(
+      Input.ArgumentMaybe(
         "templateName",
         "repository/directory combination of the template name, or the full name in case of name conflicts username/repository/directory"
       )
 
-    let buildArgs (name: string, template: string) : ProjectOptions =
+    let buildArgs (name: string, template: string option) : ProjectOptions =
       { projectName = name
-        templateName = template }
+        templateName =
+          template |> Option.defaultValue "perla-templates/vanilla-js" }
 
     command "new" {
       description

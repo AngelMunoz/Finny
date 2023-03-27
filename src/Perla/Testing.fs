@@ -151,19 +151,14 @@ type Print =
     rows |> Rows |> AnsiConsole.Write
 
 module Testing =
-  let SetupPlaywright withDeps =
+  let SetupPlaywright () =
     Logger.log (
       "[bold yellow]Setting up playwright...[/] This will install [bold cyan]all[/] of the supported browsers",
       escape = false
     )
 
     try
-      let exitCode =
-        Program.Main(
-          [| "install"
-             if withDeps then
-               "--with-deps" |]
-        )
+      let exitCode = Program.Main([| "install" |])
 
       if exitCode = 0 then
         Logger.log (
