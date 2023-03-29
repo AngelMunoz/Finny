@@ -41,6 +41,13 @@
             }
         }
     },
+    "required": [
+        "name",
+        "author",
+        "license",
+        "group",
+        "templates"
+    ],
     "$defs": {
         "templateObject": {
             "type": "object",
@@ -69,7 +76,13 @@
                     "description": "The path to the template relative to the root of the repository",
                     "required": true
                 }
-            }
+            },
+            "required": [
+                "id",
+                "name",
+                "shortname",
+                "path"
+            ]
         }
     }
 }
