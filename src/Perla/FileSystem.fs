@@ -148,7 +148,21 @@ module FileSystem =
       targetPath
     )
 
-    UMX.tag<SystemPath> targetPath
+    let config =
+      let config =
+        try
+          File.ReadAllText(targetPath) |> Some
+        with e ->
+          None
+
+      match config with
+      | Some config ->
+        Thoth.Json.Net.Decode.fromString
+          TemplateDecoders.TemplateConfigurationDecoder
+          config
+      | None -> Error "No Configuration File found"
+
+    UMX.tag<SystemPath> targetPath, config
 
   let RemoveTemplateDirectory (path: string<SystemPath>) =
     try
@@ -295,8 +309,8 @@ module FileSystem =
         .EnumerateFiles("*.*", SearchOption.AllDirectories)
       |> Seq.filter (fun file -> file.Extension <> ".fsx")
       |> Seq.fold
-           foldFilesAndTemplates
-           (List.empty<FileInfo>, List.empty<FileInfo>)
+        foldFilesAndTemplates
+        (List.empty<FileInfo>, List.empty<FileInfo>)
     with :? DirectoryNotFoundException ->
       Logger.log (
         "[bold red]While the repository was found, the chosen template was not[/]",
@@ -546,8 +560,7 @@ type FileSystem =
         file.Directory.Create()
 
         let target =
-          file
-            .FullName
+          file.FullName
             .Replace(originDirectory, targetDirectory)
             .Replace(".tpl", "")
 

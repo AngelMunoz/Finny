@@ -40,6 +40,45 @@ let DefaultJsonDocumentOptions () =
     CommentHandling = JsonCommentHandling.Skip
   )
 
+module TemplateDecoders =
+  type DecodedTemplateConfigItem =
+    { id: string
+      name: string
+      path: string<SystemPath>
+      shortName: string
+      description: string option }
+
+  type DecodedTemplateConfiguration =
+    { name: string
+      group: string
+      templates: DecodedTemplateConfigItem seq
+      author: string option
+      license: string option
+      description: string option
+      repositoryUrl: string option }
+
+  let TemplateConfigItemDecoder: Decoder<DecodedTemplateConfigItem> =
+    Decode.object (fun get ->
+      { id = get.Required.Field "id" Decode.string
+        name = get.Required.Field "name" Decode.string
+        path = get.Required.Field "path" Decode.string |> UMX.tag<SystemPath>
+        shortName = get.Required.Field "shortName" Decode.string
+        description = get.Optional.Field "description" Decode.string })
+
+  let TemplateConfigurationDecoder: Decoder<DecodedTemplateConfiguration> =
+    Decode.object (fun get ->
+      { name = get.Required.Field "name" Decode.string
+        group = get.Required.Field "group" Decode.string
+        templates =
+          get.Required.Field
+            "templates"
+            (Decode.array TemplateConfigItemDecoder)
+        author = get.Optional.Field "author" Decode.string
+        license = get.Optional.Field "license" Decode.string
+        description = get.Optional.Field "description" Decode.string
+        repositoryUrl = get.Optional.Field "repositoryUrl" Decode.string })
+
+
 module ConfigDecoders =
 
   type DecodedFableConfig =

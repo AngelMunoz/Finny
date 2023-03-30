@@ -11,6 +11,30 @@ open Thoth.Json.Net
 
 open FSharp.UMX
 
+
+
+module TemplateDecoders =
+    type DecodedTemplateConfigItem =
+        { id: string
+          name: string
+          path: string<SystemPath>
+          shortName: string
+          description: string option }
+
+    type DecodedTemplateConfiguration =
+        { name: string
+          group: string
+          templates: DecodedTemplateConfigItem seq
+          author: string option
+          license: string option
+          description: string option
+          repositoryUrl: string option }
+
+    val TemplateConfigItemDecoder: Decoder<DecodedTemplateConfigItem>
+
+    val TemplateConfigurationDecoder: Decoder<DecodedTemplateConfiguration>
+
+
 module ConfigDecoders =
 
 
