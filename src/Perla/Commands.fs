@@ -91,7 +91,9 @@ module CliOptions =
 
   type ProjectOptions =
     { projectName: string
-      templateName: string }
+      byTemplateName: string option
+      byId: string option
+      byShortName: string option }
 
   type RestoreOptions =
     { source: Provider option
@@ -140,7 +142,7 @@ module Handlers =
     Templates.Add(user, repository, branch)
 
   let runListTemplates (options: ListTemplatesOptions) =
-    let results = Templates.List()
+    let results = Templates.ListRepositories()
 
     match options.format with
     | ListFormat.HumanReadable ->
@@ -308,83 +310,44 @@ module Handlers =
 
     }
 
-  let runNew (opts: ProjectOptions) =
+  type FoundTemplate =
+    | Repository of PerlaTemplateRepository
+    | Existing of TemplateItem
+  type TemplateNotFoundCases =
+      | NoQueryParams
+      | ParentTemplateNotFound
+      | ChildTemplateNotFound
+
+  let runNew (opts: ProjectOptions): Task<int> =
     Logger.log "Creating new project..."
-    let user, template, child = getTemplateAndChild opts.templateName
+    let queryParam =
+      opts.byShortName
+      |> Option.map(QuickAccessSearch.ShortName)
+      |> Option.orElseWith (fun () -> opts.byId |> Option.map(QuickAccessSearch.Group))
+      |> Option.orElseWith (fun () -> opts.byTemplateName |> Option.map(QuickAccessSearch.Name))
 
-    option {
-      let! template =
-        match user, child with
-        | Some user, _ ->
-          Templates.FindOne(TemplateSearchKind.FullName(user, template))
-        | None, _ -> Templates.FindOne(TemplateSearchKind.Repository template)
-
-      Logger.log (
-        $"Using [bold yellow]{template.ToFullNameWithBranch}[/]",
-        escape = false
-      )
-
-      let templatePath =
-        FileSystem.PathForTemplate(
-          template.username,
-          template.repository,
-          template.branch,
-          ?tplName = child
-        )
-
-      let targetPath = opts.projectName
-
-      let content =
-        FileSystem.GetTemplateScriptContent(
-          template.username,
-          template.repository,
-          template.branch,
-          ?tplName = child
-        )
-        |> Option.map Scaffolding.getConfigurationFromScript
-        |> Option.flatten
-
-      Logger.log $"Creating structure..."
-
-      FileSystem.WriteTplRepositoryToDisk(
-        UMX.tag<SystemPath> templatePath,
-        UMX.tag<UserPath> targetPath,
-        ?payload = content
-      )
-
-      Logger.log (
-        $"Your project is ready at [bold green]{targetPath}[/]",
-        escape = false
-      )
-
-      Logger.log ($"cd {targetPath}", escape = false)
-      Logger.log ("[bold green]perla serve[/]", escape = false)
-
-      return 0
+    let foundRepo = result {
+      let! query = queryParam |> Result.requireSome NoQueryParams
+      match query with
+      | QuickAccessSearch.Name name->
+          let user, template, child = getTemplateAndChild name
+          let! found =
+            match user, child with
+            | Some user, _ -> Templates.FindOne(TemplateSearchKind.FullName(user, template))
+            | None, _ -> Templates.FindOne(TemplateSearchKind.Repository template)
+            |> Result.requireSome ParentTemplateNotFound
+          return Repository found
+        | others ->
+          let! found = Templates.FindTemplateItems(others) |> Result.requireHead ChildTemplateNotFound
+          return Existing found
     }
-    |> function
-      | None ->
-        Logger.log $"Template [{opts.templateName}] was not found"
 
-        Logger.log (
-          $"Please try to specify the template as [bold yellow]repository/template-name[/]",
-          escape = false
-        )
-
-        Logger.log (
-          $"Or the full name mode [bold yellow]github-username/repository/template-name[/]",
-          escape = false
-        )
-
-        Logger.log $"If you don't have the templates installed run"
-
-        Logger.log (
-          $"[yellow]perla templates:add AngelMunoz/perla-templates[/]",
-          escape = false
-        )
-
-        1
-      | Some n -> n
+    match foundRepo with
+    | Ok (Repository repo) -> failwith ""
+    | Ok (Existing item) -> failwith ""
+    | Error NoQueryParams -> failwith ""
+    | Error ParentTemplateNotFound -> failwith ""
+    | Error ChildTemplateNotFound -> failwith ""
 
   let runSetup (options: SetupOptions) =
     task {
@@ -479,7 +442,7 @@ module Handlers =
 
           let! result = Templates.Update(template)
 
-          if not result then
+          if not (Ok result) then
             Logger.log (
               "We were unable to update the existing [bold red]templates[/].",
               escape = false
@@ -621,7 +584,7 @@ module Handlers =
           match!
             Logger.spinner ("Updating Template", updateTemplate template branch)
           with
-          | true ->
+          | Ok true ->
             Logger.log (
               $"[bold green]{opts.fullRepositoryName}[/] - [yellow]{branch}[/] updated correctly",
               escape = false
@@ -2018,21 +1981,34 @@ module Commands =
     let name = Input.Argument("name", "Name of the new project")
 
     let templateName =
-      Input.ArgumentMaybe(
-        "templateName",
+      Input.Option(
+        [ "-tn"; "--template-name"; ],
         "repository/directory combination of the template name, or the full name in case of name conflicts username/repository/directory"
       )
 
-    let buildArgs (name: string, template: string option) : ProjectOptions =
+    let byId =
+      Input.Option(
+        [ "-id"; "--group-id"; ],
+        "fully.qualified.name of the template, e.g. perla.templates.vanilla.js"
+      )
+
+    let byShortName =
+      Input.Option(
+        [ "-t"; "--template"; ],
+        "shortname of the template, e.g. ff"
+      )
+
+    let buildArgs (name: string, template: string option, byId: string option, byShortName: string option) : ProjectOptions =
       { projectName = name
-        templateName =
-          template |> Option.defaultValue "perla-templates/vanilla-js" }
+        byTemplateName = template
+        byId = byId
+        byShortName = byShortName }
 
     command "new" {
       description
         "Creates a new project based on the selected template if it exists"
 
-      inputs (name, templateName)
+      inputs (name, templateName, byId, byShortName)
       setHandler (buildArgs >> Handlers.runNew)
     }
 
