@@ -15,18 +15,51 @@ module Scaffolding =
     val getConfigurationFromScript: content: string -> obj option
 
     [<CLIMutable>]
+    type TemplateConfigurationItem =
+        { childId: ObjectId
+          name: string
+          shortName: string
+          description: string }
+
+    [<CLIMutable>]
     type PerlaTemplateRepository =
         { _id: ObjectId
           username: string
           repository: string
           branch: string
           path: string<SystemPath>
+          name: string
+          description: string
+          author: string
+          license: string
+          repositoryUrl: string
+          group: string
+          templates: TemplateConfigurationItem seq
           createdAt: DateTime
           updatedAt: Nullable<DateTime> }
 
         member ToFullName: string
         member ToFullNameWithBranch: string
         static member DefaultTemplatesRepository: string * string * string
+
+    [<CLIMutable>]
+    type TemplateItem =
+        { _id: ObjectId
+          parent: ObjectId
+          name: string
+          group: string
+          shortName: string
+          description: string option
+          fullPath: string<SystemPath> }
+
+    [<RequireQualifiedAccess>]
+    type QuickAccessSearch =
+        | Id of ObjectId
+        | Name of string
+        | Group of string
+        | ShortName of string
+        | Parent of ObjectId
+
 
     [<RequireQualifiedAccess>]
     type TemplateSearchKind =
@@ -37,8 +70,9 @@ module Scaffolding =
 
     [<Class>]
     type Templates =
-        static member List: unit -> PerlaTemplateRepository list
-        static member Add: user: string * repository: string * branch: string -> Task<ObjectId>
+        static member ListRepositories: unit -> PerlaTemplateRepository list
+        static member ListTemplateItems: unit -> TemplateItem list
+        static member Add: user: string * repository: string * branch: string -> Task<Result<ObjectId, string>>
         /// <summary>
         /// Checks if the the repository with given a name in the form of
         /// Username/Repository
@@ -53,5 +87,6 @@ module Scaffolding =
         /// </summary>
         /// <param name="name">Full name of the template in the Username/Repository scheme</param>
         static member FindOne: name: TemplateSearchKind -> PerlaTemplateRepository option
-        static member Update: template: PerlaTemplateRepository -> Task<bool>
+        static member FindTemplateItems: searchParams: QuickAccessSearch -> TemplateItem list
+        static member Update: template: PerlaTemplateRepository -> Task<Result<bool, string>>
         static member Delete: searchKind: TemplateSearchKind -> bool

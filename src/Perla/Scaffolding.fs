@@ -10,9 +10,14 @@ open Perla.FileSystem
 open FSharp.UMX
 open Perla.Extensibility
 
+open Perla.Json.TemplateDecoders
+open Perla.Units
+open Thoth.Json.Net
+
 
 module Scaffolding =
   open Units
+  open FsToolkit.ErrorHandling
 
   [<Literal>]
   let ScaffoldConfiguration = "TemplateConfiguration"
@@ -27,12 +32,35 @@ module Scaffolding =
     | None -> None
 
   [<CLIMutable>]
+  type TemplateItem =
+    { _id: ObjectId
+      parent: ObjectId
+      name: string
+      group: string
+      shortName: string
+      description: string option
+      fullPath: string<SystemPath> }
+
+  type TemplateConfigurationItem =
+    { childId: ObjectId
+      name: string
+      shortName: string
+      description: string }
+
+  [<CLIMutable>]
   type PerlaTemplateRepository =
     { _id: ObjectId
       username: string
       repository: string
       branch: string
       path: string<SystemPath>
+      name: string
+      description: string
+      author: string
+      license: string
+      repositoryUrl: string
+      group: string
+      templates: TemplateConfigurationItem seq
       createdAt: DateTime
       updatedAt: Nullable<DateTime> }
 
@@ -60,19 +88,37 @@ module Scaffolding =
     | Repository of repository: string
     | FullName of username: string * repository: string
 
-  let private templatesdb =
+  [<RequireQualifiedAccess>]
+  type QuickAccessSearch =
+    | Id of ObjectId
+    | Name of string
+    | Group of string
+    | ShortName of string
+    | Parent of ObjectId
+
+  let Database =
     lazy
       (new LiteDatabase(
         $"Filename='{UMX.untag FileSystem.Database}';Connection='shared'"
       ))
 
-  let private repositories =
+  let RepositoriesCol =
     lazy
-      (let database = templatesdb.Value
+      (let database = Database.Value
        let repo = database.GetCollection<PerlaTemplateRepository>()
 
        repo.EnsureIndex(fun template -> template.username) |> ignore
        repo.EnsureIndex(fun template -> template.repository) |> ignore
+       repo)
+
+  let TemplatesCol =
+    lazy
+      (let database = Database.Value
+       let repo = database.GetCollection<TemplateItem>()
+       repo.EnsureIndex(fun template -> template.parent) |> ignore
+       repo.EnsureIndex(fun template -> template.group, true) |> ignore
+       repo.EnsureIndex(fun template -> template.name) |> ignore
+       repo.EnsureIndex(fun template -> template.shortName) |> ignore
        repo)
 
   let downloadAndExtract (user: string, repository: string, branch: string) =
@@ -85,25 +131,110 @@ module Scaffolding =
       return FileSystem.ExtractTemplateZip (user, repository, branch) stream
     }
 
+  let buildTemplateItems
+    (templateItems: DecodedTemplateConfigItem seq)
+    parentId
+    parentGroup
+    =
+    templateItems
+    |> Seq.map (fun templateItem ->
+      { _id = ObjectId.NewObjectId()
+        parent = parentId
+        name = templateItem.name
+        group = $"{parentGroup}.{templateItem.id}"
+        shortName = templateItem.shortName
+        description = templateItem.description
+        fullPath = templateItem.path })
+
+  let buildTemplateConfigurationItems
+    (templates: TemplateItem seq)
+    =
+    templates
+    |> Seq.map (fun item ->
+      { childId = item._id
+        name = item.name
+        shortName = item.shortName
+        description =
+          item.description |> Option.defaultValue "No Description Provided" })
+
+  let buildTemplateRepository
+    (options:
+      {| id: ObjectId
+         user: string
+         repository: string
+         branch: string
+         path: string<SystemPath>
+         name: string
+         author: string
+         license: string
+         repositoryUrl: string
+         group: string
+         templates: seq<TemplateConfigurationItem>
+         description: string
+         updatedAt: Nullable<DateTime> |})
+    =
+
+    { _id = options.id
+      username = options.user
+      repository = options.repository
+      branch = options.branch
+      path = options.path
+      createdAt = DateTime.Now
+      updatedAt = options.updatedAt
+      name = options.name
+      description = options.description
+      author = options.author
+      license = options.license
+      repositoryUrl = options.repositoryUrl
+      group = options.group
+      templates = options.templates }
+
   type Templates =
 
-    static member List() =
-      repositories.Value.FindAll() |> Seq.toList
+    static member ListRepositories() =
+      RepositoriesCol.Value.FindAll() |> Seq.toList
+
+    static member ListTemplateItems() =
+      TemplatesCol.Value.FindAll() |> Seq.toList
 
     static member Add(user, repository, branch) =
-      task {
-        let! path = downloadAndExtract (user, repository, branch)
+      taskResult {
+        let! result = downloadAndExtract (user, repository, branch)
+        let path, config = result
+        let! config = config
+        let id = ObjectId.NewObjectId()
+
+        let templateItems: TemplateItem seq =
+          buildTemplateItems config.templates id config.group
 
         let template =
-          { _id = ObjectId.NewObjectId()
-            username = user
-            repository = repository
-            branch = branch
-            path = path
-            createdAt = DateTime.Now
-            updatedAt = Nullable() }
+          buildTemplateRepository
+            {| id = id
+               user = user
+               repository = repository
+               branch = branch
+               path = path
+               updatedAt = Nullable()
+               name = config.name
+               description =
+                config.description
+                |> Option.defaultValue "No description provided"
+               author =
+                config.author |> Option.defaultValue "No author provided"
+               license =
+                config.license |> Option.defaultValue "No license provided"
+               repositoryUrl =
+                config.repositoryUrl
+                |> Option.defaultValue
+                  $"https://github.com/{user}/{repository}/tree/{branch}"
+               group = config.group
+               templates = buildTemplateConfigurationItems templateItems |}
 
-        return repositories.Value.Insert(template).AsObjectId
+        let parentId = RepositoriesCol.Value.Insert(template).AsObjectId
+
+        TemplatesCol.Value.InsertBulk templateItems |> ignore
+
+        return parentId
       }
 
     /// <summary>
@@ -113,7 +244,7 @@ module Scaffolding =
     /// </summary>
     /// <param name="name">Full name of the template in the Username/Repository scheme</param>
     static member Exists(name: TemplateSearchKind) =
-      repositories.Value.Exists(fun tplRepository ->
+      RepositoriesCol.Value.Exists(fun tplRepository ->
         match name with
         | TemplateSearchKind.Id id -> tplRepository._id = id
         | TemplateSearchKind.Username name -> tplRepository.username = name
@@ -131,7 +262,7 @@ module Scaffolding =
     static member FindOne
       (name: TemplateSearchKind)
       : PerlaTemplateRepository option =
-      let templates = repositories.Value
+      let templates = RepositoriesCol.Value
 
       let result =
         match name with
@@ -139,27 +270,82 @@ module Scaffolding =
         | TemplateSearchKind.Username username ->
           templates
             .Query()
-            .Where(fun tplRepo -> tplRepo.username = username)
+            .Where(fun tplRepo ->
+              tplRepo.username.Equals(
+                username,
+                StringComparison.InvariantCultureIgnoreCase
+              ))
             .SingleOrDefault()
         | TemplateSearchKind.Repository repository ->
           templates
             .Query()
-            .Where(fun tplRepo -> tplRepo.repository = repository)
+            .Where(fun tplRepo ->
+              tplRepo.repository.Equals(
+                repository,
+                StringComparison.InvariantCultureIgnoreCase
+              ))
             .SingleOrDefault()
         | TemplateSearchKind.FullName(username, repository) ->
           templates
             .Query()
             .Where(fun tplRepo ->
-              tplRepo.username = username && tplRepo.repository = repository)
+              tplRepo.username.Equals(
+                username,
+                StringComparison.InvariantCultureIgnoreCase
+              )
+              && tplRepo.repository.Equals(
+                repository,
+                StringComparison.InvariantCultureIgnoreCase
+              ))
             .SingleOrDefault()
 
-      match box result with
-      | :? PerlaTemplateRepository as repo -> Some repo
-      | null
-      | _ -> None
+      Option.ofNull result
+
+    static member FindTemplateItems(searchParams: QuickAccessSearch) =
+      let templatesCol = TemplatesCol.Value
+
+      let result =
+        match searchParams with
+        | QuickAccessSearch.Id id ->
+          templatesCol.FindById(id)
+          |> Option.ofNull
+          |> Option.map (fun tpl -> [| tpl |])
+          |> Option.defaultWith (fun _ -> Array.empty)
+
+        | QuickAccessSearch.Name name ->
+          templatesCol
+            .Query()
+            .Where(fun tpl ->
+              tpl.name.Equals(
+                name,
+                StringComparison.InvariantCultureIgnoreCase
+              ))
+            .ToArray()
+        | QuickAccessSearch.Group group ->
+          templatesCol
+            .Query()
+            .Where(fun tpl ->
+              tpl.group.Equals(
+                group,
+                StringComparison.InvariantCultureIgnoreCase
+              ))
+            .ToArray()
+        | QuickAccessSearch.ShortName shortName ->
+          templatesCol
+            .Query()
+            .Where(fun tpl ->
+              tpl.shortName.Equals(
+                shortName,
+                StringComparison.InvariantCultureIgnoreCase
+              ))
+            .ToArray()
+        | QuickAccessSearch.Parent id ->
+          templatesCol.Query().Where(fun tpl -> tpl.parent.Equals(id)).ToArray()
+
+      result |> List.ofArray
 
     static member Update(template: PerlaTemplateRepository) =
-      task {
+      taskResult {
         match
           Templates.FindOne(
             TemplateSearchKind.FullName(template.username, template.repository)
@@ -180,21 +366,62 @@ module Scaffolding =
               )
               |> Async.AwaitTask
 
+            let path, config = path
+            let! config = config
+
+            let templateItems: TemplateItem seq =
+              buildTemplateItems config.templates repo._id config.group
+
+
             let updated =
-              repositories.Value.Update(repo._id, { updated with path = path })
+              RepositoriesCol.Value.Update(
+                repo._id,
+                { updated with
+                    path = path
+                    name = config.name
+                    description =
+                      config.description
+                      |> Option.defaultValue "No description provided"
+                    author =
+                      config.author |> Option.defaultValue "No author provided"
+                    license =
+                      config.license
+                      |> Option.defaultValue "No license provided"
+                    repositoryUrl =
+                      config.repositoryUrl
+                      |> Option.defaultValue
+                        $"https://github.com/{updated.ToFullName}/tree/{updated.branch}"
+                    group = config.group
+                    templates =
+                      buildTemplateConfigurationItems templateItems }
+              )
+
+            if updated then
+              // cleanup existing templates from the database
+              TemplatesCol.Value.DeleteMany(fun template ->
+                template.parent = repo._id)
+              |> ignore
+
+              // Insert the updated templates
+              TemplatesCol.Value.InsertBulk templateItems |> ignore
 
             return updated
           with ex ->
             Logger.Logger.log ("We could not update the template", ex = ex)
-            templatesdb.Value.Rollback() |> ignore
+            Database.Value.Rollback() |> ignore
             return false
         | None -> return false
       }
 
     static member Delete(searchKind) =
-      match Templates.FindOne(searchKind) with
+      match Templates.FindOne(searchKind: TemplateSearchKind) with
       | Some template ->
         FileSystem.RemoveTemplateDirectory(template.path)
 
-        repositories.Value.Delete(template._id)
+        // remove the quick template access
+        TemplatesCol.Value.DeleteMany(fun template ->
+          template.parent = template._id)
+        |> ignore
+
+        RepositoriesCol.Value.Delete(template._id)
       | None -> false
