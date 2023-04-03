@@ -87,7 +87,7 @@ A full `perla.json` file looks like this:
     // do you have a custom esbuild version? you can point at it
     "esBuildPath": "/path/to/esbuild",
     // pin the esbuild version you want to use in case our default is not up to date
-    "version": "0.15.16",
+    "version": "0.17.15",
     // Allow your code to compile down to better supported spec
     "ecmaVersion": "es2020",
     // if you need to debug output code, this setting might be handy

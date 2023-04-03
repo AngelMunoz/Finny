@@ -11,7 +11,7 @@ open ICSharpCode.SharpZipLib.GZip
 open ICSharpCode.SharpZipLib.Tar
 
 let EsbuildBinaryPath () : string =
-    "/home/runner/.local/share/perla/0.15.16/package/bin/esbuild"
+    "/home/runner/.local/share/perla/0.17.15/package/bin/esbuild"
     |> Path.GetFullPath
 
 let chmodBinCmd () =
@@ -23,9 +23,9 @@ let chmodBinCmd () =
 
 let tryDownloadEsBuild () : Task<string option> =
     let url =
-        "https://registry.npmjs.org/esbuild-linux-64/-/esbuild-linux-64-0.15.16.tgz"
+        "https://registry.npmjs.org/esbuild-linux-64/-/esbuild-linux-64-0.17.15.tgz"
 
-    let compressedFile = "/home/runner/.local/share/perla/0.15.16/esbuild.tgz"
+    let compressedFile = "/home/runner/.local/share/perla/0.17.15/esbuild.tgz"
     compressedFile |> Path.GetDirectoryName |> Directory.CreateDirectory |> ignore
 
     task {

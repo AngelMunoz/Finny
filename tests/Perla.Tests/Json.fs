@@ -245,7 +245,7 @@ let ``PerlaDecoder Should Decode Esbuild options`` () =
     """
 { "esbuild": {
     "esBuildPath": "/mnt/c/esbuild",
-    "version": "0.15.7",
+    "version": "0.17.15",
     "ecmaVersion": "es2017",
     "minify": true,
     "injects": [],
@@ -267,7 +267,7 @@ let ``PerlaDecoder Should Decode Esbuild options`` () =
     )
 
     Assert.Equal(
-      "0.15.7",
+      "0.17.15",
       esbuild.version |> Option.map UMX.untag |> Option.defaultValue "bad-value"
     )
 
@@ -294,7 +294,11 @@ let ``PerlaDecoder Should Decode Esbuild options`` () =
       let react = Assert.Single externals
       Assert.Equal("react", react)
 
-    Assert.Equal(true, esbuild.jsxAutomatic |> Option.defaultWith (fun _ -> failwith "jsxAutomatic is not present"))
+    Assert.Equal(
+      true,
+      esbuild.jsxAutomatic
+      |> Option.defaultWith (fun _ -> failwith "jsxAutomatic is not present")
+    )
 
     Assert.Equal(
       "preact",
