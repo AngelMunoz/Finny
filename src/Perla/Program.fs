@@ -8,6 +8,15 @@ open System.Threading.Tasks
 
 [<EntryPoint>]
 let main argv =
+
+  System.IO.Directory.EnumerateFiles(
+    $"{FileSystem.FileSystem.CurrentWorkingDirectory()}",
+    "*.env",
+    System.IO.SearchOption.TopDirectoryOnly
+  )
+  |> Seq.map (fun file -> FSharp.UMX.UMX.tag<Perla.Units.SystemPath> file)
+  |> Env.LoadDotEnv
+
   let maybeHelp = Input.OptionMaybe([ "--info" ], "Brings the Help dialog")
 
   let handler (_: InvocationContext, _: bool option) =

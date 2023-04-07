@@ -976,6 +976,10 @@ module Handlers =
       with ex ->
         Logger.log ($"Failed to delete {tempDirectory}", ex = ex)
 
+      if config.build.emitEnvFile then
+        Logger.log "Writing Env File"
+        Build.EmitEnvFile(config)
+
       if args.enablePreview then
         let app = Server.GetStaticServer(config)
         do! app.StartAsync(cancel)

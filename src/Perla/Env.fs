@@ -5,6 +5,9 @@ open System
 open System.Collections
 open System.Runtime.InteropServices
 open System.Text
+open FSharp.UMX
+open Perla.Units
+open System.IO
 
 open FsToolkit.ErrorHandling
 
@@ -57,3 +60,27 @@ let GetEnvContent () =
     else
       return content
   }
+
+
+let LoadDotEnv (files: string<SystemPath> seq) =
+  let lines =
+    files
+    |> Array.ofSeq
+    |> Array.collect (fun file ->
+      try
+        File.ReadAllLines($"{file}")
+      with ex ->
+        Array.empty)
+
+  for line in lines do
+    match line.Split("=") with
+    | [| varName; varContent |] when
+      varName.StartsWith("PERLA_") && not (String.IsNullOrWhiteSpace varContent)
+      ->
+      Environment.SetEnvironmentVariable(varName, varContent)
+    | [| varName; varContent |] when
+      not (varName.StartsWith("PERLA_"))
+      && not (String.IsNullOrWhiteSpace varContent)
+      ->
+      Environment.SetEnvironmentVariable($"PERLA_{varName}", varContent)
+    | _ -> ()

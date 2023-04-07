@@ -200,3 +200,14 @@ type Build =
         vfsGlob |> Seq.toArray |> Array.Parallel.iter copyVirtual
 
         lfsGlob |> Seq.toArray |> Array.Parallel.iter copyLocal)
+
+  static member EmitEnvFile(config: PerlaConfig) =
+    match Env.GetEnvContent() with
+    | Some content ->
+      let targetFile = config.envPath
+
+      let path =
+        Path.Combine(UMX.untag config.build.outDir, UMX.untag targetFile)
+
+      File.WriteAllText(path, content)
+    | None -> ()
