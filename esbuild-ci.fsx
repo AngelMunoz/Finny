@@ -22,8 +22,7 @@ let chmodBinCmd () =
         .WithArguments($"+x {EsbuildBinaryPath()}")
 
 let tryDownloadEsBuild () : Task<string option> =
-    let url =
-        "https://registry.npmjs.org/esbuild-linux-64/-/esbuild-linux-64-0.17.15.tgz"
+    let url = "https://registry.npmjs.org/@esbuild/linux-x64/-/linux-x64-0.17.15.tgz"
 
     let compressedFile = "/home/runner/.local/share/perla/0.17.15/esbuild.tgz"
     compressedFile |> Path.GetDirectoryName |> Directory.CreateDirectory |> ignore
