@@ -69,7 +69,7 @@ let envVarRegex = Regex(@"^([\w\d ]+)=([^\n\r]+)$")
 
 let getGroups (regex: Regex) (input: string) =
   if regex.IsMatch input then
-    [ for group in regex.Match(input).Groups |> Seq.tail do
+    [ for group in regex.Match(input).Groups do
         if String.IsNullOrWhiteSpace group.Value then
           ()
         else
@@ -81,14 +81,15 @@ let getGroups (regex: Regex) (input: string) =
 let (|PerlaPrefixed|_|) line =
 
   match getGroups envVarRegex line with
-  | [ key; value ] when key.StartsWith(PerlaEnvPrefix) -> ValueSome(key, value)
+  | [ _; key; value ] when key.StartsWith(PerlaEnvPrefix) ->
+    ValueSome(key, value)
   | _ -> ValueNone
 
 [<return: Struct>]
 let (|NotPerlaPrefixed|_|) line =
 
   match getGroups envVarRegex line with
-  | [ key; value ] when not (key.StartsWith(PerlaEnvPrefix)) ->
+  | [ _; key; value ] when not (key.StartsWith(PerlaEnvPrefix)) ->
     ValueSome(key, value)
   | _ -> ValueNone
 
