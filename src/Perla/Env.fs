@@ -69,7 +69,7 @@ let envVarRegex = Regex(@"^([\w\d ]+)=([^\n\r]+)$")
 
 let getGroups (regex: Regex) (input: string) =
   if regex.IsMatch input then
-    [ for group in regex.Match(input).Groups do
+    [ for group in regex.Match(input).Groups |> Seq.tail do
         if String.IsNullOrWhiteSpace group.Value then
           ()
         else

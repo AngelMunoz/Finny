@@ -1,6 +1,5 @@
 ﻿// Learn more about F# at http://docs.microsoft.com/dotnet/fsharp
 open System.CommandLine.Invocation
-open System.CommandLine.Help
 open System.CommandLine.Builder
 open FSharp.SystemCommandLine
 open Perla
@@ -9,21 +8,11 @@ open System.Threading.Tasks
 [<EntryPoint>]
 let main argv =
 
-  System.IO.Directory.EnumerateFiles(
-    $"{FileSystem.FileSystem.CurrentWorkingDirectory()}",
-    "*.env",
-    System.IO.SearchOption.TopDirectoryOnly
-  )
-  |> Seq.map (fun file -> FSharp.UMX.UMX.tag<Perla.Units.SystemPath> file)
-  |> Env.LoadDotEnv
-
   let maybeHelp = Input.OptionMaybe([ "--info" ], "Brings the Help dialog")
 
   let handler (_: InvocationContext, _: bool option) =
 
     Task.FromResult 0
-
-  let serve, serveShorthand = Commands.Serve
 
   rootCommand argv {
     description "The Perla Dev Server!"
@@ -35,8 +24,7 @@ let main argv =
       pipeline.UseTokenReplacer(fun _ _ _ -> false) |> ignore)
 
     addCommands
-      [ serve
-        serveShorthand
+      [ Commands.Serve
         Commands.Build
         Commands.Setup
         Commands.SearchPackages

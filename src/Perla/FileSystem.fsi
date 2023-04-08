@@ -51,16 +51,24 @@ type FileSystem =
     static member PerlaConfigText: ?fromDirectory: string<SystemPath> -> string option
     static member SetCwdToPerlaRoot: ?fromPath: string<SystemPath> -> unit
     static member GetImportMap: ?fromDirectory: string<SystemPath> -> ImportMap
+
     static member SetupEsbuild:
         esbuildVersion: string<Semver> * [<Optional>] ?cancellationToken: CancellationToken -> Task<unit>
+
     static member WriteImportMap: map: ImportMap * ?fromDirectory: string<SystemPath> -> ImportMap
     static member WritePerlaConfig: ?config: JsonObject * ?fromDirectory: string<SystemPath> -> unit
     static member PathForTemplate: username: string * repository: string * branch: string * ?tplName: string -> string
+
     static member WriteTplRepositoryToDisk:
         origin: string<SystemPath> * target: string<UserPath> * ?payload: obj -> unit
+
     static member GetTemplateScriptContent:
         username: string * repository: string * branch: string * ?tplName: string -> string option
+
     static member IndexFile: fromConfig: string<SystemPath> -> string
     static member PluginFiles: unit -> (string * string) array
+
     static member ObservePerlaFiles:
         indexPath: string * [<Optional>] ?cancellationToken: CancellationToken -> IObservable<PerlaFileChange>
+
+    static member GetDotEnvFilePaths: ?fromDirectory: string<SystemPath> -> string<SystemPath> seq

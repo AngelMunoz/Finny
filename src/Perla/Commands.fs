@@ -213,7 +213,7 @@ module Handlers =
 
       let mutable chosen = parseFullRepositoryName opts.fullRepositoryName
 
-      while chosen |> Option.isNone do
+      while chosen |> ValueOption.isNone do
         chosen <-
           AnsiConsole.Ask(
             "that doesn't feel right, please tell us the  username/repository:branch github repository to look for templates"
@@ -221,7 +221,7 @@ module Handlers =
           |> parseFullRepositoryName
 
         match chosen with
-        | None -> ()
+        | ValueNone -> ()
         | parsed -> chosen <- parsed
 
       let username, repository, _ = chosen.Value
@@ -607,7 +607,7 @@ module Handlers =
   let runUpdateTemplate (opts: TemplateRepositoryOptions) =
     task {
       match parseFullRepositoryName opts.fullRepositoryName with
-      | Some(username, repository, branch) ->
+      | ValueSome(username, repository, branch) ->
         match
           Templates.FindOne(TemplateSearchKind.FullName(username, repository))
         with
@@ -642,7 +642,7 @@ module Handlers =
           )
 
           return 1
-      | None ->
+      | ValueNone ->
         Logger.log (
           $"[bold red]{opts.fullRepositoryName}[/] Was not found in the templates",
           escape = false
@@ -818,6 +818,8 @@ module Handlers =
 
   let runBuild (cancel: CancellationToken, args: BuildOptions) =
     task {
+      FileSystem.GetDotEnvFilePaths() |> Env.LoadEnvFiles
+
       ConfigurationManager.UpdateFromCliArgs(?runConfig = args.mode)
       let config = ConfigurationManager.CurrentConfig
 
@@ -913,43 +915,6 @@ module Handlers =
             |> Seq.map (fun p ->
               Path.ChangeExtension(UMX.untag p, ".css") |> UMX.tag) ]
 
-      let! indexContent =
-        task {
-          let operation =
-
-            if args.rebuildImportMap then
-              let dependencies =
-                match config.runConfiguration with
-                | RunConfiguration.Production ->
-                  config.dependencies |> Seq.map (fun d -> d.AsVersionedString)
-                | RunConfiguration.Development ->
-                  [ yield! config.dependencies; yield! config.devDependencies ]
-                  |> Seq.map (fun d -> d.AsVersionedString)
-
-              Dependencies.GetMapAndDependencies(dependencies, config.provider)
-            else
-              Dependencies.GetMapAndDependencies(
-                FileSystem.GetImportMap(),
-                config.provider
-              )
-
-          match!
-            Logger.spinner (
-              "Resolving Static dependencies and import map...",
-              operation
-            )
-          with
-          | Ok(deps, map) ->
-            FileSystem.WriteImportMap(map) |> ignore
-            let deps = if args.enablePreloads then deps else Seq.empty
-            return Build.GetIndexFile(document, css, js, map, deps)
-          | Error err ->
-            Logger.log
-              $"We were unable to update static dependencies and import map: {err}, falling back to the map in disk"
-
-            let map = FileSystem.GetImportMap()
-            return Build.GetIndexFile(document, css, js, map)
-        }
 
       let outDir =
         config.build.outDir
@@ -957,14 +922,16 @@ module Handlers =
         |> Path.GetFullPath
         |> fs.ConvertPathFromInternal
 
-
       // copy any glob files
       Build.CopyGlobs(config.build, tempDirectory)
+
       // copy any root files
       fs.EnumerateFileEntries(tmp, "*.*", SearchOption.TopDirectoryOnly)
       |> Seq.iter (fun file ->
         file.CopyTo(UPath.Combine(outDir, file.Name), true) |> ignore)
 
+      let indexContent =
+        Build.GetIndexFile(document, css, js, FileSystem.GetImportMap())
       // Always copy the index file at the end to avoid
       // clashing with any index.html file in the root of the virtual file system
       fs.WriteAllText(UPath.Combine(outDir, "index.html"), indexContent)
@@ -1050,6 +1017,8 @@ module Handlers =
 
   let runServe (cancel: CancellationToken, options: ServeOptions) =
     task {
+      FileSystem.GetDotEnvFilePaths() |> Env.LoadEnvFiles
+
       let cliArgs =
         [ match options.port with
           | Some port -> DevServerField.Port port
@@ -1118,6 +1087,7 @@ module Handlers =
         Logger.log ($"Listening at: {url}", target = Logger.Serve))
 
       perlaChanges
+      |> Observable.throttle (TimeSpan.FromMilliseconds(500.))
       |> Observable.choose (function
         | PerlaFileChange.PerlaConfig -> Some()
         | _ -> None)
@@ -1171,6 +1141,8 @@ module Handlers =
 
   let runTesting (cancel: CancellationToken, options: TestingOptions) =
     task {
+      FileSystem.GetDotEnvFilePaths() |> Env.LoadEnvFiles
+
       ConfigurationManager.UpdateFromCliArgs(
         testingOptions =
           [ match options.browsers with
@@ -1704,21 +1676,11 @@ module Commands =
     let desc =
       "Starts the development server and if fable projects are present it also takes care of it."
 
-    let serve =
-      command "serve" {
-        description desc
-        inputs (Input.Context(), runAsDev, port, host, ssl)
-        setHandler (buildArgs >> Handlers.runServe)
-      }
-
-    let serveShorthand =
-      command "s" {
-        description desc
-        inputs (Input.Context(), runAsDev, port, host, ssl)
-        setHandler (buildArgs >> Handlers.runServe)
-      }
-
-    serve, serveShorthand
+    command "serve" {
+      description desc
+      inputs (Input.Context(), runAsDev, port, host, ssl)
+      setHandler (buildArgs >> Handlers.runServe)
+    }
 
   let Setup =
     let skipPrompts =

@@ -136,8 +136,8 @@ module Dependencies =
       packages
       |> List.choose (fun (name, url) ->
         match ExtractDependencyInfoFromUrl url with
-        | Some _ -> None
-        | None -> Some(name, url))
+        | ValueSome _ -> None
+        | ValueNone -> Some(name, url))
 
     if unparsablePackages |> List.length > 0 then
       Logger.log
@@ -146,18 +146,18 @@ module Dependencies =
       Logger.log "These are likely to be manual resolutions"
 
       Logger.log
-        "f there's an actual dependency from the supported providers here please report it as a bug"
+        "if there's an actual dependency from the supported providers here please report it as a bug"
 
       for name, url in unparsablePackages do
-        Logger.log $"[yellow]{name}[/yellow] - {url}"
+        Logger.log ($"[yellow]{name}[/yellow] - {url}", escape = false)
 
     let allPackages =
       let unresolved = unparsablePackages
 
       unresolved
       |> List.fold
-           (fun current (uName, uUrl) -> current |> Map.add uName uUrl)
-           newMap.imports
+        (fun current (uName, uUrl) -> current |> Map.add uName uUrl)
+        newMap.imports
 
     allPackages
 
@@ -177,9 +177,9 @@ type Dependencies =
           [ GeneratorEnv.Browser
             GeneratorEnv.Module
             match runConfig with
-            | Some RunConfiguration.Production -> GeneratorEnv.Production
-            | Some RunConfiguration.Development
-            | None -> GeneratorEnv.Production ],
+            | Some RunConfiguration.Production
+            | None -> GeneratorEnv.Production
+            | Some RunConfiguration.Development -> GeneratorEnv.Development ],
           map,
           provider
         )
@@ -203,9 +203,9 @@ type Dependencies =
       [ GeneratorEnv.Browser
         GeneratorEnv.Module
         match runConfig with
-        | Some RunConfiguration.Production -> GeneratorEnv.Production
-        | Some RunConfiguration.Development
-        | None -> GeneratorEnv.Production ],
+        | Some RunConfiguration.Production
+        | None -> GeneratorEnv.Production
+        | Some RunConfiguration.Development -> GeneratorEnv.Development ],
       ?provider = provider
     )
 
@@ -220,9 +220,9 @@ type Dependencies =
       [ GeneratorEnv.Browser
         GeneratorEnv.Module
         match runConfig with
-        | Some RunConfiguration.Production -> GeneratorEnv.Production
-        | Some RunConfiguration.Development
-        | None -> GeneratorEnv.Production ],
+        | Some RunConfiguration.Production
+        | None -> GeneratorEnv.Production
+        | Some RunConfiguration.Development -> GeneratorEnv.Development ],
       ?provider = provider
     )
 
@@ -237,9 +237,9 @@ type Dependencies =
       [ GeneratorEnv.Browser
         GeneratorEnv.Module
         match runConfig with
-        | Some RunConfiguration.Production -> GeneratorEnv.Production
-        | Some RunConfiguration.Development
-        | None -> GeneratorEnv.Production ],
+        | Some RunConfiguration.Production
+        | None -> GeneratorEnv.Production
+        | Some RunConfiguration.Development -> GeneratorEnv.Development ],
       ?provider = provider
     )
     |> TaskResult.map (fun result -> result.staticDeps, result.map)
@@ -254,7 +254,9 @@ type Dependencies =
 
     let parsablePackages =
       packages
-      |> List.choose (snd >> ExtractDependencyInfoFromUrl)
+      |> List.choose (
+        snd >> ExtractDependencyInfoFromUrl >> Option.ofValueOption
+      )
       |> List.map (fun (_, name, version) -> $"{name}@{version}")
 
     PackageManager.Regenerate(
@@ -262,9 +264,9 @@ type Dependencies =
       [ GeneratorEnv.Browser
         GeneratorEnv.Module
         match runConfig with
-        | Some RunConfiguration.Production -> GeneratorEnv.Production
-        | Some RunConfiguration.Development
-        | None -> GeneratorEnv.Production ],
+        | Some RunConfiguration.Production
+        | None -> GeneratorEnv.Production
+        | Some RunConfiguration.Development -> GeneratorEnv.Development ],
       importMap = map,
       ?provider = provider
     )
@@ -285,7 +287,9 @@ type Dependencies =
 
       let parsablePackages =
         packages
-        |> List.choose (snd >> ExtractDependencyInfoFromUrl)
+        |> List.choose (
+          snd >> ExtractDependencyInfoFromUrl >> Option.ofValueOption
+        )
         |> List.map (fun (_, name, version) -> $"{name}@{version}")
 
       let! resultMap =
@@ -294,9 +298,9 @@ type Dependencies =
           [ GeneratorEnv.Browser
             GeneratorEnv.Module
             match runConfig with
-            | Some RunConfiguration.Production -> GeneratorEnv.Production
-            | Some RunConfiguration.Development
-            | None -> GeneratorEnv.Production ],
+            | Some RunConfiguration.Production
+            | None -> GeneratorEnv.Production
+            | Some RunConfiguration.Development -> GeneratorEnv.Development ],
           map,
           provider
         )
@@ -318,7 +322,9 @@ type Dependencies =
 
       let parsablePackages =
         packages
-        |> List.choose (snd >> ExtractDependencyInfoFromUrl)
+        |> List.choose (
+          snd >> ExtractDependencyInfoFromUrl >> Option.ofValueOption
+        )
         |> List.map (fun (_, name, version) -> $"{name}@{version}")
 
       let! resultMap =
@@ -327,9 +333,9 @@ type Dependencies =
           [ GeneratorEnv.Browser
             GeneratorEnv.Module
             match runConfig with
-            | Some RunConfiguration.Production -> GeneratorEnv.Production
-            | Some RunConfiguration.Development
-            | None -> GeneratorEnv.Production ],
+            | Some RunConfiguration.Production
+            | None -> GeneratorEnv.Production
+            | Some RunConfiguration.Development -> GeneratorEnv.Development ],
           provider = provider
         )
 
@@ -356,12 +362,12 @@ type Dependencies =
       |> Map.toList
       |> List.choose (fun (name, url) ->
         match ExtractDependencyInfoFromUrl url with
-        | Some value ->
+        | ValueSome value ->
           if allTogether |> Set.contains name then
             Some value
           else
             None
-        | None -> None)
+        | ValueNone -> None)
       |> List.map (fun (_, name, version) ->
         { name = name
           version = Some version
@@ -370,17 +376,17 @@ type Dependencies =
     let deps, devDeps =
       fromImportMap
       |> List.fold
-           (fun (current: Set<Dependency> * Set<Dependency>) (next: Dependency) ->
-             let deps, devDeps = current
+        (fun (current: Set<Dependency> * Set<Dependency>) (next: Dependency) ->
+          let deps, devDeps = current
 
-             if dependencies |> Set.contains next.name then
-               (deps |> Set.add next, devDeps)
-             elif devDependencies |> Set.contains next.name then
-               (deps, devDeps |> Set.add next)
-             else
-               match config.runConfiguration with
-               | RunConfiguration.Production -> (deps |> Set.add next, devDeps)
-               | RunConfiguration.Development -> (deps, devDeps |> Set.add next))
-           (Set.empty<Dependency>, Set.empty<Dependency>)
+          if dependencies |> Set.contains next.name then
+            (deps |> Set.add next, devDeps)
+          elif devDependencies |> Set.contains next.name then
+            (deps, devDeps |> Set.add next)
+          else
+            match config.runConfiguration with
+            | RunConfiguration.Production -> (deps |> Set.add next, devDeps)
+            | RunConfiguration.Development -> (deps, devDeps |> Set.add next))
+        (Set.empty<Dependency>, Set.empty<Dependency>)
 
     seq deps, seq devDeps

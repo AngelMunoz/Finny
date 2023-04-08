@@ -11,13 +11,14 @@ module Lib =
   open System.Text.RegularExpressions
   open FSharp.UMX
 
+  [<return: Struct>]
   let internal (|ParseRegex|_|) (regex: Regex) str =
     let m = regex.Match(str)
 
     if m.Success then
-      Some(List.tail [ for x in m.Groups -> x.Value ])
+      ValueSome(List.tail [ for x in m.Groups -> x.Value ])
     else
-      None
+      ValueNone
 
   let ExtractDependencyInfoFromUrl url =
 
@@ -25,30 +26,30 @@ module Lib =
     | ParseRegex (Regex(@"https://cdn.skypack.dev/pin/(@?[^@]+)@v([\d.]+)(-?\w+(?!\w+)[\d.]?[\d+]+)?")) [ name
                                                                                                           version
                                                                                                           preview ] ->
-      Some(Provider.Skypack, name, $"{version}{preview}")
+      ValueSome(Provider.Skypack, name, $"{version}{preview}")
     | ParseRegex (Regex(@"https://cdn.jsdelivr.net/npm/(@?[^@]+)@([\d.]+)(-?[-]\w+[\d.]?[\d+]+)?")) [ name
                                                                                                       version
                                                                                                       preview ] ->
-      Some(Provider.Jsdelivr, name, $"{version}{preview}")
+      ValueSome(Provider.Jsdelivr, name, $"{version}{preview}")
     | ParseRegex (Regex(@"https://ga.jspm.io/npm:(@?[^@]+)@([\d.]+)(-?[-]\w+[\d.]?[\d+]+)?")) [ name
                                                                                                 version
                                                                                                 preview ] ->
-      Some(Provider.Jspm, name, $"{version}{preview}")
+      ValueSome(Provider.Jspm, name, $"{version}{preview}")
     | ParseRegex (Regex(@"https://unpkg.com/(@?[^@]+)@([\d.]+)(-?[-]\w+[\d.]?[\d+]+)?")) [ name
                                                                                            version
                                                                                            preview ] ->
-      Some(Provider.Unpkg, name, $"{version}{preview}")
-    | _ -> None
+      ValueSome(Provider.Unpkg, name, $"{version}{preview}")
+    | _ -> ValueNone
 
   let parseFullRepositoryName (value: string) =
     let regex = new Regex(@"^([-_\w\d]+)\/([-_\w\d]+):?([\w\d-_]+)?$")
 
     match value with
     | ParseRegex regex [ username; repository; branch ] ->
-      Some(username, repository, branch)
+      ValueSome(username, repository, branch)
     | ParseRegex regex [ username; repository ] ->
-      Some(username, repository, "main")
-    | _ -> None
+      ValueSome(username, repository, "main")
+    | _ -> ValueNone
 
   let getTemplateAndChild (templateName: string) =
     match
@@ -381,16 +382,16 @@ module Lib =
         | "dependencies" ->
           this.dependencies
           |> Seq.fold
-               (fun current next -> $"{next.AsVersionedString};{current}")
-               ""
+            (fun current next -> $"{next.AsVersionedString};{current}")
+            ""
           |> Text
           :> IRenderable
           |> Some
         | "devdependencies" ->
           this.devDependencies
           |> Seq.fold
-               (fun current next -> $"{next.AsVersionedString};{current}")
-               ""
+            (fun current next -> $"{next.AsVersionedString};{current}")
+            ""
           |> Text
           :> IRenderable
           |> Some

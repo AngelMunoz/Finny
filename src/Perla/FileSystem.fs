@@ -185,13 +185,13 @@ module FileSystem =
       esbuildVersion: string,
       cancellationToken: CancellationToken option
     ) : Task<string option> =
-    let binString = $"esbuild-{Env.PlatformString}-{Env.ArchString}"
+    let binString = $"{Env.PlatformString}-{Env.ArchString}"
 
     let compressedFile =
       (UMX.untag PerlaArtifactsRoot) / esbuildVersion / "esbuild.tgz"
 
     let url =
-      $"https://registry.npmjs.org/{binString}/-/{binString}-{esbuildVersion}.tgz"
+      $"https://registry.npmjs.org/@esbuild/{binString}/-/{binString}-{esbuildVersion}.tgz"
 
     compressedFile
     |> Path.GetDirectoryName
@@ -295,8 +295,8 @@ module FileSystem =
         .EnumerateFiles("*.*", SearchOption.AllDirectories)
       |> Seq.filter (fun file -> file.Extension <> ".fsx")
       |> Seq.fold
-           foldFilesAndTemplates
-           (List.empty<FileInfo>, List.empty<FileInfo>)
+        foldFilesAndTemplates
+        (List.empty<FileInfo>, List.empty<FileInfo>)
     with :? DirectoryNotFoundException ->
       Logger.log (
         "[bold red]While the repository was found, the chosen template was not[/]",
@@ -546,8 +546,7 @@ type FileSystem =
         file.Directory.Create()
 
         let target =
-          file
-            .FullName
+          file.FullName
             .Replace(originDirectory, targetDirectory)
             .Replace(".tpl", "")
 
@@ -579,3 +578,11 @@ type FileSystem =
 
         copyTemplates processTemplates
         processTemplates.StopTask())
+
+  static member GetDotEnvFilePaths(?fromDirectory) =
+    let path =
+      FileSystem.GetConfigPath Constants.PerlaConfigName fromDirectory
+      |> UMX.untag
+      |> Path.GetDirectoryName
+
+    !! $"{path}/*.env" ++ $"{path}/*.*.env" |> Seq.map UMX.tag<SystemPath>

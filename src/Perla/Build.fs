@@ -204,10 +204,10 @@ type Build =
   static member EmitEnvFile(config: PerlaConfig) =
     match Env.GetEnvContent() with
     | Some content ->
-      let targetFile = config.envPath
+      // remove the leading slash
+      let targetFile = (UMX.untag config.envPath)[1..]
 
-      let path =
-        Path.Combine(UMX.untag config.build.outDir, UMX.untag targetFile)
+      let path = Path.Combine(UMX.untag config.build.outDir, targetFile)
 
       File.WriteAllText(path, content)
     | None -> ()
