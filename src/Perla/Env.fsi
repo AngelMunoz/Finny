@@ -9,4 +9,4 @@ val PlatformString: string
 val ArchString: string
 val internal getPerlaEnvVars: unit -> (string * string) list
 val GetEnvContent: unit -> string option
-val LoadDotEnv: files: string<SystemPath> seq -> unit
+val LoadEnvFiles: files: string<SystemPath> seq -> unit
