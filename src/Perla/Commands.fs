@@ -325,14 +325,21 @@ module Handlers =
       cancellationToken: CancellationToken
     ) : Task<int> =
     Logger.log "Creating new project..."
+    let mutable mentionQuickCommand = false
+
+    let inline byId () =
+      opts.byId
+      |> Option.map UMX.tag<TemplateGroup>
+      |> Option.map (QuickAccessSearch.Group)
+
+    let inline byTemplateName () =
+      opts.byTemplateName |> Option.map (QuickAccessSearch.Name)
 
     let queryParam =
       opts.byShortName
       |> Option.map (QuickAccessSearch.ShortName)
-      |> Option.orElseWith (fun () ->
-        opts.byId |> Option.map (QuickAccessSearch.Group))
-      |> Option.orElseWith (fun () ->
-        opts.byTemplateName |> Option.map (QuickAccessSearch.Name))
+      |> Option.orElseWith byId
+      |> Option.orElseWith byTemplateName
 
     let foundRepo =
       result {
@@ -371,6 +378,8 @@ module Handlers =
     let selectedItem =
       match foundRepo with
       | Ok(Repository repo) ->
+        mentionQuickCommand <- true
+
         let selection =
           SelectionPrompt(
             Title = $"Available templates for {repo.name}",
@@ -388,6 +397,8 @@ module Handlers =
         }
       | Ok(Existing item) -> Task.FromResult(Some item)
       | Error NoQueryParams ->
+        mentionQuickCommand <- true
+
         let selection =
           SelectionPrompt(
             Title = "Welcome to Perla, please select a template to start with",
@@ -412,6 +423,8 @@ module Handlers =
             false
           )
         then
+          mentionQuickCommand <- true
+
           let selection =
             SelectionPrompt(
               Title = "Please select a template to start with",
@@ -456,9 +469,30 @@ module Handlers =
           ?payload = scriptContent
         )
 
+
+        if mentionQuickCommand then
+          Logger.log "This template has quick access commands:"
+
+          Logger.log (
+            $"[bold yellow]perla new <my-project-name> -t {item.shortName}[/]",
+            escape = false
+          )
+
+          Logger.log (
+            $"Next time you can run [bold yellow]perla new <my-project-name> -id {item.group}[/]",
+            escape = false
+          )
+
+        Logger.log
+          $"Project [yellow]{opts.projectName}[/] created successfully!"
+
         return 0
 
       | None ->
+        Logger.log "No selection was available..."
+
+        Logger.log
+          "please check for typos or run 'perla new <my-projectname>' to run the templating wizard"
 
         return 0
     }
