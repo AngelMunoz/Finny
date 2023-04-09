@@ -10,9 +10,11 @@ module Lib =
     open Perla.Types
     open Perla.PackageManager.Types
 
-    val internal (|ParseRegex|_|): regex: Regex -> str: string -> string list option
-    val internal ExtractDependencyInfoFromUrl: url: string -> (Provider * string * string) option
-    val internal parseFullRepositoryName: value: string -> (string * string * string) option
+    [<return: Struct>]
+    val internal (|ParseRegex|_|): regex: Regex -> str: string -> string list voption
+
+    val internal ExtractDependencyInfoFromUrl: url: string -> (Provider * string * string) voption
+    val internal parseFullRepositoryName: value: string -> (string * string * string) voption
     val internal getTemplateAndChild: templateName: string -> string option * string * string option
     val internal dependencyTable: deps: seq<Dependency> * title: string -> Table
     val internal (|ScopedPackage|Package|): package: string -> Choice<string, string>

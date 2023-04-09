@@ -26,3 +26,5 @@ type Build =
     static member GetExternals: config: PerlaConfig -> string seq
 
     static member CopyGlobs: config: BuildConfig * tempDir: string<SystemPath> -> unit
+
+    static member EmitEnvFile: config: PerlaConfig -> unit

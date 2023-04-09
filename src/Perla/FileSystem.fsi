@@ -72,3 +72,5 @@ type FileSystem =
 
     static member ObservePerlaFiles:
         indexPath: string * [<Optional>] ?cancellationToken: CancellationToken -> IObservable<PerlaFileChange>
+
+    static member GetDotEnvFilePaths: ?fromDirectory: string<SystemPath> -> string<SystemPath> seq

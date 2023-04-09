@@ -199,13 +199,13 @@ module FileSystem =
       esbuildVersion: string,
       cancellationToken: CancellationToken option
     ) : Task<string option> =
-    let binString = $"esbuild-{Env.PlatformString}-{Env.ArchString}"
+    let binString = $"{Env.PlatformString}-{Env.ArchString}"
 
     let compressedFile =
       (UMX.untag PerlaArtifactsRoot) / esbuildVersion / "esbuild.tgz"
 
     let url =
-      $"https://registry.npmjs.org/{binString}/-/{binString}-{esbuildVersion}.tgz"
+      $"https://registry.npmjs.org/@esbuild/{binString}/-/{binString}-{esbuildVersion}.tgz"
 
     compressedFile
     |> Path.GetDirectoryName
@@ -592,3 +592,11 @@ type FileSystem =
 
         copyTemplates processTemplates
         processTemplates.StopTask())
+
+  static member GetDotEnvFilePaths(?fromDirectory) =
+    let path =
+      FileSystem.GetConfigPath Constants.PerlaConfigName fromDirectory
+      |> UMX.untag
+      |> Path.GetDirectoryName
+
+    !! $"{path}/*.env" ++ $"{path}/*.*.env" |> Seq.map UMX.tag<SystemPath>
