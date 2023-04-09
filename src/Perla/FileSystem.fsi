@@ -18,7 +18,6 @@ type PerlaFileChange =
     | PerlaConfig
     | ImportMap
 
-
 [<RequireQualifiedAccess>]
 module FileSystem =
     module Operators =
@@ -59,13 +58,9 @@ type FileSystem =
 
     static member WriteImportMap: map: ImportMap * ?fromDirectory: string<SystemPath> -> ImportMap
     static member WritePerlaConfig: ?config: JsonObject * ?fromDirectory: string<SystemPath> -> unit
-    static member PathForTemplate: username: string * repository: string * branch: string * ?tplName: string -> string
 
     static member WriteTplRepositoryToDisk:
         origin: string<SystemPath> * target: string<UserPath> * ?payload: obj -> unit
-
-    static member GetTemplateScriptContent:
-        username: string * repository: string * branch: string * ?tplName: string -> string option
 
     static member IndexFile: fromConfig: string<SystemPath> -> string
     static member PluginFiles: unit -> (string * string) array

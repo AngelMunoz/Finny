@@ -31,6 +31,7 @@ open Perla.Units
 open Perla.Json
 open Perla.Logger
 open Perla.PackageManager.Types
+open Perla.Types
 
 [<RequireQualifiedAccess>]
 type PerlaFileChange =
@@ -438,22 +439,6 @@ type FileSystem =
         PerlaFileChange.ImportMap
       | _ -> PerlaFileChange.Index)
 
-
-  static member PathForTemplate
-    (
-      username: string,
-      repository: string,
-      branch: string,
-      ?tplName: string
-    ) =
-    let tplName = defaultArg tplName ""
-
-    Path.Combine(
-      UMX.untag FileSystem.Templates,
-      $"{username}-{repository}-{branch}",
-      tplName
-    )
-
   static member SetupEsbuild
     (
       esbuildVersion: string<Semver>,
@@ -489,43 +474,6 @@ type FileSystem =
             path)
       )
 
-  static member GetTemplateScriptContent
-    (
-      username: string,
-      repository: string,
-      branch: string,
-      ?tplName: string
-    ) =
-    let readTemplateScript =
-      let templateScriptPath =
-        FileSystem.PathForTemplate(
-          username,
-          repository,
-          branch,
-          ?tplName = tplName
-        )
-
-      try
-        File.ReadAllText(
-          Path.Combine(templateScriptPath, Constants.TemplatingScriptName)
-        )
-        |> Some
-      with _ ->
-        None
-
-    let readRepoScript () =
-      let repositoryScriptPath =
-        FileSystem.PathForTemplate(username, repository, branch)
-
-      try
-        File.ReadAllText(
-          Path.Combine(repositoryScriptPath, Constants.TemplatingScriptName)
-        )
-        |> Some
-      with _ ->
-        None
-
-    readTemplateScript |> Option.orElseWith (fun () -> readRepoScript ())
 
   static member WriteTplRepositoryToDisk
     (
