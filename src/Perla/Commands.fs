@@ -313,41 +313,155 @@ module Handlers =
   type FoundTemplate =
     | Repository of PerlaTemplateRepository
     | Existing of TemplateItem
-  type TemplateNotFoundCases =
-      | NoQueryParams
-      | ParentTemplateNotFound
-      | ChildTemplateNotFound
 
-  let runNew (opts: ProjectOptions): Task<int> =
+  type TemplateNotFoundCases =
+    | NoQueryParams
+    | ParentTemplateNotFound
+    | ChildTemplateNotFound
+
+  let runNew
+    (
+      opts: ProjectOptions,
+      cancellationToken: CancellationToken
+    ) : Task<int> =
     Logger.log "Creating new project..."
+
     let queryParam =
       opts.byShortName
-      |> Option.map(QuickAccessSearch.ShortName)
-      |> Option.orElseWith (fun () -> opts.byId |> Option.map(QuickAccessSearch.Group))
-      |> Option.orElseWith (fun () -> opts.byTemplateName |> Option.map(QuickAccessSearch.Name))
+      |> Option.map (QuickAccessSearch.ShortName)
+      |> Option.orElseWith (fun () ->
+        opts.byId |> Option.map (QuickAccessSearch.Group))
+      |> Option.orElseWith (fun () ->
+        opts.byTemplateName |> Option.map (QuickAccessSearch.Name))
 
-    let foundRepo = result {
-      let! query = queryParam |> Result.requireSome NoQueryParams
-      match query with
-      | QuickAccessSearch.Name name->
+    let foundRepo =
+      result {
+        let! query = queryParam |> Result.requireSome NoQueryParams
+
+        match query with
+        | QuickAccessSearch.Name name ->
           let user, template, child = getTemplateAndChild name
+
           let! found =
-            match user, child with
-            | Some user, _ -> Templates.FindOne(TemplateSearchKind.FullName(user, template))
-            | None, _ -> Templates.FindOne(TemplateSearchKind.Repository template)
+            (match user, child with
+             | Some user, _ ->
+               Templates.FindOne(TemplateSearchKind.FullName(user, template))
+             | None, _ ->
+               Templates.FindOne(TemplateSearchKind.Repository template))
             |> Result.requireSome ParentTemplateNotFound
+
           return Repository found
         | others ->
-          let! found = Templates.FindTemplateItems(others) |> Result.requireHead ChildTemplateNotFound
-          return Existing found
-    }
+          let! found =
+            Templates.FindTemplateItems(others)
+            |> Result.requireHead ChildTemplateNotFound
 
-    match foundRepo with
-    | Ok (Repository repo) -> failwith ""
-    | Ok (Existing item) -> failwith ""
-    | Error NoQueryParams -> failwith ""
-    | Error ParentTemplateNotFound -> failwith ""
-    | Error ChildTemplateNotFound -> failwith ""
+          return Existing found
+      }
+
+    let inline TemplateItemPromptConverter (item: TemplateItem) =
+      let description =
+        item.description |> Option.defaultValue "No description provided."
+
+      $"{item.name} - {item.shortName}: {description[0..30]}"
+
+    let inline TemplateConfigPromptConverter (item: TemplateConfigurationItem) =
+      $"{item.name} - {item.shortName}: {item.description[0..30]}"
+
+    let selectedItem =
+      match foundRepo with
+      | Ok(Repository repo) ->
+        let selection =
+          SelectionPrompt(
+            Title = $"Available templates for {repo.name}",
+            Converter = TemplateConfigPromptConverter
+          )
+            .AddChoices(repo.templates)
+
+        task {
+          let! result =
+            selection.ShowAsync(AnsiConsole.Console, cancellationToken)
+
+          return
+            Templates.FindTemplateItems(QuickAccessSearch.Id result.childId)
+            |> List.tryHead
+        }
+      | Ok(Existing item) -> Task.FromResult(Some item)
+      | Error NoQueryParams ->
+        let selection =
+          SelectionPrompt(
+            Title = "Welcome to Perla, please select a template to start with",
+            Converter = TemplateItemPromptConverter
+          )
+            .AddChoices(Templates.ListTemplateItems())
+
+        task {
+          try
+            let! result =
+              selection.ShowAsync(AnsiConsole.Console, cancellationToken)
+
+            return Some result
+          with :? TaskCanceledException ->
+            return None
+        }
+      | Error ChildTemplateNotFound
+      | Error ParentTemplateNotFound ->
+        if
+          AnsiConsole.Ask(
+            "We were not able to find the template you were looking for, Would you like to check the existing templates?",
+            false
+          )
+        then
+          let selection =
+            SelectionPrompt(
+              Title = "Please select a template to start with",
+              Converter = TemplateItemPromptConverter
+            )
+              .AddChoices(Templates.ListTemplateItems())
+
+          task {
+            try
+              let! result =
+                selection.ShowAsync(AnsiConsole.Console, cancellationToken)
+
+              return Some result
+            with :? TaskCanceledException ->
+              return None
+          }
+        else
+          Task.FromResult None
+
+    task {
+      let! item = selectedItem
+
+      match item with
+      | Some item ->
+        let scriptContent =
+          Templates.GetTemplateScriptContent(TemplateScriptKind.Template item)
+          |> Option.orElseWith (fun () ->
+            option {
+              let! repo = Templates.FindOne(TemplateSearchKind.Id item.parent)
+
+              return!
+                TemplateScriptKind.Repository repo
+                |> Templates.GetTemplateScriptContent
+            })
+
+        let targetPath =
+          $"./{opts.projectName}" |> Path.GetFullPath |> UMX.tag<UserPath>
+
+        FileSystem.WriteTplRepositoryToDisk(
+          item.fullPath,
+          targetPath,
+          ?payload = scriptContent
+        )
+
+        return 0
+
+      | None ->
+
+        return 0
+    }
 
   let runSetup (options: SetupOptions) =
     task {
@@ -1948,33 +2062,38 @@ module Commands =
 
     let templateName =
       Input.Option(
-        [ "-tn"; "--template-name"; ],
+        [ "-tn"; "--template-name" ],
         "repository/directory combination of the template name, or the full name in case of name conflicts username/repository/directory"
       )
 
     let byId =
       Input.Option(
-        [ "-id"; "--group-id"; ],
+        [ "-id"; "--group-id" ],
         "fully.qualified.name of the template, e.g. perla.templates.vanilla.js"
       )
 
     let byShortName =
-      Input.Option(
-        [ "-t"; "--template"; ],
-        "shortname of the template, e.g. ff"
-      )
+      Input.Option([ "-t"; "--template" ], "shortname of the template, e.g. ff")
 
-    let buildArgs (name: string, template: string option, byId: string option, byShortName: string option) : ProjectOptions =
+    let buildArgs
+      (
+        ctx: InvocationContext,
+        name: string,
+        template: string option,
+        byId: string option,
+        byShortName: string option
+      ) : ProjectOptions * CancellationToken =
       { projectName = name
         byTemplateName = template
         byId = byId
-        byShortName = byShortName }
+        byShortName = byShortName },
+      ctx.GetCancellationToken()
 
     command "new" {
       description
         "Creates a new project based on the selected template if it exists"
 
-      inputs (name, templateName, byId, byShortName)
+      inputs (Input.Context(), name, templateName, byId, byShortName)
       setHandler (buildArgs >> Handlers.runNew)
     }
 
