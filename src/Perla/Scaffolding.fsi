@@ -33,7 +33,7 @@ module Scaffolding =
           author: string
           license: string
           repositoryUrl: string
-          group: string
+          group: string<RepositoryGroup>
           templates: TemplateConfigurationItem seq
           createdAt: DateTime
           updatedAt: Nullable<DateTime> }
@@ -47,7 +47,7 @@ module Scaffolding =
         { _id: ObjectId
           parent: ObjectId
           name: string
-          group: string
+          group: string<TemplateGroup>
           shortName: string
           description: string option
           fullPath: string<SystemPath> }
@@ -56,7 +56,7 @@ module Scaffolding =
     type QuickAccessSearch =
         | Id of ObjectId
         | Name of string
-        | Group of string
+        | Group of string<TemplateGroup>
         | ShortName of string
         | Parent of ObjectId
 
@@ -64,9 +64,16 @@ module Scaffolding =
     [<RequireQualifiedAccess>]
     type TemplateSearchKind =
         | Id of ObjectId
+        | Group of group: string<RepositoryGroup>
         | Username of name: string
         | Repository of repository: string
         | FullName of username: string * repository: string
+
+    [<RequireQualifiedAccess; Struct>]
+    type TemplateScriptKind =
+        | Template of template: TemplateItem
+        | Repository of repository: PerlaTemplateRepository
+
 
     [<Class>]
     type Templates =
@@ -79,14 +86,9 @@ module Scaffolding =
         /// exists
         /// </summary>
         /// <param name="name">Full name of the template in the Username/Repository scheme</param>
-        static member Exists: name: TemplateSearchKind -> bool
-        /// <summary>
-        /// Checks if the the repository with given a name in the form of
-        /// Username/Repository
-        /// exists
-        /// </summary>
-        /// <param name="name">Full name of the template in the Username/Repository scheme</param>
         static member FindOne: name: TemplateSearchKind -> PerlaTemplateRepository option
         static member FindTemplateItems: searchParams: QuickAccessSearch -> TemplateItem list
         static member Update: template: PerlaTemplateRepository -> Task<Result<bool, string>>
         static member Delete: searchKind: TemplateSearchKind -> bool
+
+        static member GetTemplateScriptContent: scriptKind: TemplateScriptKind -> obj option

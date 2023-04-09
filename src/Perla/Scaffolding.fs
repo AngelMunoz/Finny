@@ -36,7 +36,7 @@ module Scaffolding =
     { _id: ObjectId
       parent: ObjectId
       name: string
-      group: string
+      group: string<TemplateGroup>
       shortName: string
       description: string option
       fullPath: string<SystemPath> }
@@ -59,7 +59,7 @@ module Scaffolding =
       author: string
       license: string
       repositoryUrl: string
-      group: string
+      group: string<RepositoryGroup>
       templates: TemplateConfigurationItem seq
       createdAt: DateTime
       updatedAt: Nullable<DateTime> }
@@ -84,6 +84,7 @@ module Scaffolding =
   [<RequireQualifiedAccess>]
   type TemplateSearchKind =
     | Id of ObjectId
+    | Group of group: string<RepositoryGroup>
     | Username of name: string
     | Repository of repository: string
     | FullName of username: string * repository: string
@@ -92,9 +93,14 @@ module Scaffolding =
   type QuickAccessSearch =
     | Id of ObjectId
     | Name of string
-    | Group of string
+    | Group of string<TemplateGroup>
     | ShortName of string
     | Parent of ObjectId
+
+  [<RequireQualifiedAccess; Struct>]
+  type TemplateScriptKind =
+    | Template of template: TemplateItem
+    | Repository of repository: PerlaTemplateRepository
 
   let Database =
     lazy
@@ -109,6 +115,7 @@ module Scaffolding =
 
        repo.EnsureIndex(fun template -> template.username) |> ignore
        repo.EnsureIndex(fun template -> template.repository) |> ignore
+       repo.EnsureIndex(fun template -> template.group, true) |> ignore
        repo)
 
   let TemplatesCol =
@@ -133,22 +140,26 @@ module Scaffolding =
 
   let buildTemplateItems
     (templateItems: DecodedTemplateConfigItem seq)
+    (parentPath: string<SystemPath>)
+    (parentGroup: string<RepositoryGroup>)
     parentId
-    parentGroup
     =
     templateItems
     |> Seq.map (fun templateItem ->
       { _id = ObjectId.NewObjectId()
         parent = parentId
         name = templateItem.name
-        group = $"{parentGroup}.{templateItem.id}"
+        group = UMX.tag $"{parentGroup}.{templateItem.id}"
         shortName = templateItem.shortName
         description = templateItem.description
-        fullPath = templateItem.path })
+        fullPath =
+          System.IO.Path.Combine(
+            UMX.untag parentPath,
+            UMX.untag templateItem.path
+          )
+          |> UMX.tag })
 
-  let buildTemplateConfigurationItems
-    (templates: TemplateItem seq)
-    =
+  let buildTemplateConfigurationItems (templates: TemplateItem seq) =
     templates
     |> Seq.map (fun item ->
       { childId = item._id
@@ -156,6 +167,15 @@ module Scaffolding =
         shortName = item.shortName
         description =
           item.description |> Option.defaultValue "No Description Provided" })
+
+  let readTemplateScriptContents (path: string) =
+    try
+      System.IO.File.ReadAllText(
+        System.IO.Path.Combine(path, Constants.TemplatingScriptName)
+      )
+      |> Some
+    with _ ->
+      None
 
   let buildTemplateRepository
     (options:
@@ -168,7 +188,7 @@ module Scaffolding =
          author: string
          license: string
          repositoryUrl: string
-         group: string
+         group: string<RepositoryGroup>
          templates: seq<TemplateConfigurationItem>
          description: string
          updatedAt: Nullable<DateTime> |})
@@ -205,7 +225,11 @@ module Scaffolding =
         let id = ObjectId.NewObjectId()
 
         let templateItems: TemplateItem seq =
-          buildTemplateItems config.templates id config.group
+          buildTemplateItems
+            config.templates
+            path
+            (UMX.tag<RepositoryGroup> config.group)
+            id
 
         let template =
           buildTemplateRepository
@@ -227,7 +251,7 @@ module Scaffolding =
                 config.repositoryUrl
                 |> Option.defaultValue
                   $"https://github.com/{user}/{repository}/tree/{branch}"
-               group = config.group
+               group = UMX.tag<RepositoryGroup> config.group
                templates = buildTemplateConfigurationItems templateItems |}
 
         let parentId = RepositoriesCol.Value.Insert(template).AsObjectId
@@ -236,22 +260,6 @@ module Scaffolding =
 
         return parentId
       }
-
-    /// <summary>
-    /// Checks if the the repository with given a name in the form of
-    /// Username/Repository
-    /// exists
-    /// </summary>
-    /// <param name="name">Full name of the template in the Username/Repository scheme</param>
-    static member Exists(name: TemplateSearchKind) =
-      RepositoriesCol.Value.Exists(fun tplRepository ->
-        match name with
-        | TemplateSearchKind.Id id -> tplRepository._id = id
-        | TemplateSearchKind.Username name -> tplRepository.username = name
-        | TemplateSearchKind.Repository name -> tplRepository.repository = name
-        | TemplateSearchKind.FullName(username, repository) ->
-          tplRepository.username = username
-          && tplRepository.repository = repository)
 
     /// <summary>
     /// Checks if the the repository with given a name in the form of
@@ -275,6 +283,16 @@ module Scaffolding =
                 username,
                 StringComparison.InvariantCultureIgnoreCase
               ))
+            .SingleOrDefault()
+        | TemplateSearchKind.Group group ->
+          templates
+            .Query()
+            .Where(fun tplRepo ->
+              (UMX.untag tplRepo.group)
+                .Equals(
+                  UMX.untag group,
+                  StringComparison.InvariantCultureIgnoreCase
+                ))
             .SingleOrDefault()
         | TemplateSearchKind.Repository repository ->
           templates
@@ -325,10 +343,11 @@ module Scaffolding =
           templatesCol
             .Query()
             .Where(fun tpl ->
-              tpl.group.Equals(
-                group,
-                StringComparison.InvariantCultureIgnoreCase
-              ))
+              (UMX.untag tpl.group)
+                .Equals(
+                  UMX.untag group,
+                  StringComparison.InvariantCultureIgnoreCase
+                ))
             .ToArray()
         | QuickAccessSearch.ShortName shortName ->
           templatesCol
@@ -370,7 +389,11 @@ module Scaffolding =
             let! config = config
 
             let templateItems: TemplateItem seq =
-              buildTemplateItems config.templates repo._id config.group
+              buildTemplateItems
+                config.templates
+                repo.path
+                (UMX.tag<RepositoryGroup> config.group)
+                repo._id
 
 
             let updated =
@@ -391,9 +414,8 @@ module Scaffolding =
                       config.repositoryUrl
                       |> Option.defaultValue
                         $"https://github.com/{updated.ToFullName}/tree/{updated.branch}"
-                    group = config.group
-                    templates =
-                      buildTemplateConfigurationItems templateItems }
+                    group = UMX.tag<RepositoryGroup> config.group
+                    templates = buildTemplateConfigurationItems templateItems }
               )
 
             if updated then
@@ -425,3 +447,13 @@ module Scaffolding =
 
         RepositoriesCol.Value.Delete(template._id)
       | None -> false
+
+    static member GetTemplateScriptContent(scriptKind: TemplateScriptKind) =
+      let content =
+        match scriptKind with
+        | TemplateScriptKind.Template template ->
+          template.fullPath |> UMX.untag |> readTemplateScriptContents
+        | TemplateScriptKind.Repository repository ->
+          repository.path |> UMX.untag |> readTemplateScriptContents
+
+      content |> Option.map getConfigurationFromScript |> Option.flatten
