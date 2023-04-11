@@ -10,11 +10,12 @@
         <RepositoryUrl>https://github.com/AngelMunoz/Perla.git</RepositoryUrl>
         <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
         <WarnOn>3390;$(WarnOn)</WarnOn>
     </PropertyGroup>
     <ItemGroup>
-        <None Include="$(MSBuildThisFileDirectory)\..\LICENSE" Pack="true" Visible="false" PackagePath=""/>
-        <None Include="$(MSBuildThisFileDirectory)\..\README.md" Pack="true" Visible="false" PackagePath=""/>
+        <None Include="$(MSBuildThisFileDirectory)\..\LICENSE" Pack="true" PackagePath="\"/>
+        <None Include="$(MSBuildThisFileDirectory)\..\README.md" Pack="true" PackagePath="\"/>
     </ItemGroup>
     <ItemGroup>
         <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.0.0" PrivateAssets="All" />
