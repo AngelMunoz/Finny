@@ -42,7 +42,7 @@ module Lib =
     | _ -> ValueNone
 
   let parseFullRepositoryName (value: string) =
-    let regex = new Regex(@"^([-_\w\d]+)\/([-_\w\d]+):?([\w\d-_]+)?$")
+    let regex = Regex(@"^([-_\w\d]+)\/([-_\w\d]+):?([\w\d-_]+)?$")
 
     match value with
     | ParseRegex regex [ username; repository; branch ] ->
@@ -105,7 +105,7 @@ module Lib =
         let parts = name.Split("@")
         let version = getVersion parts
 
-        $"@{parts.[0]}", version
+        $"@{parts[0]}", version
       else
         $"@{name}", None
     | Package name ->
@@ -113,7 +113,7 @@ module Lib =
         let parts = name.Split("@")
 
         let version = getVersion parts
-        parts.[0], version
+        parts[0], version
       else
         name, None
 
