@@ -1,5 +1,4 @@
-﻿[<RequireQualifiedAccess>]
-module Perla.Commands
+﻿namespace Perla.Commands
 
 open System.Threading
 
@@ -17,591 +16,266 @@ open Perla.PackageManager.Types
 open Perla.Types
 open Perla.Handlers
 
-type Input with
+[<Class; Sealed>]
+type PerlaOptions =
+  static member PackageSource: Option<Provider voption> =
+    let parser (result: ArgumentResult) =
+      match result.Tokens |> Seq.tryHead with
+      | Some token -> Provider.FromString token.Value |> ValueSome
+      | None -> ValueNone
 
-  static member OptionWithStrings
-    (
-      aliases: string seq,
-      ?values: string seq,
-      ?defaultValue: string,
-      ?description
-    ) =
-    let option =
-      Opt<string option>(
-        aliases |> Array.ofSeq,
-        getDefaultValue = (fun _ -> defaultValue),
-        ?description = description
+    let opt =
+      Option<Provider voption>(
+        [| "--source"; "-s" |],
+        parseArgument = parser,
+        description = "Version of the package to install",
+        IsRequired = false
       )
 
-    match values with
-    | Some values -> option.FromAmong(values |> Array.ofSeq)
-    | None -> option
-    |> HandlerInput.OfOption
+    opt.FromAmong([| "jspm"; "skypack"; "unpkg"; "jsdelivr"; "jspm.system" |])
+    |> ignore
 
-  static member MultipleStrings
-    (
-      name: string,
-      ?values: string seq,
-      ?description
-    ) =
-    let option =
-      Option<string[] option>(
-        name = name,
-        ?description = description,
-        IsRequired = false,
-        AllowMultipleArgumentsPerToken = true,
-        parseArgument =
-          (fun result ->
-            match result.Tokens |> Seq.toArray with
-            | [||] -> None
-            | others -> Some(others |> Array.map (fun token -> token.Value)))
+    opt
+
+  static member RunConfiguration: Option<RunConfiguration voption> =
+    let parser (result: ArgumentResult) =
+      match result.Tokens |> Seq.tryHead with
+      | Some token -> RunConfiguration.FromString token.Value |> ValueSome
+      | None -> ValueNone
+
+    let opt =
+      Option<RunConfiguration voption>(
+        [| "--mode"; "-m" |],
+        parseArgument = parser,
+        description = "Version of the package to install",
+        IsRequired = false
       )
 
-    match values with
-    | Some values -> option.FromAmong(values |> Array.ofSeq)
-    | None -> option
-    |> HandlerInput.OfOption
+    opt.FromAmong([| "dev"; "development"; "prod"; "production" |]) |> ignore
 
-  static member ArgumentWithStrings
-    (
-      name: string,
-      ?values: string seq,
-      ?defaultValue: string,
-      ?description
-    ) =
-    let arg =
-      Arg<string option>(
-        name,
-        getDefaultValue = (fun _ -> defaultValue),
-        ?description = description
+    opt
+
+  static member Browsers: Option<Browser list> =
+    let parser (result: ArgumentResult) =
+      result.Tokens
+      |> Seq.map (fun token -> token.Value |> Browser.FromString)
+      |> Seq.distinct
+      |> Seq.toList
+
+    let opt =
+      Option<Browser list>(
+        [| "--browsers"; "-b" |],
+        parseArgument = parser,
+        description = "Version of the package to install",
+        Arity = ArgumentArity.ZeroOrMore,
+        AllowMultipleArgumentsPerToken = true
       )
 
-    match values with
-    | Some values -> arg.FromAmong(values |> Array.ofSeq)
-    | None -> arg
+    opt.FromAmong([| "chromium"; "firefox"; "webkit"; "edge"; "chrome" |])
+    |> ignore
+
+    opt
+
+  static member DisplayMode: Option<ListFormat> =
+    let parser (result: ArgumentResult) =
+      match result.Tokens |> Seq.tryHead with
+      | Some token ->
+        match token.Value with
+        | "table" -> ListFormat.HumanReadable
+        | "text" -> ListFormat.TextOnly
+        | _ -> ListFormat.HumanReadable
+      | None -> ListFormat.HumanReadable
+
+    let opt =
+      Option<ListFormat>(
+        [| "--list"; "-ls" |],
+        parseArgument = parser,
+        description = "The chosen format to display the existing templates",
+        IsRequired = false
+      )
+
+    opt.FromAmong([| "table"; "text" |]) |> ignore
+
+    opt
+
+[<Class; Sealed>]
+type PerlaArguments =
+  static member Properties: Argument<string list> =
+    let parser (result: ArgumentResult) =
+      result.Tokens
+      |> Seq.map (fun token -> token.Value)
+      |> Seq.distinct
+      |> Seq.toList
+
+    Argument<string list>(
+      "properties",
+      parser,
+      description =
+        "A property, properties or json path-like string names to describe",
+      Arity = ArgumentArity.ZeroOrMore
+    )
+
+[<RequireQualifiedAccess>]
+module SharedInputs =
+  let asDev: HandlerInput<bool option> =
+    Input.OptionMaybe(
+      [ "--development"; "-d"; "--dev" ],
+      "Use the dev mode configuration"
+    )
+
+  let source = PerlaOptions.PackageSource |> Input.OfOption
+  let mode = PerlaOptions.RunConfiguration |> Input.OfOption
+
+[<RequireQualifiedAccess>]
+module DescribeInputs =
+  let perlaProperties: HandlerInput<string[] option> =
+    Arg<string[] option>(
+      "properties",
+      (fun (result: ArgumentResult) ->
+        match result.Tokens |> Seq.toArray with
+        | [||] -> None
+        | others -> Some(others |> Array.map (fun token -> token.Value))),
+      Description =
+        "A property, properties or json path-like string names to describe",
+      Arity = ArgumentArity.ZeroOrMore
+    )
     |> HandlerInput.OfArgument
 
-  static member ArgumentMaybe(name: string, ?values: string seq, ?description) =
-    let arg =
-      Arg<string option>(
-        name,
-        parse =
-          (fun argResult ->
-            match argResult.Tokens |> Seq.toList with
-            | [] -> None
-            | [ token ] -> Some token.Value
-            | _ :: _ ->
-              failwith "F# Option can only be used with a single argument."),
-        ?description = description
-      )
+  let describeCurrent: HandlerInput<bool> =
+    Input.Option(
+      [ "--current"; "-c" ],
+      false,
+      "Take my current perla.json file and print my current configuration"
+    )
 
-    match values with
-    | Some values -> arg.FromAmong(values |> Array.ofSeq)
-    | None -> arg
-    |> HandlerInput.OfArgument
-
-
-let runAsDev =
-  Input.OptionMaybe(
-    [ "--development"; "-d"; "--dev" ],
-    "Use Dev dependencies when running, defaults to false"
-  )
-
-let Build =
-  let enablePreloads =
+[<RequireQualifiedAccess>]
+module BuildInputs =
+  let enablePreloads: HandlerInput<bool option> =
     Input.OptionMaybe(
       [ "-epl"; "--enable-preload-links" ],
       "enable adding modulepreload links in the final build"
     )
 
-  let rebuildImportMap =
+  let rebuildImportMap: HandlerInput<bool option> =
     Input.OptionMaybe(
       [ "-rim"; "--rebuild-importmap" ],
       "discards the current import map (and custom resolutions)
-       and generates a new one based on the dependencies listed in the config file."
+        and generates a new one based on the dependencies listed in the config file."
     )
 
-  let preview =
+  let preview: HandlerInput<bool option> =
     Input.OptionMaybe(
       [ "-prev"; "--preview" ],
       "discards the current import map (and custom resolutions)
-       and generates a new one based on the dependencies listed in the config file."
+        and generates a new one based on the dependencies listed in the config file."
     )
 
-  let buildArgs
-    (
-      context: InvocationContext,
-      runAsDev: bool option,
-      enablePreloads: bool option,
-      rebuildImportMap: bool option,
-      enablePreview: bool option
-    ) =
-    { mode =
-        runAsDev
-        |> Option.map (fun runAsDev ->
-          match runAsDev with
-          | true -> RunConfiguration.Development
-          | false -> RunConfiguration.Production)
-      enablePreloads = defaultArg enablePreloads true
-      rebuildImportMap = defaultArg rebuildImportMap false
-      enablePreview = defaultArg enablePreview false },
-    context.GetCancellationToken()
-
-  command "build" {
-    description "Builds the SPA application for distribution"
-    addAlias "b"
-    inputs (
-      Input.Context(),
-      runAsDev,
-      enablePreloads,
-      rebuildImportMap,
-      preview
-    )
-
-    setHandler (buildArgs >> Handlers.runBuild)
-  }
-
-let Serve =
-
-  let port =
-    Input.OptionMaybe<int>(
-      [ "--port"; "-p" ],
-      "Port where the application starts"
-    )
-
-  let host =
-    Input.OptionMaybe<string>(
-      [ "--host" ],
-      "network ip address where the application will run"
-    )
-
-  let ssl = Input.OptionMaybe<bool>([ "--ssl" ], "Run dev server with SSL")
-
-
-  let buildArgs
-    (
-      context: InvocationContext,
-      mode: bool option,
-      port: int option,
-      host: string option,
-      ssl: bool option
-    ) =
-    { mode =
-        mode
-        |> Option.map (fun runAsDev ->
-          match runAsDev with
-          | true -> RunConfiguration.Development
-          | false -> RunConfiguration.Production)
-      port = port
-      host = host
-      ssl = ssl },
-    context.GetCancellationToken()
-
-  let desc =
-    "Starts the development server and if fable projects are present it also takes care of it."
-
-  command "serve" {
-    description desc
-    addAliases ["s"; "start"]
-    inputs (Input.Context(), runAsDev, port, host, ssl)
-    setHandler (buildArgs >> Handlers.runServe)
-  }
-
-let Setup =
-  let skipPrompts =
-    Input.OptionMaybe<bool>(
+[<RequireQualifiedAccess>]
+module SetupInputs =
+  let skipPrompts: HandlerInput<bool option> =
+    Input.OptionMaybe(
       [ "--skip-prompts"; "-y"; "--yes"; "-sp" ],
       "Skip prompts"
     )
 
-  let playwrightDeps =
-    Input.OptionMaybe<bool>(
+  let skipPlaywright: HandlerInput<bool option> =
+    Input.OptionMaybe(
       [ "--skip-playwright" ],
       "Skips installing playwright (defaults to true)"
     )
 
-  let buildArgs
-    (
-      ctx: InvocationContext,
-      yes: bool option,
-      skipPlaywright: bool option
-    ) : SetupOptions * CancellationToken =
-    { skipPrompts = yes |> Option.defaultValue false
-      skipPlaywright = skipPlaywright |> Option.defaultValue true },
-    ctx.GetCancellationToken()
+[<RequireQualifiedAccess>]
+module PackageInputs =
+  let package: HandlerInput<string> =
+    Input.OptionRequired("package", "Name of the JS Package")
 
-
-  command "setup" {
-    description "Initialized a given directory or perla itself"
-    inputs (Input.Context(), skipPrompts, playwrightDeps)
-    setHandler (buildArgs >> Handlers.runSetup)
-  }
-
-let SearchPackage =
-  let package =
-    Input.OptionRequired(
-      "package",
-      "The package you want to search for in the Skypack api"
-    )
-
-  let page =
+  let currentPage: HandlerInput<int option> =
     Input.OptionMaybe(
       [| "--page"; "-p" |],
       "change the page number in the search results"
     )
 
-  let buildArgs
-    (
-      ctx: InvocationContext,
-      package: string,
-      page: int option
-    ) : SearchOptions * CancellationToken =
-    { package = package
-      page = page |> Option.defaultValue 1 },
-    ctx.GetCancellationToken()
-
-  command "search" {
-    description
-      "Search a package name in the Skypack api, this will bring potential results"
-
-    inputs (Input.Context(), package, page)
-    setHandler (buildArgs >> Handlers.runSearchPackage)
-  }
-
-let ShowPackage =
-  let package =
-    Input.Argument(
-      "package",
-      "The package you want to search for in the Skypack api"
-    )
-
-  let buildArgs
-    (
-      ctx: InvocationContext,
-      package: string
-    ) : ShowPackageOptions * CancellationToken =
-    { package = package }, ctx.GetCancellationToken()
-
-  command "show" {
-    description
-      "Shows information about a package if the name matches an existing one"
-
-    inputs (Input.Context(), package)
-    setHandler (buildArgs >> Handlers.runShowPackage)
-  }
-
-let RemovePackage =
-  let package =
-    Input.Argument(
-      "package",
-      "The package you want to search for in the Skypack api"
-    )
-
-  let alias =
+  let alias: HandlerInput<string option> =
     Input.OptionMaybe(
       [ "--alias"; "-a" ],
       "the alias of the package if you added one"
     )
 
-  let buildArgs
-    (
-      ctx: InvocationContext,
-      package: string,
-      alias: string option
-    ) : RemovePackageOptions * CancellationToken =
-    { package = package; alias = alias }, ctx.GetCancellationToken()
-
-  command "remove" {
-    description "removes a package from the "
-
-    inputs (Input.Context(), package, alias)
-    setHandler (buildArgs >> Handlers.runRemovePackage)
-  }
-
-let AddPackage =
-  let package =
-    Input.Argument(
-      "package",
-      "The package you want to search for in the skypack api"
-    )
-
-  let version =
-    let opt =
-      Aliases.Opt<string option>(
-        [| "-v"; "--version" |],
-        parseArgument =
-          (fun arg ->
-            arg.Tokens
-            |> Seq.tryHead
-            |> Option.map (fun token -> token.Value |> Option.ofObj)
-            |> Option.flatten)
-      )
-
-    opt |> HandlerInput.OfOption
-
-  let source =
-    Input.OptionWithStrings(
-      [ "--source"; "-s" ],
-      [ "jspm"; "skypack"; "unpkg"; "jsdelivr"; "jspm.system" ],
-      "jspm",
-      "CDN that will be used to fetch dependencies from"
-    )
-
-  let dev =
+  let version: HandlerInput<string option> =
     Input.OptionMaybe(
-      [ "--dev"; "--development"; "-d" ],
-      "Adds this dependency to the dev dependencies"
+      [ "--version"; "-v" ],
+      "The version of the package you want to add"
     )
 
-  let alias =
-    Input.OptionMaybe(
-      [ "--alias"; "-a" ],
-      "the alias of the package if you added one"
-    )
-
-  let buildArgs
-    (
-      ctx: InvocationContext,
-      package: string,
-      version: string option,
-      source: string option,
-      dev: bool option,
-      alias: string option
-    ) : AddPackageOptions * CancellationToken =
-    { package = package
-      version = version
-      source = source |> Option.map Provider.FromString
-      mode =
-        dev
-        |> Option.map (fun dev ->
-          if dev then
-            RunConfiguration.Development
-          else
-            RunConfiguration.Production)
-      alias = alias },
-    ctx.GetCancellationToken()
-
-  command "add" {
-    description
-      "Shows information about a package if the name matches an existing one"
-    addAlias "install"
-    inputs (Input.Context(), package, version, source, dev, alias)
-    setHandler (buildArgs >> Handlers.runAddPackage)
-  }
-
-let ListPackages =
-
-  let asNpm =
+  let showAsNpm: HandlerInput<bool option> =
     Input.OptionMaybe(
       [ "--npm"; "--as-package-json"; "-j" ],
       "Show the packages simlar to npm's package.json"
     )
 
-  let buildArgs (asNpm: bool option) : ListPackagesOptions =
-    { format =
-        asNpm
-        |> Option.map (fun asNpm ->
-          if asNpm then
-            ListFormat.TextOnly
-          else
-            ListFormat.HumanReadable)
-        |> Option.defaultValue ListFormat.HumanReadable }
-
-  command "list" {
-    addAlias "ls"
-    description
-      "Lists the current dependencies in a table or an npm style json string"
-
-    inputs asNpm
-    setHandler (buildArgs >> Handlers.runListPackages)
-  }
-
-let RestoreImportMap =
-  let source =
-    Input.OptionWithStrings(
-      [ "--source"; "-s" ],
-      [ "jspm"; "skypack"; "unpkg"; "jsdelivr"; "jspm.system" ],
-      description = "CDN that will be used to fetch dependencies from"
-    )
-
-  let mode =
-    Input.OptionWithStrings(
-      [ "--mode"; "-m" ],
-      [ "dev"; "development"; "prod"; "production" ],
-      description = "Restore Dependencies based on the mode to run"
-    )
-
-  let buildArgs
-    (
-      ctx: InvocationContext,
-      source: string option,
-      mode: string option
-    ) : RestoreOptions * CancellationToken =
-    { source = source |> Option.map Provider.FromString
-      mode = mode |> Option.map RunConfiguration.FromString },
-    ctx.GetCancellationToken()
-
-  command "regenerate" {
-    addAlias "restore"
-    description
-      "Restore the import map based on the selected mode, defaults to production"
-
-    inputs (Input.Context(), source, mode)
-    setHandler (buildArgs >> Handlers.runRestoreImportMap)
-  }
-
-let Template =
-  let repoName =
+[<RequireQualifiedAccess>]
+module TemplateInputs =
+  let repositoryName: HandlerInput<string> =
     Input.Argument(
       "templateRepositoryName",
       "The User/repository name combination"
     )
 
-  let newTemplate =
+  let addTemplate: HandlerInput<bool option> =
     Input.OptionMaybe(
       [ "--add"; "-a" ],
       "Adds the template repository to Perla"
     )
 
-  let update =
+  let updateTemplate: HandlerInput<bool option> =
     Input.OptionMaybe(
       [ "--update"; "-u" ],
       "If it exists, updates the template repository for Perla"
     )
 
-  let remove =
+  let removeTemplate: HandlerInput<bool option> =
     Input.OptionMaybe(
       [ "--remove"; "-r" ],
       "If it exists, removes the template repository for Perla"
     )
 
-  let display =
-    Input.OptionWithStrings(
-      [ "--list"; "-ls" ],
-      [ "table"; "simple" ],
-      defaultValue = "table",
-      description = "The chosen format to display the existing templates"
-    )
+  let displayMode: HandlerInput<ListFormat> =
+    PerlaOptions.DisplayMode |> Input.OfOption
 
-  let buildArgs
-    (
-      ctx: InvocationContext,
-      name: string,
-      add: bool option,
-      update: bool option,
-      remove: bool option,
-      format: string option
-    ) : TemplateRepositoryOptions * CancellationToken =
-    let operation =
-      let remove =
-        remove
-        |> Option.map (function
-          | true -> Some RunTemplateOperation.Remove
-          | false -> None)
-        |> Option.flatten
+[<RequireQualifiedAccess>]
+module ProjectInputs =
 
-      let update =
-        update
-        |> Option.map (function
-          | true -> Some RunTemplateOperation.Update
-          | false -> None)
-        |> Option.flatten
+  let projectName: HandlerInput<string> =
+    Input.Argument("name", "Name of the new project")
 
-      let add =
-        add
-        |> Option.map (function
-          | true -> Some RunTemplateOperation.Add
-          | false -> None)
-        |> Option.flatten
-
-      let format =
-        format
-        |> Option.map (function
-          | "table" -> RunTemplateOperation.List ListFormat.HumanReadable
-          | _ -> RunTemplateOperation.List ListFormat.TextOnly)
-        |> Option.defaultValue (
-          RunTemplateOperation.List ListFormat.HumanReadable
-        )
-
-      remove
-      |> Option.orElse update
-      |> Option.orElse add
-      |> Option.defaultValue format
-
-    { fullRepositoryName = name
-      operation = operation },
-    ctx.GetCancellationToken()
-
-  let template =
-    command "templates" {
-      addAlias "t"
-      description
-        "Handles Template Repository operations such as list, add, update, and remove templates"
-
-      inputs (Input.Context(), repoName, newTemplate, update, remove, display)
-      setHandler (buildArgs >> Handlers.runTemplate)
-    }
-
-  template
-
-let NewProject =
-  let name = Input.Argument("name", "Name of the new project")
-
-  let templateName =
+  let templateName: HandlerInput<string option> =
     Input.Option(
       [ "-tn"; "--template-name" ],
       "repository/directory combination of the template name, or the full name in case of name conflicts username/repository/directory"
     )
 
-  let byId =
+  let byId: HandlerInput<string option> =
     Input.Option(
       [ "-id"; "--group-id" ],
       "fully.qualified.name of the template, e.g. perla.templates.vanilla.js"
     )
 
-  let byShortName =
+  let byShortName: HandlerInput<string option> =
     Input.Option([ "-t"; "--template" ], "shortname of the template, e.g. ff")
 
-  let buildArgs
-    (
-      ctx: InvocationContext,
-      name: string,
-      template: string option,
-      byId: string option,
-      byShortName: string option
-    ) : ProjectOptions * CancellationToken =
-    { projectName = name
-      byTemplateName = template
-      byId = byId
-      byShortName = byShortName },
-    ctx.GetCancellationToken()
+[<RequireQualifiedAccess>]
+module TestingInputs =
+  let browsers: HandlerInput<Browser list> =
+    PerlaOptions.Browsers |> Input.OfOption
 
-  command "new" {
-    addAliases ["n"; "create"; "generate"]
-    description
-      "Creates a new project based on the selected template if it exists"
-
-    inputs (Input.Context(), name, templateName, byId, byShortName)
-    setHandler (buildArgs >> Handlers.runNew)
-  }
-
-let Test =
-
-  let browsers =
-    Input.MultipleStrings(
-      "--browser",
-      [ "chromium"; "firefox"; "webkit"; "edge"; "chrome" ],
-      "Which browsers to run the tests on, defaults to 'chromium'"
-    )
-
-  let files: HandlerInput<string[]> =
+  let files: HandlerInput<string array> =
     Input.Option<string[]>(
       [ "--tests"; "-t" ],
       [||],
       "Specify a glob of tests to run. e.g '**/featureA/*.test.js' or 'tests/my-test.test.js'"
     )
 
-  let skips: HandlerInput<string[]> =
+  let skips: HandlerInput<string array> =
     Input.Option<string[]>(
       [ "--skip"; "-s" ],
       [||],
@@ -627,80 +301,395 @@ let Test =
       "Run each browser's test suite in sequence, rather than parallel"
     )
 
-  let buildArgs
-    (
-      ctx: InvocationContext,
-      browsers: string array option,
-      files: string array,
-      skips: string array,
-      headless: bool option,
-      watch: bool option,
-      sequential: bool option
-    ) : TestingOptions * CancellationToken =
-    { browsers =
-        browsers
-        |> Option.map (fun browsers ->
-          if browsers |> Array.isEmpty then
-            None
-          else
-            Some(browsers |> Seq.map Browser.FromString))
-        |> Option.flatten
-      files = if files |> Array.isEmpty then None else Some files
-      skip = if skips |> Array.isEmpty then None else Some skips
-      headless = headless
-      watch = watch
-      browserMode =
-        sequential
-        |> Option.map (fun sequential ->
-          if sequential then Some BrowserMode.Sequential else None)
-        |> Option.flatten },
-    ctx.GetCancellationToken()
+[<RequireQualifiedAccess>]
+module ServeInputs =
+  let port: HandlerInput<int option> =
+    Input.OptionMaybe([ "--port"; "-p" ], "Port where the application starts")
 
-  command "test" {
-    description "Runs client side tests in a headless browser"
-
-    inputs (
-      Input.Context(),
-      browsers,
-      files,
-      skips,
-      headless,
-      watch,
-      sequential
+  let host: HandlerInput<string option> =
+    Input.OptionMaybe(
+      [ "--host" ],
+      "network ip address where the application will run"
     )
 
-    setHandler (buildArgs >> Handlers.runTesting)
-  }
+  let ssl: HandlerInput<bool option> =
+    Input.OptionMaybe([ "--ssl" ], "Run dev server with SSL")
 
-let Describe =
-  let perlaProperties: HandlerInput<string[] option> =
-    Arg<string[] option>(
-      "properties",
-      (fun (result: ArgumentResult) ->
-        match result.Tokens |> Seq.toArray with
-        | [||] -> None
-        | others -> Some(others |> Array.map (fun token -> token.Value))),
-      Description =
-        "A property, properties or json path-like string names to describe",
-      Arity = ArgumentArity.ZeroOrMore
-    )
-    |> HandlerInput.OfArgument
+[<RequireQualifiedAccess>]
+module Commands =
+  let Build =
 
-  let describeCurrent: HandlerInput<bool> =
-    Input.Option(
-      [ "--current"; "-c" ],
-      false,
-      "Take my current perla.json file and print my current configuration"
-    )
+    let buildArgs
+      (
+        context: InvocationContext,
+        runAsDev: bool option,
+        enablePreloads: bool option,
+        rebuildImportMap: bool option,
+        enablePreview: bool option
+      ) =
+      { mode =
+          runAsDev
+          |> Option.map (fun runAsDev ->
+            match runAsDev with
+            | true -> RunConfiguration.Development
+            | false -> RunConfiguration.Production)
+        enablePreloads = defaultArg enablePreloads true
+        rebuildImportMap = defaultArg rebuildImportMap false
+        enablePreview = defaultArg enablePreview false },
+      context.GetCancellationToken()
 
-  let buildArgs (properties: string[] option, current: bool) =
-    { properties = properties
-      current = current }
+    command "build" {
+      description "Builds the SPA application for distribution"
+      addAlias "b"
 
-  command "describe" {
-    addAlias "ds"
-    description "Describes the perla.json file or it's properties as requested"
+      inputs (
+        Input.Context(),
+        SharedInputs.asDev,
+        BuildInputs.enablePreloads,
+        BuildInputs.rebuildImportMap,
+        BuildInputs.preview
+      )
 
-    inputs (perlaProperties, describeCurrent)
-    setHandler (buildArgs >> Handlers.runDescribePerla)
-  }
+      setHandler (buildArgs >> Handlers.runBuild)
+    }
+
+  let Serve =
+    let buildArgs
+      (
+        context: InvocationContext,
+        mode: bool option,
+        port: int option,
+        host: string option,
+        ssl: bool option
+      ) =
+      { mode =
+          mode
+          |> Option.map (fun runAsDev ->
+            match runAsDev with
+            | true -> RunConfiguration.Development
+            | false -> RunConfiguration.Production)
+        port = port
+        host = host
+        ssl = ssl },
+      context.GetCancellationToken()
+
+    let desc =
+      "Starts the development server and if fable projects are present it also takes care of it."
+
+    command "serve" {
+      description desc
+      addAliases [ "s"; "start" ]
+      inputs (Input.Context(), SharedInputs.asDev, ServeInputs.port, ServeInputs.host, ServeInputs.ssl)
+      setHandler (buildArgs >> Handlers.runServe)
+    }
+
+  let Setup =
+    let buildArgs
+      (
+        ctx: InvocationContext,
+        yes: bool option,
+        skipPlaywright: bool option
+      ) : SetupOptions * CancellationToken =
+      { skipPrompts = yes |> Option.defaultValue false
+        skipPlaywright = skipPlaywright |> Option.defaultValue true },
+      ctx.GetCancellationToken()
+
+
+    command "setup" {
+      description "Initialized a given directory or perla itself"
+      inputs (Input.Context(), SetupInputs.skipPrompts, SetupInputs.skipPlaywright)
+      setHandler (buildArgs >> Handlers.runSetup)
+    }
+
+  let SearchPackage =
+
+
+    let buildArgs
+      (
+        ctx: InvocationContext,
+        package: string,
+        page: int option
+      ) : SearchOptions * CancellationToken =
+      { package = package
+        page = page |> Option.defaultValue 1 },
+      ctx.GetCancellationToken()
+
+    command "search" {
+      description
+        "Search a package name in the Skypack api, this will bring potential results"
+
+      inputs (Input.Context(), PackageInputs.package, PackageInputs.currentPage)
+      setHandler (buildArgs >> Handlers.runSearchPackage)
+    }
+
+  let ShowPackage =
+
+    let buildArgs
+      (
+        ctx: InvocationContext,
+        package: string
+      ) : ShowPackageOptions * CancellationToken =
+      { package = package }, ctx.GetCancellationToken()
+
+    command "show" {
+      description
+        "Shows information about a package if the name matches an existing one"
+
+      inputs (Input.Context(), PackageInputs.package)
+      setHandler (buildArgs >> Handlers.runShowPackage)
+    }
+
+  let RemovePackage =
+
+    let buildArgs
+      (
+        ctx: InvocationContext,
+        package: string,
+        alias: string option
+      ) : RemovePackageOptions * CancellationToken =
+      { package = package; alias = alias }, ctx.GetCancellationToken()
+
+    command "remove" {
+      description "removes a package from the "
+
+      inputs (Input.Context(), PackageInputs.package, PackageInputs.alias)
+      setHandler (buildArgs >> Handlers.runRemovePackage)
+    }
+
+  let AddPackage =
+
+    let buildArgs
+      (
+        ctx: InvocationContext,
+        source: Provider voption,
+        dev: bool option,
+        package: string,
+        version: string option,
+        alias: string option
+      ) : AddPackageOptions * CancellationToken =
+      { package = package
+        version = version
+        source = source |> Option.ofValueOption
+        mode =
+          dev
+          |> Option.map (fun dev ->
+            if dev then
+              RunConfiguration.Development
+            else
+              RunConfiguration.Production)
+        alias = alias },
+      ctx.GetCancellationToken()
+
+    command "add" {
+      description
+        "Shows information about a package if the name matches an existing one"
+
+      addAlias "install"
+
+      inputs (
+        Input.Context(),
+        SharedInputs.source,
+        SharedInputs.asDev,
+        PackageInputs.package,
+        PackageInputs.version,
+        PackageInputs.alias
+      )
+
+      setHandler (buildArgs >> Handlers.runAddPackage)
+    }
+
+  let ListPackages =
+
+    let buildArgs (asNpm: bool option) : ListPackagesOptions =
+      { format =
+          asNpm
+          |> Option.map (fun asNpm ->
+            if asNpm then
+              ListFormat.TextOnly
+            else
+              ListFormat.HumanReadable)
+          |> Option.defaultValue ListFormat.HumanReadable }
+
+    command "list" {
+      addAlias "ls"
+
+      description
+        "Lists the current dependencies in a table or an npm style json string"
+
+      inputs PackageInputs.showAsNpm
+      setHandler (buildArgs >> Handlers.runListPackages)
+    }
+
+  let RestoreImportMap =
+
+    let buildArgs
+      (
+        ctx: InvocationContext,
+        source: Provider voption,
+        mode: RunConfiguration voption
+      ) : RestoreOptions * CancellationToken =
+      { source = source |> Option.ofValueOption
+        mode = mode |> Option.ofValueOption },
+      ctx.GetCancellationToken()
+
+    command "regenerate" {
+      addAlias "restore"
+
+      description
+        "Restore the import map based on the selected mode, defaults to production"
+
+      inputs (Input.Context(), SharedInputs.source, SharedInputs.mode)
+      setHandler (buildArgs >> Handlers.runRestoreImportMap)
+    }
+
+  let Template =
+
+    let buildArgs
+      (
+        ctx: InvocationContext,
+        name: string,
+        add: bool option,
+        update: bool option,
+        remove: bool option,
+        format: ListFormat
+      ) : TemplateRepositoryOptions * CancellationToken =
+      let operation =
+        let remove =
+          remove
+          |> Option.map (function
+            | true -> Some RunTemplateOperation.Remove
+            | false -> None)
+          |> Option.flatten
+
+        let update =
+          update
+          |> Option.map (function
+            | true -> Some RunTemplateOperation.Update
+            | false -> None)
+          |> Option.flatten
+
+        let add =
+          add
+          |> Option.map (function
+            | true -> Some RunTemplateOperation.Add
+            | false -> None)
+          |> Option.flatten
+
+        let format = RunTemplateOperation.List format
+
+        remove
+        |> Option.orElse update
+        |> Option.orElse add
+        |> Option.defaultValue format
+
+      { fullRepositoryName = name
+        operation = operation },
+      ctx.GetCancellationToken()
+
+    let template =
+      command "templates" {
+        addAlias "t"
+
+        description
+          "Handles Template Repository operations such as list, add, update, and remove templates"
+
+        inputs (
+          Input.Context(),
+          TemplateInputs.repositoryName,
+          TemplateInputs.addTemplate,
+          TemplateInputs.updateTemplate,
+          TemplateInputs.removeTemplate,
+          TemplateInputs.displayMode
+        )
+
+        setHandler (buildArgs >> Handlers.runTemplate)
+      }
+
+    template
+
+  let NewProject =
+
+    let buildArgs
+      (
+        ctx: InvocationContext,
+        name: string,
+        template: string option,
+        byId: string option,
+        byShortName: string option
+      ) : ProjectOptions * CancellationToken =
+      { projectName = name
+        byTemplateName = template
+        byId = byId
+        byShortName = byShortName },
+      ctx.GetCancellationToken()
+
+    command "new" {
+      addAliases [ "n"; "create"; "generate" ]
+
+      description
+        "Creates a new project based on the selected template if it exists"
+
+      inputs (
+        Input.Context(),
+        ProjectInputs.projectName,
+        ProjectInputs.templateName,
+        ProjectInputs.byId,
+        ProjectInputs.byShortName
+      )
+
+      setHandler (buildArgs >> Handlers.runNew)
+    }
+
+  let Test =
+
+    let buildArgs
+      (
+        ctx: InvocationContext,
+        browsers: Browser list,
+        files: string array,
+        skips: string array,
+        headless: bool option,
+        watch: bool option,
+        sequential: bool option
+      ) : TestingOptions * CancellationToken =
+      { browsers = if List.isEmpty browsers then None else Some browsers
+        files = if files |> Array.isEmpty then None else Some files
+        skip = if skips |> Array.isEmpty then None else Some skips
+        headless = headless
+        watch = watch
+        browserMode =
+          sequential
+          |> Option.map (fun sequential ->
+            if sequential then Some BrowserMode.Sequential else None)
+          |> Option.flatten },
+      ctx.GetCancellationToken()
+
+    command "test" {
+      description "Runs client side tests in a headless browser"
+
+      inputs (
+        Input.Context(),
+        TestingInputs.browsers,
+        TestingInputs.files,
+        TestingInputs.skips,
+        TestingInputs.headless,
+        TestingInputs.watch,
+        TestingInputs.sequential
+      )
+
+      setHandler (buildArgs >> Handlers.runTesting)
+    }
+
+  let Describe =
+
+    let buildArgs (properties: string[] option, current: bool) =
+      { properties = properties
+        current = current }
+
+    command "describe" {
+      addAlias "ds"
+      description "Describes the perla.json file or it's properties as requested"
+
+      inputs (DescribeInputs.perlaProperties, DescribeInputs.describeCurrent)
+      setHandler (buildArgs >> Handlers.runDescribePerla)
+    }

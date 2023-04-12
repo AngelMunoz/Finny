@@ -7,6 +7,7 @@ open System.CommandLine.Builder
 open FSharp.SystemCommandLine
 
 open Perla
+open Perla.Commands
 
 [<EntryPoint>]
 let main argv =
