@@ -152,7 +152,7 @@ module FileSystem =
     let config =
       let config =
         try
-          File.ReadAllText(targetPath) |> Some
+          File.ReadAllText(targetPath / "perla.config.json") |> Some
         with e ->
           None
 

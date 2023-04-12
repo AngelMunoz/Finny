@@ -555,7 +555,7 @@ module Handlers =
         match operation with
         | Ok() -> return 0
         | Error err ->
-          Logger.log (err, escape = false)
+          Logger.log (err)
           return 1
       else if AnsiConsole.Confirm("Add default templates?", false) then
         let! operation = getTemplate ()
@@ -563,7 +563,7 @@ module Handlers =
         match operation with
         | Ok() -> return 0
         | Error err ->
-          Logger.log (err, escape = false)
+          Logger.log (err)
           return 1
       else
         Logger.log "Skip installing templates"

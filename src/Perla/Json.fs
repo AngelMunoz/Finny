@@ -62,7 +62,7 @@ module TemplateDecoders =
       { id = get.Required.Field "id" Decode.string
         name = get.Required.Field "name" Decode.string
         path = get.Required.Field "path" Decode.string |> UMX.tag<SystemPath>
-        shortName = get.Required.Field "shortName" Decode.string
+        shortName = get.Required.Field "shortname" Decode.string
         description = get.Optional.Field "description" Decode.string })
 
   let TemplateConfigurationDecoder: Decoder<DecodedTemplateConfiguration> =

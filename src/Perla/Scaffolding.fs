@@ -115,7 +115,7 @@ module Scaffolding =
 
        repo.EnsureIndex(fun template -> template.username) |> ignore
        repo.EnsureIndex(fun template -> template.repository) |> ignore
-       repo.EnsureIndex(fun template -> template.group, true) |> ignore
+       repo.EnsureIndex((fun template -> template.group), true) |> ignore
        repo)
 
   let TemplatesCol =
@@ -123,7 +123,7 @@ module Scaffolding =
       (let database = Database.Value
        let repo = database.GetCollection<TemplateItem>()
        repo.EnsureIndex(fun template -> template.parent) |> ignore
-       repo.EnsureIndex(fun template -> template.group, true) |> ignore
+       repo.EnsureIndex((fun template -> template.group), true) |> ignore
        repo.EnsureIndex(fun template -> template.name) |> ignore
        repo.EnsureIndex(fun template -> template.shortName) |> ignore
        repo)
