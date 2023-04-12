@@ -45,11 +45,11 @@ module Dependencies =
     with
     | Some url ->
       match ExtractDependencyInfoFromUrl url with
-      | Some (resultProvider, name, version) ->
+      | ValueSome(resultProvider, name, version) ->
         Assert.Equal(provider, resultProvider)
         Assert.Equal(LodashName, name)
         Assert.Equal(LodashVersion, version)
-      | None ->
+      | ValueNone ->
         Assert.Fail(
           $"Failed to extract Dependency information from URL, its structure may have changed: {url}"
         )
@@ -62,11 +62,11 @@ module Dependencies =
     with
     | Some url ->
       match ExtractDependencyInfoFromUrl url with
-      | Some (resultProvider, name, version) ->
+      | ValueSome(resultProvider, name, version) ->
         Assert.Equal(provider, resultProvider)
         Assert.Equal(LitName, name)
         Assert.Equal(LitVersion, version)
-      | None ->
+      | ValueNone ->
         Assert.Fail(
           $"Failed to extract Dependency information from URL, its structure may have changed: {url}"
         )
@@ -79,11 +79,11 @@ module Dependencies =
     with
     | Some url ->
       match ExtractDependencyInfoFromUrl url with
-      | Some (resultProvider, name, version) ->
+      | ValueSome(resultProvider, name, version) ->
         Assert.Equal(provider, resultProvider)
         Assert.Equal("jquery", name)
         Assert.Equal("3.6.1", version)
-      | None ->
+      | ValueNone ->
         Assert.Fail(
           $"Failed to extract Dependency information from URL, its structure may have changed: {url}"
         )
@@ -265,7 +265,7 @@ module Dependencies =
     )
 
     Assert.Empty(devDependencies)
-    
+
   [<Fact>]
   let ``LocateDependenciesFromMapAndConfig should grab dependencies from import map if they exist in the configuration``
     ()
@@ -287,11 +287,11 @@ module Dependencies =
                 alias = None }
               { name = LodashName
                 version = Some LodashVersion
-                alias = None }]
+                alias = None } ]
           devDependencies =
             [ { name = "jquery"
                 version = Some "3.6.1"
-                alias = None }]}
+                alias = None } ] }
 
     let dependencies, devDependencies =
       Dependencies.LocateDependenciesFromMapAndConfig(importMap, config)
@@ -323,4 +323,3 @@ module Dependencies =
         alias = None },
       dependencies
     )
-

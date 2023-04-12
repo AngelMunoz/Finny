@@ -89,6 +89,7 @@ module Types =
     | Unpkg
     | Jsdelivr
     | JspmSystem
+    | EsmSh
 
     member this.AsString =
       match this with
@@ -96,7 +97,8 @@ module Types =
       | Skypack -> "skypack"
       | Unpkg -> "unpkg"
       | Jsdelivr -> "jsdelivr"
-      | JspmSystem -> "jspm.system"
+      | JspmSystem -> "jspm#system"
+      | EsmSh -> "esm.sh"
 
     static member FromString(value: string) =
       match value.ToLowerInvariant() with
@@ -105,6 +107,9 @@ module Types =
       | "unpkg" -> Unpkg
       | "jsdelivr" -> Jsdelivr
       | "jspm.system" -> JspmSystem
+      | "jspm#system" -> JspmSystem
+      | "esm.sh" -> EsmSh
+      | "esmsh" -> EsmSh
       | _ -> Jspm
 
 module Constants =
@@ -130,7 +135,8 @@ module TypeExtensions =
         map: ImportMap,
         imports: Dictionary<string, string>
       ) =
-      { map with imports = imports.ToSeq() |> Map.ofSeq }
+      { map with
+          imports = imports.ToSeq() |> Map.ofSeq }
 
     [<Extension>]
     static member WithScopes

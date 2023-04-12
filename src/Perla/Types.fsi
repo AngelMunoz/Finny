@@ -18,6 +18,13 @@ module Units =
     [<Measure>]
     type UserPath
 
+    [<Measure>]
+    type RepositoryGroup
+
+    [<Measure>]
+    type TemplateGroup
+
+
 module Types =
     open FSharp.UMX
     open Units

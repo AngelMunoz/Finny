@@ -59,6 +59,7 @@ module Types =
         | Unpkg
         | Jsdelivr
         | JspmSystem
+        | EsmSh
 
         member AsString: string
 

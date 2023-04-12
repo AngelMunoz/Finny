@@ -4,6 +4,7 @@ Thoth.Json.Net
 FsToolkit.ErrorHandling.TaskResult
 CliWrap
 Flurl.Http
+System.CommandLine
 
 group Tests
 Microsoft.NET.Test.Sdk

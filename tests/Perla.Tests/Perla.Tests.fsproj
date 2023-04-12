@@ -13,6 +13,7 @@
     <Compile Include="Dependencies.fs" />
     <Compile Include="Configuration.fs" />
     <Compile Include="TypesAndOptions.fs" />
+    <Compile Include="CommandOptions.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
   <ItemGroup>

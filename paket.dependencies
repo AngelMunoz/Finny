@@ -10,7 +10,7 @@ nuget FSharp.Control.AsyncSeq 3.2.1
 nuget FSharp.Control.Reactive 5.0.5
 nuget FsToolkit.ErrorHandling >= 4.4.0
 nuget FsToolkit.ErrorHandling.TaskResult >= 4.4.0
-nuget FSharp.SystemCommandLine >= 0.15.0-beta4 prerelease
+nuget FSharp.SystemCommandLine >= 0.17.0-beta4 prerelease
 
 nuget AngleSharp 1.0.1
 nuget Flurl.Http 3.2.4

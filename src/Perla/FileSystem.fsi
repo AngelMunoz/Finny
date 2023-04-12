@@ -10,14 +10,13 @@ open FSharp.UMX
 open Perla.Types
 open Perla.Units
 open Perla.PackageManager.Types
-
+open Perla.Json
 
 [<RequireQualifiedAccess>]
 type PerlaFileChange =
     | Index
     | PerlaConfig
     | ImportMap
-
 
 [<RequireQualifiedAccess>]
 module FileSystem =
@@ -38,7 +37,9 @@ module FileSystem =
     val GetConfigPath: fileName: string -> fromDirectory: string<SystemPath> option -> string<SystemPath>
 
     val ExtractTemplateZip:
-        username: string * repository: string * branch: string -> stream: Stream -> string<SystemPath>
+        username: string * repository: string * branch: string ->
+            stream: Stream ->
+                string<SystemPath> * Result<TemplateDecoders.DecodedTemplateConfiguration, string>
 
     val RemoveTemplateDirectory: path: string<SystemPath> -> unit
     val EsbuildBinaryPath: string<Semver> option -> string<SystemPath>
@@ -57,13 +58,9 @@ type FileSystem =
 
     static member WriteImportMap: map: ImportMap * ?fromDirectory: string<SystemPath> -> ImportMap
     static member WritePerlaConfig: ?config: JsonObject * ?fromDirectory: string<SystemPath> -> unit
-    static member PathForTemplate: username: string * repository: string * branch: string * ?tplName: string -> string
 
     static member WriteTplRepositoryToDisk:
         origin: string<SystemPath> * target: string<UserPath> * ?payload: obj -> unit
-
-    static member GetTemplateScriptContent:
-        username: string * repository: string * branch: string * ?tplName: string -> string option
 
     static member IndexFile: fromConfig: string<SystemPath> -> string
     static member PluginFiles: unit -> (string * string) array

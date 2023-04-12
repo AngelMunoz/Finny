@@ -1,9 +1,13 @@
 ﻿// Learn more about F# at http://docs.microsoft.com/dotnet/fsharp
+
+open System.Threading.Tasks
 open System.CommandLine.Invocation
 open System.CommandLine.Builder
+
 open FSharp.SystemCommandLine
+
 open Perla
-open System.Threading.Tasks
+open Perla.Commands
 
 [<EntryPoint>]
 let main argv =
@@ -24,22 +28,19 @@ let main argv =
       pipeline.UseTokenReplacer(fun _ _ _ -> false) |> ignore)
 
     addCommands
-      [ Commands.Serve
+      [ Commands.Setup
+        Commands.Template
+        Commands.Describe
         Commands.Build
-        Commands.Setup
-        Commands.SearchPackages
-        Commands.ShowPackage
-        Commands.RemovePackage
-        Commands.AddPackage
-        Commands.ListDependencies
-        Commands.Restore
-        Commands.AddTemplate
-        Commands.UpdateTemplate
-        Commands.ListTemplates
-        Commands.RemoveTemplate
-        Commands.NewProject
+        Commands.Serve
         Commands.Test
-        Commands.Describe ]
+        Commands.SearchPackage
+        Commands.ShowPackage
+        Commands.AddPackage
+        Commands.RemovePackage
+        Commands.ListPackages
+        Commands.RestoreImportMap
+        Commands.NewProject ]
   }
   |> Async.AwaitTask
   |> Async.RunSynchronously
