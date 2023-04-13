@@ -23,6 +23,8 @@ module Dependencies =
         .AddColumn(TableColumn("Maintainers"))
         .AddColumn(TableColumn("Last Updated"))
 
+    printfn "%A" searchData
+
     for row in searchData do
       let maintainers =
         row.maintainers
@@ -101,6 +103,7 @@ module Dependencies =
         Skypack.SearchPackage(name, page)
       )
 
+    printfn "%A" results
     results.results |> printSearchTable
 
     Logger.log (

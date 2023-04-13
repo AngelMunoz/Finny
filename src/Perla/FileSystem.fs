@@ -12,7 +12,7 @@ open Spectre.Console
 
 open CliWrap
 
-open Flurl.Http
+open FsHttp
 
 open ICSharpCode.SharpZipLib.GZip
 open ICSharpCode.SharpZipLib.Tar
@@ -215,10 +215,10 @@ module FileSystem =
 
     task {
       try
-        use! stream = url.GetStreamAsync(?cancellationToken = cancellationToken)
+        let! req = get url |> Request.sendTAsync
+        use! stream = req |> Response.toStreamTAsync
         Logger.log $"Downloading esbuild from: {url}"
-
-        use file = File.OpenWrite(compressedFile)
+        use file = File.Create(compressedFile)
 
         do!
           match cancellationToken with

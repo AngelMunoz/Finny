@@ -7,9 +7,10 @@ open System.Runtime.InteropServices
 open System.Text.Json
 open System.Text.Json.Serialization
 open System.Threading.Tasks
-open Flurl
-open Flurl.Http
-open Perla.PackageManager.Types
+open FsHttp
+open FsHttp.MimeTypes
+open System.Net.Http.Headers
+open System.Collections.Generic
 
 [<Struct>]
 type PackageMaintainer = { name: string; email: string }
@@ -44,8 +45,6 @@ type PackageSearchMeta = {
 type PackageSearchResults = {
   meta: PackageSearchMeta
   results: PackageSearchResult seq
-  [<JsonExtensionData>]
-  extras: Map<string, JsonElement>
 }
 
 type PackageInfo = {
@@ -67,8 +66,6 @@ type PackageInfo = {
   popularityScore: float
   isDeprecated: bool
   dependenciesCount: int
-  [<JsonExtensionData>]
-  extras: Map<string, JsonElement>
 }
 
 [<Struct>]
@@ -82,26 +79,35 @@ type ImportUrls = {
 
 exception PackageNotFoundException of string
 
+let options = JsonSerializerOptions(IncludeFields = true)
+
 type Skypack =
 
   static member PackageInfo(name: string) : Task<PackageInfo> = task {
-    use! res =
-      Constants.SKYPACK_API.AppendPathSegments("package", name).GetStreamAsync()
+    let! res =
+      http { GET $"{Constants.SKYPACK_API}/package/{name}" }
+      |> Request.sendTAsync
 
-    return! JsonSerializer.DeserializeAsync<PackageInfo>(res)
+    return! Response.deserializeJsonWithTAsync options res
   }
 
-  static member SearchPackage(name: string, [<Optional>] ?page: int) = task {
-    let page = defaultArg page 1
+  static member SearchPackage
+    (
+      name: string,
+      [<Optional>] ?page: int
+    ) : Task<PackageSearchResults> =
+    task {
+      let page = defaultArg page 1
 
-    use! res =
-      Constants.SKYPACK_API
-        .AppendPathSegment("search")
-        .SetQueryParams({| q = name; p = page |})
-        .GetStreamAsync()
+      let! res =
+        http {
+          GET $"{Constants.SKYPACK_API}/search"
+          query [ "name", name; "page", page ]
+        }
+        |> Request.sendTAsync
 
-    return! JsonSerializer.DeserializeAsync<PackageSearchResults>(res)
-  }
+      return! Response.deserializeJsonWithTAsync options res
+    }
 
   static member PackageUrls
     (
@@ -111,49 +117,58 @@ type Skypack =
       [<Optional>] ?typescriptTypes: bool
     ) =
     task {
+      let inline (=>) (name: string) object = name, object :> obj
+
       let minified = defaultArg minified false
 
       let typescriptTypes = defaultArg typescriptTypes false
+      let esVersion = defaultArg esVersion ""
 
       let! response =
-        let url = Constants.SKYPACK_CDN
+        http {
+          GET Constants.SKYPACK_CDN
 
-        let url = if minified then url.SetQueryParam("min") else url
-
-        let url =
-          match esVersion with
-          | Some esVersion -> url.SetQueryParam(esVersion)
-          | None -> url
-
-        let url = if typescriptTypes then url.SetQueryParam("dts") else url
-
-        url.GetAsync()
+          query [
+            if minified then
+              "min" => ""
+            if not (String.IsNullOrWhiteSpace esVersion) then
+              "dist" => esVersion
+            if typescriptTypes then
+              "dts" => ""
+          ]
+        }
+        |> Request.sendTAsync
 
       let baseUri = Uri(Constants.SKYPACK_CDN)
 
-      let packageUri = Uri(Constants.SKYPACK_CDN).AppendPathSegment(name)
+      let packageUri = Uri(baseUri, $"./{name}")
+
+      let tryPickFirst (name: string) (headers: HttpResponseHeaders) =
+        headers
+        |> Seq.tryPick (fun v ->
+          if v.Key = name then v.Value |> Seq.tryHead else None)
 
       let pinnedUrl =
-        match response.Headers.TryGetFirst("x-pinned-url") with
-        | true, path -> Uri(baseUri, path)
-        | false, _ -> Uri(packageUri.ToString())
+        match response.headers |> tryPickFirst "x-pinned-url" with
+        | Some path -> Uri(baseUri, path)
+        | None -> Uri(packageUri.ToString())
 
       let importUrl =
-        match response.Headers.TryGetFirst("x-import-url") with
-        | true, path -> Uri(baseUri, path)
-        | false, _ -> Uri(packageUri.ToString())
+        match response.headers |> tryPickFirst "x-import-url" with
+        | Some path -> Uri(baseUri, path)
+        | None -> Uri(packageUri.ToString())
 
       let typescriptTypes =
         if typescriptTypes then
-          match response.Headers.TryGetFirst("x-typescript-types") with
-          | true, path -> Some(Uri(baseUri, path))
-          | false, _ -> None
+          response.headers
+          |> tryPickFirst "x-typescript-types"
+          |> Option.map (fun path -> Uri(baseUri, path))
         else
           None
 
       return {
         name = name
-        packageUri = packageUri.ToUri()
+        packageUri = packageUri
         productionUri = pinnedUrl
         developmentUri = importUrl
         typescriptTypes = typescriptTypes
