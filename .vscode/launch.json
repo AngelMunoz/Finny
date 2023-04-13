@@ -145,6 +145,21 @@
             "console": "integratedTerminal"
         },
         {
+            "name": "Perla restore -m dev",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build",
+            "program": "${workspaceFolder}/src/Perla/bin/Debug/net7.0/Perla.dll",
+            "args": [
+                "restore",
+                "-m",
+                "dev"
+            ],
+            "cwd": "${workspaceFolder}/sample",
+            "stopAtEntry": false,
+            "console": "integratedTerminal"
+        },
+        {
             "name": "Perla add @shoelace-style/shoelace/dist/utilities/base-path.js",
             "type": "coreclr",
             "request": "launch",

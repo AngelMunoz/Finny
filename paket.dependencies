@@ -13,7 +13,7 @@ nuget FsToolkit.ErrorHandling.TaskResult >= 4.4.0
 nuget FSharp.SystemCommandLine >= 0.17.0-beta4 prerelease
 
 nuget AngleSharp 1.0.1
-nuget Flurl.Http 3.2.4
+nuget FsHttp 10.0.0
 nuget CliWrap 3.6.0
 nuget Serilog.AspNetCore 6.1.0
 nuget Spectre.Console 0.46.0

@@ -8,7 +8,7 @@ Thoth.Json.Net
 Fake.IO.FileSystem
 AngleSharp
 CliWrap
-Flurl.Http
+FsHttp
 SharpZipLib
 LiteDB
 Scriban

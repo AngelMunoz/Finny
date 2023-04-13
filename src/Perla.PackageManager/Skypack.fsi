@@ -1,7 +1,5 @@
 ﻿module Perla.PackageManager.Skypack
 
-open System.Text.Json
-open System.Text.Json.Serialization
 open System.Threading.Tasks
 
 [<Struct>]
@@ -37,8 +35,6 @@ type PackageSearchMeta = {
 type PackageSearchResults = {
   meta: PackageSearchMeta
   results: seq<PackageSearchResult>
-  [<JsonExtensionData>]
-  extras: Map<string, JsonElement>
 }
 
 type PackageInfo = {
@@ -60,8 +56,6 @@ type PackageInfo = {
   popularityScore: float
   isDeprecated: bool
   dependenciesCount: int
-  [<JsonExtensionData>]
-  extras: Map<string, JsonElement>
 }
 
 [<Struct>]

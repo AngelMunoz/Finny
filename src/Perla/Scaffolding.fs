@@ -3,7 +3,7 @@
 open System
 open LiteDB
 
-open Flurl.Http
+open FsHttp
 
 open Perla.FileSystem
 
@@ -132,10 +132,15 @@ module Scaffolding =
        repo)
 
   let downloadAndExtract (user: string, repository: string, branch: string) = task {
-    let url =
-      $"https://github.com/{user}/{repository}/archive/refs/heads/{branch}.zip"
+    let! url =
+      http {
+        GET
+          $"https://github.com/{user}/{repository}/archive/refs/heads/{branch}.zip"
+      }
+      |> Request.sendTAsync
 
-    use! stream = url.GetStreamAsync()
+
+    use! stream = url |> Response.toStreamTAsync
 
     return FileSystem.ExtractTemplateZip (user, repository, branch) stream
   }

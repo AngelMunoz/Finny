@@ -3,10 +3,11 @@
 open System.Runtime.InteropServices
 open System.Threading.Tasks
 open System.Text.Json
-open Flurl.Http
-open System.Net.Http
+open FsHttp
+open FsHttp.MimeTypes
 open System.Text.Json.Serialization
 open Perla.PackageManager.Types
+open System.Net
 
 type FileDependencies = {
   staticDeps: string seq option
@@ -130,20 +131,38 @@ type JspmGenerator =
     task {
       let serialized = JsonSerializer.Serialize(payload, opts)
 
-      let req =
-        Constants.JSPM_API
-          .WithHeader("content-type", "application/json")
-          .SendStringAsync(HttpMethod.Post, serialized)
+      let! req =
+        http {
+          POST Constants.JSPM_API
+          body
+          json serialized
+        }
+        |> Request.sendTAsync
 
-      try
-        use! res = req.ReceiveStream()
-        let! result = JsonSerializer.DeserializeAsync(res, opts)
-        return Ok result
-      with :? FlurlHttpException as ex ->
-        let! error = ex.GetResponseStringAsync()
+      if req.statusCode <> HttpStatusCode.OK then
+        let! result = req |> Response.deserializeJsonTAsync<{| error: string |}>
 
-        let deserialized =
-          JsonSerializer.Deserialize<{| error: string |}>(error)
+        return Error result.error
+      else
+        let! result =
+          Response.deserializeJsonWithTAsync<{|
+            staticDeps: string seq option
+            dynamicDeps: string seq option
+            map: ImportMap option
+            graph: DependencyGraph option
+          |}>
+            opts
+            req
 
-        return Error(deserialized.error)
+        return
+          Ok {
+            staticDeps = defaultArg result.staticDeps Seq.empty
+            dynamicDeps = defaultArg result.dynamicDeps Seq.empty
+            map =
+              match result.map with
+              | Some map -> map
+              | None -> { imports = Map.empty; scopes = None }
+            graph = result.graph
+
+          }
     }

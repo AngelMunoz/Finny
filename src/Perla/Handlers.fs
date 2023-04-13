@@ -1425,14 +1425,24 @@ module Handlers =
       match!
         Logger.spinner (
           "Fetching dependencies...",
-          Dependencies.Restore(packages, provider = config.provider)
+          Dependencies.Restore(
+            packages,
+            provider = config.provider,
+            runConfig = config.runConfiguration
+          )
         )
       with
-      | Ok response -> FileSystem.WriteImportMap(response) |> ignore
+      | Ok response ->
+        FileSystem.WriteImportMap(response) |> ignore
+        return 0
       | Error err ->
-        Logger.log $"An error happened restoring the import map:\n{err}"
+        Logger.log (
+          $"[bold red]An error happened restoring the import map:[/]",
+          escape = false
+        )
 
-      return 0
+        Logger.log err
+        return 1
     }
 
   let runDescribePerla (options: DescribeOptions) = task {
