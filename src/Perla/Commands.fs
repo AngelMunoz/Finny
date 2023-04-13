@@ -32,7 +32,15 @@ type PerlaOptions =
         IsRequired = false
       )
 
-    opt.FromAmong([| "jspm"; "skypack"; "unpkg"; "jsdelivr"; "jspm.system" |])
+    opt.FromAmong(
+      [| "jspm"
+         "skypack"
+         "unpkg"
+         "jsdelivr"
+         "esm.sh"
+         "jspm.system"
+         "jspm#system" |]
+    )
     |> ignore
 
     opt
@@ -55,15 +63,15 @@ type PerlaOptions =
 
     opt
 
-  static member Browsers: Option<Browser list> =
+  static member Browsers: Option<Browser array> =
     let parser (result: ArgumentResult) =
       result.Tokens
       |> Seq.map (fun token -> token.Value |> Browser.FromString)
       |> Seq.distinct
-      |> Seq.toList
+      |> Seq.toArray
 
     let opt =
-      Option<Browser list>(
+      Option<Browser array>(
         [| "--browsers"; "-b" |],
         parseArgument = parser,
         description = "Version of the package to install",
@@ -100,14 +108,14 @@ type PerlaOptions =
 
 [<Class; Sealed>]
 type PerlaArguments =
-  static member Properties: Argument<string list> =
+  static member Properties: Argument<string array> =
     let parser (result: ArgumentResult) =
       result.Tokens
       |> Seq.map (fun token -> token.Value)
       |> Seq.distinct
-      |> Seq.toList
+      |> Seq.toArray
 
-    Argument<string list>(
+    Argument<string array>(
       "properties",
       parser,
       description =
@@ -187,7 +195,7 @@ module SetupInputs =
 [<RequireQualifiedAccess>]
 module PackageInputs =
   let package: HandlerInput<string> =
-    Input.OptionRequired("package", "Name of the JS Package")
+    Input.Argument("package", "Name of the JS Package")
 
   let currentPage: HandlerInput<int option> =
     Input.OptionMaybe(
@@ -265,18 +273,18 @@ module ProjectInputs =
 
 [<RequireQualifiedAccess>]
 module TestingInputs =
-  let browsers: HandlerInput<Browser list> =
+  let browsers: HandlerInput<Browser array> =
     PerlaOptions.Browsers |> Input.OfOption
 
   let files: HandlerInput<string array> =
-    Input.Option<string[]>(
+    Input.Option(
       [ "--tests"; "-t" ],
       [||],
       "Specify a glob of tests to run. e.g '**/featureA/*.test.js' or 'tests/my-test.test.js'"
     )
 
   let skips: HandlerInput<string array> =
-    Input.Option<string[]>(
+    Input.Option(
       [ "--skip"; "-s" ],
       [||],
       "Specify a glob of tests to skip. e.g '**/featureA/*.test.js' or 'tests/my-test.test.js'"
@@ -284,19 +292,19 @@ module TestingInputs =
 
 
   let headless: HandlerInput<bool option> =
-    Input.OptionMaybe<bool>(
+    Input.OptionMaybe(
       [ "--headless"; "-hl" ],
       "Turn on or off the Headless mode and open the browser (useful for debugging tests)"
     )
 
   let watch: HandlerInput<bool option> =
-    Input.OptionMaybe<bool>(
+    Input.OptionMaybe(
       [ "--watch"; "-w" ],
       "Start the server and keep watching for file changes"
     )
 
   let sequential: HandlerInput<bool option> =
-    Input.OptionMaybe<bool>(
+    Input.OptionMaybe(
       [ "--browser-sequential"; "-bs" ],
       "Run each browser's test suite in sequence, rather than parallel"
     )
@@ -379,7 +387,15 @@ module Commands =
     command "serve" {
       description desc
       addAliases [ "s"; "start" ]
-      inputs (Input.Context(), SharedInputs.asDev, ServeInputs.port, ServeInputs.host, ServeInputs.ssl)
+
+      inputs (
+        Input.Context(),
+        SharedInputs.asDev,
+        ServeInputs.port,
+        ServeInputs.host,
+        ServeInputs.ssl
+      )
+
       setHandler (buildArgs >> Handlers.runServe)
     }
 
@@ -397,7 +413,13 @@ module Commands =
 
     command "setup" {
       description "Initialized a given directory or perla itself"
-      inputs (Input.Context(), SetupInputs.skipPrompts, SetupInputs.skipPlaywright)
+
+      inputs (
+        Input.Context(),
+        SetupInputs.skipPrompts,
+        SetupInputs.skipPlaywright
+      )
+
       setHandler (buildArgs >> Handlers.runSetup)
     }
 
@@ -645,14 +667,14 @@ module Commands =
     let buildArgs
       (
         ctx: InvocationContext,
-        browsers: Browser list,
+        browsers: Browser array,
         files: string array,
         skips: string array,
         headless: bool option,
         watch: bool option,
         sequential: bool option
       ) : TestingOptions * CancellationToken =
-      { browsers = if List.isEmpty browsers then None else Some browsers
+      { browsers = if Array.isEmpty browsers then None else Some browsers
         files = if files |> Array.isEmpty then None else Some files
         skip = if skips |> Array.isEmpty then None else Some skips
         headless = headless
@@ -688,7 +710,9 @@ module Commands =
 
     command "describe" {
       addAlias "ds"
-      description "Describes the perla.json file or it's properties as requested"
+
+      description
+        "Describes the perla.json file or it's properties as requested"
 
       inputs (DescribeInputs.perlaProperties, DescribeInputs.describeCurrent)
       setHandler (buildArgs >> Handlers.runDescribePerla)

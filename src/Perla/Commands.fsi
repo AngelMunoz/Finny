@@ -12,12 +12,12 @@ open Perla.PackageManager.Types
 type PerlaOptions =
     static member PackageSource: Option<Provider voption>
     static member RunConfiguration: Option<RunConfiguration voption>
-    static member Browsers: Option<Browser list>
+    static member Browsers: Option<Browser array>
     static member DisplayMode: Option<ListFormat>
 
 [<Class; Sealed>]
 type PerlaArguments =
-    static member Properties: Argument<string list>
+    static member Properties: Argument<string array>
 
 [<RequireQualifiedAccess>]
 module SharedInputs =
@@ -43,7 +43,7 @@ module SetupInputs =
 
 [<RequireQualifiedAccess>]
 module PackageInputs =
-    val package : HandlerInput<string>
+    val package: HandlerInput<string>
     val alias: HandlerInput<string option>
     val version: HandlerInput<string option>
     val currentPage: HandlerInput<int option>
@@ -66,7 +66,7 @@ module ProjectInputs =
 
 [<RequireQualifiedAccess>]
 module TestingInputs =
-    val browsers: HandlerInput<Browser list>
+    val browsers: HandlerInput<Browser array>
     val files: HandlerInput<string array>
     val skips: HandlerInput<string array>
     val headless: HandlerInput<bool option>
