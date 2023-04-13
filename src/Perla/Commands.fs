@@ -133,8 +133,8 @@ module SharedInputs =
       "Use the dev mode configuration"
     )
 
-  let source = PerlaOptions.PackageSource |> Input.OfOption
-  let mode = PerlaOptions.RunConfiguration |> Input.OfOption
+  let source: HandlerInput<Provider voption> = PerlaOptions.PackageSource |> Input.OfOption
+  let mode: HandlerInput<RunConfiguration voption> = PerlaOptions.RunConfiguration |> Input.OfOption
 
 [<RequireQualifiedAccess>]
 module DescribeInputs =
@@ -432,7 +432,6 @@ module Commands =
     }
 
   let SearchPackage =
-
 
     let buildArgs
       (
