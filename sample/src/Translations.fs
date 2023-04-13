@@ -13,8 +13,7 @@ let matchTranslationLanguage
   (
     translations: TranslationCollection option,
     language: Language
-  )
-  =
+  ) =
 
   match translations, language with
   | None, _ -> None

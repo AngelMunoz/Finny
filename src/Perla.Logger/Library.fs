@@ -200,4 +200,6 @@ module Logger =
 
         member _.BeginScope(state) =
           { new IDisposable with
-              member _.Dispose() = () } }
+              member _.Dispose() = ()
+          }
+    }

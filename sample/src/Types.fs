@@ -39,13 +39,12 @@ type TranslationCollection =
 
 
 [<AttachMembers>]
-type Notification =
-  {
-    id: Guid
-    header: string
-    kind: string
-    message: string
-  }
+type Notification = {
+  id: Guid
+  header: string
+  kind: string
+  message: string
+} with
 
   static member Create(header, message, ?kind: string) =
     let kind = defaultArg kind "info"

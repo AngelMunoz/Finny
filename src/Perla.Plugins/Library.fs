@@ -2,17 +2,16 @@
 
 open System.Threading.Tasks
 
-type FileTransform =
-  {
-    /// The text of the file, this will change between plugin
-    /// transformations
-    content: string
-    /// The extension this file is currently holding
-    /// this will change between plugin transformations
-    /// It also serves for plugin authors to determine
-    /// if their plugin should act on this particular file
-    extension: string
-  }
+type FileTransform = {
+  /// The text of the file, this will change between plugin
+  /// transformations
+  content: string
+  /// The extension this file is currently holding
+  /// this will change between plugin transformations
+  /// It also serves for plugin authors to determine
+  /// if their plugin should act on this particular file
+  extension: string
+}
 
 ///<summary>
 /// A function predicate that allows the plugin author
@@ -70,16 +69,18 @@ type PluginFunctions =
   | ShouldLoad of shouldLoad: FilePredicate
 
 [<Struct>]
-type PluginInfo =
-  { name: string
-    shouldProcessFile: FilePredicate voption
-    transform: TransformAction voption }
+type PluginInfo = {
+  name: string
+  shouldProcessFile: FilePredicate voption
+  transform: TransformAction voption
+}
 
 [<Struct>]
-type RunnablePlugin =
-  { plugin: PluginInfo
-    shouldTransform: FilePredicate
-    transform: TransformAction }
+type RunnablePlugin = {
+  plugin: PluginInfo
+  shouldTransform: FilePredicate
+  transform: TransformAction
+}
 
 type PerlaPluginBuilder(name: string) =
   member _.Yield _ = []
@@ -156,9 +157,11 @@ type PerlaPluginBuilder(name: string) =
         | Some v -> ValueSome v
         | None -> ValueNone
 
-    { name = name
+    {
+      name = name
       shouldProcessFile = shouldTransform
-      transform = transform }
+      transform = transform
+    }
 
 [<AutoOpen;
   CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]

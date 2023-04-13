@@ -27,20 +27,21 @@ let main argv =
       // don't replace leading @ strings e.g. @lit-labs/task
       pipeline.UseTokenReplacer(fun _ _ _ -> false) |> ignore)
 
-    addCommands
-      [ Commands.Setup
-        Commands.Template
-        Commands.Describe
-        Commands.Build
-        Commands.Serve
-        Commands.Test
-        Commands.SearchPackage
-        Commands.ShowPackage
-        Commands.AddPackage
-        Commands.RemovePackage
-        Commands.ListPackages
-        Commands.RestoreImportMap
-        Commands.NewProject ]
+    addCommands [
+      Commands.Setup
+      Commands.Template
+      Commands.Describe
+      Commands.Build
+      Commands.Serve
+      Commands.Test
+      Commands.SearchPackage
+      Commands.ShowPackage
+      Commands.AddPackage
+      Commands.RemovePackage
+      Commands.ListPackages
+      Commands.RestoreImportMap
+      Commands.NewProject
+    ]
   }
   |> Async.AwaitTask
   |> Async.RunSynchronously

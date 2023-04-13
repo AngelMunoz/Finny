@@ -109,8 +109,10 @@ type Build =
     let dependencies =
       match config.runConfiguration with
       | RunConfiguration.Production -> config.dependencies
-      | RunConfiguration.Development ->
-        [ yield! config.dependencies; yield! config.devDependencies ]
+      | RunConfiguration.Development -> [
+          yield! config.dependencies
+          yield! config.devDependencies
+        ]
 
     seq {
       for dependency in dependencies do
@@ -146,9 +148,11 @@ type Build =
       let localExcludes =
         config.excludes |> Seq.choose (chooseGlobs "lfs:" "vfs:") |> Seq.toList
 
-      { BaseDirectory = FileSystem.CurrentWorkingDirectory() |> UMX.untag
+      {
+        BaseDirectory = FileSystem.CurrentWorkingDirectory() |> UMX.untag
         Includes = localIncludes
-        Excludes = localExcludes }
+        Excludes = localExcludes
+      }
 
     let vfsGlob =
       let virtualIncludes =
@@ -157,9 +161,11 @@ type Build =
       let virtualExcludes =
         config.excludes |> Seq.choose (chooseGlobs "vfs:" "lfs:") |> Seq.toList
 
-      { BaseDirectory = UMX.untag tempDir
+      {
+        BaseDirectory = UMX.untag tempDir
         Includes = virtualIncludes
-        Excludes = virtualExcludes }
+        Excludes = virtualExcludes
+      }
 
     let copyAndIncrement (cwd: string) (tsk: ProgressTask) (file: string) =
       tsk.Increment 1

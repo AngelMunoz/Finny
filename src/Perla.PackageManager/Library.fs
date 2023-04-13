@@ -40,11 +40,12 @@ module PackageManager =
           else
             dependencyInfo.packageUri
 
-        let importMap =
-          { importMap with
+        let importMap = {
+          importMap with
               imports =
                 importMap.imports
-                |> Map.add dependencyInfo.name (uri.ToString()) }
+                |> Map.add dependencyInfo.name (uri.ToString())
+        }
 
         match!
           JspmGenerator.Install(

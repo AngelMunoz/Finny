@@ -41,39 +41,42 @@ let PerlaEnvPrefix = "PERLA_"
 let internal getPerlaEnvVars () =
   let env = Environment.GetEnvironmentVariables()
 
-  [ for entry in env do
+  [
+    for entry in env do
       let entry = entry :?> DictionaryEntry
       let key = entry.Key :?> string
       let value = entry.Value :?> string
 
       if key.StartsWith(PerlaEnvPrefix) then
-        (key.Replace(PerlaEnvPrefix, String.Empty), value) ]
+        (key.Replace(PerlaEnvPrefix, String.Empty), value)
+  ]
 
-let GetEnvContent () =
-  option {
-    let env = getPerlaEnvVars ()
-    let sb = StringBuilder()
+let GetEnvContent () = option {
+  let env = getPerlaEnvVars ()
+  let sb = StringBuilder()
 
-    for key, value in env do
-      sb.Append($"""export const {key} = "{value}";""") |> ignore
+  for key, value in env do
+    sb.Append($"""export const {key} = "{value}";""") |> ignore
 
-    let content = sb.ToString()
+  let content = sb.ToString()
 
-    if String.IsNullOrWhiteSpace content then
-      return! None
-    else
-      return content
-  }
+  if String.IsNullOrWhiteSpace content then
+    return! None
+  else
+    return content
+}
 
 let envVarRegex = Regex(@"^([\w\d ]+)=([^\n\r]+)$")
 
 let getGroups (regex: Regex) (input: string) =
   if regex.IsMatch input then
-    [ for group in regex.Match(input).Groups do
+    [
+      for group in regex.Match(input).Groups do
         if String.IsNullOrWhiteSpace group.Value then
           ()
         else
-          group.Value.Trim() ]
+          group.Value.Trim()
+    ]
   else
     List.empty
 

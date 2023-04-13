@@ -11,64 +11,64 @@ open ICSharpCode.SharpZipLib.GZip
 open ICSharpCode.SharpZipLib.Tar
 
 let EsbuildBinaryPath () : string =
-    "/home/runner/.local/share/perla/0.17.15/package/bin/esbuild"
-    |> Path.GetFullPath
+  "/home/runner/.local/share/perla/0.17.15/package/bin/esbuild"
+  |> Path.GetFullPath
 
 let chmodBinCmd () =
-    Cli
-        .Wrap("chmod")
-        .WithStandardErrorPipe(PipeTarget.ToStream(Console.OpenStandardError()))
-        .WithStandardOutputPipe(PipeTarget.ToStream(Console.OpenStandardOutput()))
-        .WithArguments($"+x {EsbuildBinaryPath()}")
+  Cli
+    .Wrap("chmod")
+    .WithStandardErrorPipe(PipeTarget.ToStream(Console.OpenStandardError()))
+    .WithStandardOutputPipe(PipeTarget.ToStream(Console.OpenStandardOutput()))
+    .WithArguments($"+x {EsbuildBinaryPath()}")
 
 let tryDownloadEsBuild () : Task<string option> =
-    let url = "https://registry.npmjs.org/@esbuild/linux-x64/-/linux-x64-0.17.15.tgz"
+  let url =
+    "https://registry.npmjs.org/@esbuild/linux-x64/-/linux-x64-0.17.15.tgz"
 
-    let compressedFile = "/home/runner/.local/share/perla/0.17.15/esbuild.tgz"
-    compressedFile |> Path.GetDirectoryName |> Directory.CreateDirectory |> ignore
+  let compressedFile = "/home/runner/.local/share/perla/0.17.15/esbuild.tgz"
+  compressedFile |> Path.GetDirectoryName |> Directory.CreateDirectory |> ignore
 
-    task {
-        try
-            use! stream = url.GetStreamAsync()
-            Console.WriteLine $"Downloading esbuild from: {url}"
+  task {
+    try
+      use! stream = url.GetStreamAsync()
+      Console.WriteLine $"Downloading esbuild from: {url}"
 
-            use file = File.OpenWrite(compressedFile)
+      use file = File.OpenWrite(compressedFile)
 
-            do! stream.CopyToAsync(file)
+      do! stream.CopyToAsync(file)
 
-            Console.WriteLine $"Downloaded esbuild to: {file.Name}"
+      Console.WriteLine $"Downloaded esbuild to: {file.Name}"
 
-            return Some(file.Name)
-        with ex ->
-            Console.Error.WriteLine($"Failed to download esbuild from: {url}", ex)
-            return None
-    }
+      return Some(file.Name)
+    with ex ->
+      Console.Error.WriteLine($"Failed to download esbuild from: {url}", ex)
+      return None
+  }
 
-let decompressEsbuild (path: Task<string option>) =
-    task {
-        match! path with
-        | Some path ->
+let decompressEsbuild (path: Task<string option>) = task {
+  match! path with
+  | Some path ->
 
-            use stream = new GZipInputStream(File.OpenRead path)
+    use stream = new GZipInputStream(File.OpenRead path)
 
-            use archive = TarArchive.CreateInputTarArchive(stream, Text.Encoding.UTF8)
+    use archive = TarArchive.CreateInputTarArchive(stream, Text.Encoding.UTF8)
 
-            path |> Path.GetDirectoryName |> archive.ExtractContents
+    path |> Path.GetDirectoryName |> archive.ExtractContents
 
-            Console.WriteLine $"Executing: chmod +x on \"{EsbuildBinaryPath()}\""
-            let res = chmodBinCmd().ExecuteAsync()
-            do! res.Task :> Task
+    Console.WriteLine $"Executing: chmod +x on \"{EsbuildBinaryPath()}\""
+    let res = chmodBinCmd().ExecuteAsync()
+    do! res.Task :> Task
 
-            Console.WriteLine "Cleaning up!"
+    Console.WriteLine "Cleaning up!"
 
-            File.Delete(path)
+    File.Delete(path)
 
-            Console.WriteLine "This setup should happen once per machine"
-            Console.WriteLine "If you see it often please report a bug."
-        | None -> ()
+    Console.WriteLine "This setup should happen once per machine"
+    Console.WriteLine "If you see it often please report a bug."
+  | None -> ()
 
-        return ()
-    }
+  return ()
+}
 
 tryDownloadEsBuild ()
 |> decompressEsbuild

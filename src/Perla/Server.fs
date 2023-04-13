@@ -158,15 +158,14 @@ module Extensions =
     /// <param name="bytes">The byte array to be send back to the client.</param>
     /// <returns>Task of Some HttpContext after writing to the body of the response.</returns>
     [<Extension>]
-    static member WriteBytesAsync(ctx: HttpContext, bytes: byte[]) =
-      task {
-        ctx.SetHttpHeader(HeaderNames.ContentLength, bytes.Length)
+    static member WriteBytesAsync(ctx: HttpContext, bytes: byte[]) = task {
+      ctx.SetHttpHeader(HeaderNames.ContentLength, bytes.Length)
 
-        if ctx.Request.Method <> HttpMethods.Head then
-          do! ctx.Response.Body.WriteAsync(bytes, 0, bytes.Length)
+      if ctx.Request.Method <> HttpMethods.Head then
+        do! ctx.Response.Body.WriteAsync(bytes, 0, bytes.Length)
 
-        return Some ctx
-      }
+      return Some ctx
+    }
 
     /// <summary>
     /// Writes an UTF-8 encoded string to the body of the HTTP response and sets the HTTP Content-Length header accordingly.
@@ -195,8 +194,10 @@ module LiveReload =
   let WriteReloadChange (event: FileChangedEvent, response: HttpResponse) =
     let data =
       Json.ToText(
-        {| oldName = event.oldName
-           name = event.name |},
+        {|
+          oldName = event.oldName
+          name = event.name
+        |},
         false
       )
 
@@ -225,12 +226,14 @@ module LiveReload =
 
     let data =
       Json.ToText(
-        {| oldName = event.oldName
-           oldPath = oldPath
-           name = replaced
-           url = $"{event.serverPath}/{replaced}"
-           localPath = userPath
-           content = transform.content |}
+        {|
+          oldName = event.oldName
+          oldPath = oldPath
+          name = replaced
+          url = $"{event.serverPath}/{replaced}"
+          localPath = userPath
+          content = transform.content
+        |}
       )
 
     Logger.log ($"HMR: CSS File Changed: {userPath}", target = Serve)
@@ -341,49 +344,46 @@ document.head.appendChild(style).innerHTML=String.raw`{content}`;"""
     }
     :> Task
 
-  let SendScript (script: PerlaScript) (_: HttpContext) =
-    task {
+  let SendScript (script: PerlaScript) (_: HttpContext) = task {
 
-      Logger.log ($"Sending Script %A{script}", target = PrefixKind.Serve)
+    Logger.log ($"Sending Script %A{script}", target = PrefixKind.Serve)
 
-      match script with
-      | PerlaScript.LiveReload ->
-        return
-          Results.Text(FileSystem.LiveReloadScript.Value, "text/javascript")
+    match script with
+    | PerlaScript.LiveReload ->
+      return Results.Text(FileSystem.LiveReloadScript.Value, "text/javascript")
 
-      | PerlaScript.Worker ->
-        return Results.Text(FileSystem.WorkerScript.Value, "text/javascript")
-      | PerlaScript.TestingHelpers ->
+    | PerlaScript.Worker ->
+      return Results.Text(FileSystem.WorkerScript.Value, "text/javascript")
+    | PerlaScript.TestingHelpers ->
+      return
+        Results.Text(FileSystem.TestingHelpersScript.Value, "text/javascript")
+    | PerlaScript.MochaTestRunner ->
+      return Results.Text(FileSystem.MochaRunnerScript.Value, "text/javascript")
+    | PerlaScript.Env ->
+      match Env.GetEnvContent() with
+      | Some content ->
         return
-          Results.Text(FileSystem.TestingHelpersScript.Value, "text/javascript")
-      | PerlaScript.MochaTestRunner ->
-        return
-          Results.Text(FileSystem.MochaRunnerScript.Value, "text/javascript")
-      | PerlaScript.Env ->
-        match Env.GetEnvContent() with
-        | Some content ->
-          return
-            Results.Stream(
-              new MemoryStream(Encoding.UTF8.GetBytes content),
-              "text/javascript"
-            )
-        | None ->
-          Logger.log (
-            "An env file was requested but no env variables were found",
-            target = PrefixKind.Serve
+          Results.Stream(
+            new MemoryStream(Encoding.UTF8.GetBytes content),
+            "text/javascript"
           )
+      | None ->
+        Logger.log (
+          "An env file was requested but no env variables were found",
+          target = PrefixKind.Serve
+        )
 
-          let message =
-            """If you want to use env variables, remember to prefix them with 'PERLA_' e.g.
+        let message =
+          """If you want to use env variables, remember to prefix them with 'PERLA_' e.g.
 'PERLA_myApiKey' or 'PERLA_CLIENT_SECRET', then you will be able to import them via the env file"""
 
-          Logger.logCustom (
-            $"[bold red]Env Content not found[/][bold yellow]{message}[/]",
-            escape = false
-          )
+        Logger.logCustom (
+          $"[bold red]Env Content not found[/][bold yellow]{message}[/]",
+          escape = false
+        )
 
-          return Results.NotFound({| message = message |})
-    }
+        return Results.NotFound({| message = message |})
+  }
 
   let SseHandler
     (eventStream: IObservable<FileChangedEvent * FileTransform>)
@@ -403,26 +403,24 @@ document.head.appendChild(style).innerHTML=String.raw`{content}`;"""
 
       let onChangeSub =
         eventStream
-        |> Observable.map (fun (event, fileTransform) ->
-          task {
-            match event.changeType with
-            | Changed when fileTransform.extension.ToLowerInvariant() = ".css" ->
-              do! LiveReload.WriteHmrChange(event, fileTransform, res)
-            | _ -> do! LiveReload.WriteReloadChange(event, res)
+        |> Observable.map (fun (event, fileTransform) -> task {
+          match event.changeType with
+          | Changed when fileTransform.extension.ToLowerInvariant() = ".css" ->
+            do! LiveReload.WriteHmrChange(event, fileTransform, res)
+          | _ -> do! LiveReload.WriteReloadChange(event, res)
 
-            do! res.Body.FlushAsync()
-          })
+          do! res.Body.FlushAsync()
+        })
         |> Observable.switchTask
         |> Observable.subscribe (fun _ ->
           logger.LogInformation "File Changed Event processed")
 
       let onCompilerErrorSub =
         compileErrors
-        |> Observable.map (fun error ->
-          task {
-            do! LiveReload.WriteCompileError(error, res)
-            do! res.Body.FlushAsync()
-          })
+        |> Observable.map (fun error -> task {
+          do! LiveReload.WriteCompileError(error, res)
+          do! res.Body.FlushAsync()
+        })
         |> Observable.switchTask
         |> Observable.subscribe (fun _ ->
           logger.LogWarning "Compile Error Event processed")
@@ -749,31 +747,35 @@ module Server =
       app.MapGet(
         "/~perla~/testing/files",
         Func<HttpContext, IResult>(fun _ ->
-          let glob: Globbing.LazyGlobbingPattern =
-            { BaseDirectory = "./tests"
-              Excludes =
-                [ "**/bin/**"
-                  "**/obj/**"
-                  "**/*.fs"
-                  "**/*.fsproj"
-                  yield! testConfig.excludes ]
-              Includes =
-                match files with
-                | Some files ->
-                  if files |> Seq.isEmpty then
-                    [ "**/*.test.js"; "**/*.spec.js" ]
-                  else
-                    files |> Seq.toList
-                | None -> [ "**/*.test.js"; "**/*.spec.js" ] }
+          let glob: Globbing.LazyGlobbingPattern = {
+            BaseDirectory = "./tests"
+            Excludes = [
+              "**/bin/**"
+              "**/obj/**"
+              "**/*.fs"
+              "**/*.fsproj"
+              yield! testConfig.excludes
+            ]
+            Includes =
+              match files with
+              | Some files ->
+                if files |> Seq.isEmpty then
+                  [ "**/*.test.js"; "**/*.spec.js" ]
+                else
+                  files |> Seq.toList
+              | None -> [ "**/*.test.js"; "**/*.spec.js" ]
+          }
 
           Results.Ok(
-            [| for file in glob do
-                 let systemPath =
-                   (Path.GetFullPath file)
-                     .Replace(Path.DirectorySeparatorChar, '/')
+            [|
+              for file in glob do
+                let systemPath =
+                  (Path.GetFullPath file)
+                    .Replace(Path.DirectorySeparatorChar, '/')
 
-                 let index = systemPath.IndexOf("/tests/")
-                 systemPath.Substring(index) |]
+                let index = systemPath.IndexOf("/tests/")
+                systemPath.Substring(index)
+            |]
           ))
       )
       |> ignore
@@ -789,15 +791,16 @@ module Server =
         "/~perla~/testing/environment",
         Func<HttpContext, IResult>(fun _ ->
 
-          Results.Ok
-            {| testConfig with
-                 browsers =
-                   (testConfig.browsers |> Seq.map ConfigEncoders.Browser)
-                     .ToString()
-                 browserMode =
-                   (testConfig.browserMode |> ConfigEncoders.BrowserMode)
-                     .ToString()
-                 runId = Guid.NewGuid() |})
+          Results.Ok {|
+            testConfig with
+                browsers =
+                  (testConfig.browsers |> Seq.map ConfigEncoders.Browser)
+                    .ToString()
+                browserMode =
+                  (testConfig.browserMode |> ConfigEncoders.BrowserMode)
+                    .ToString()
+                runId = Guid.NewGuid()
+          |})
       )
       |> ignore
 

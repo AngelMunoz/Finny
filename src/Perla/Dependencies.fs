@@ -94,37 +94,35 @@ module Dependencies =
 
     AnsiConsole.Write table
 
-  let Search (name: string, page: int) =
-    task {
-      let! results =
-        Logger.spinner (
-          "Searching for package information",
-          Skypack.SearchPackage(name, page)
-        )
-
-      results.results |> printSearchTable
-
-      Logger.log (
-        $"[bold green]Found[/]: {results.meta.totalCount}",
-        escape = false
+  let Search (name: string, page: int) = task {
+    let! results =
+      Logger.spinner (
+        "Searching for package information",
+        Skypack.SearchPackage(name, page)
       )
 
-      Logger.log (
-        $"[bold green]Page[/] {results.meta.page} of {results.meta.totalPages}",
-        escape = false
+    results.results |> printSearchTable
+
+    Logger.log (
+      $"[bold green]Found[/]: {results.meta.totalCount}",
+      escape = false
+    )
+
+    Logger.log (
+      $"[bold green]Page[/] {results.meta.page} of {results.meta.totalPages}",
+      escape = false
+    )
+  }
+
+  let Show (name: string) = task {
+    let! package =
+      Logger.spinner (
+        "Searching for package information",
+        Skypack.PackageInfo name
       )
-    }
 
-  let Show (name: string) =
-    task {
-      let! package =
-        Logger.spinner (
-          "Searching for package information",
-          Skypack.PackageInfo name
-        )
-
-      printShowTable package
-    }
+    printShowTable package
+  }
 
   let consolidateResolutions
     (
@@ -174,12 +172,14 @@ type Dependencies =
       let! resultMap =
         PackageManager.AddJspm(
           package,
-          [ GeneratorEnv.Browser
+          [
+            GeneratorEnv.Browser
             GeneratorEnv.Module
             match runConfig with
             | Some RunConfiguration.Production
             | None -> GeneratorEnv.Production
-            | Some RunConfiguration.Development -> GeneratorEnv.Development ],
+            | Some RunConfiguration.Development -> GeneratorEnv.Development
+          ],
           map,
           provider
         )
@@ -200,12 +200,14 @@ type Dependencies =
     ) =
     PackageManager.AddJspm(
       package,
-      [ GeneratorEnv.Browser
+      [
+        GeneratorEnv.Browser
         GeneratorEnv.Module
         match runConfig with
         | Some RunConfiguration.Production
         | None -> GeneratorEnv.Production
-        | Some RunConfiguration.Development -> GeneratorEnv.Development ],
+        | Some RunConfiguration.Development -> GeneratorEnv.Development
+      ],
       ?provider = provider
     )
 
@@ -217,12 +219,14 @@ type Dependencies =
     ) =
     PackageManager.AddJspm(
       packages,
-      [ GeneratorEnv.Browser
+      [
+        GeneratorEnv.Browser
         GeneratorEnv.Module
         match runConfig with
         | Some RunConfiguration.Production
         | None -> GeneratorEnv.Production
-        | Some RunConfiguration.Development -> GeneratorEnv.Development ],
+        | Some RunConfiguration.Development -> GeneratorEnv.Development
+      ],
       ?provider = provider
     )
 
@@ -234,12 +238,14 @@ type Dependencies =
     ) =
     PackageManager.Regenerate(
       packages,
-      [ GeneratorEnv.Browser
+      [
+        GeneratorEnv.Browser
         GeneratorEnv.Module
         match runConfig with
         | Some RunConfiguration.Production
         | None -> GeneratorEnv.Production
-        | Some RunConfiguration.Development -> GeneratorEnv.Development ],
+        | Some RunConfiguration.Development -> GeneratorEnv.Development
+      ],
       ?provider = provider
     )
     |> TaskResult.map (fun result -> result.staticDeps, result.map)
@@ -261,12 +267,14 @@ type Dependencies =
 
     PackageManager.Regenerate(
       parsablePackages,
-      [ GeneratorEnv.Browser
+      [
+        GeneratorEnv.Browser
         GeneratorEnv.Module
         match runConfig with
         | Some RunConfiguration.Production
         | None -> GeneratorEnv.Production
-        | Some RunConfiguration.Development -> GeneratorEnv.Development ],
+        | Some RunConfiguration.Development -> GeneratorEnv.Development
+      ],
       importMap = map,
       ?provider = provider
     )
@@ -295,12 +303,14 @@ type Dependencies =
       let! resultMap =
         PackageManager.AddJspm(
           parsablePackages,
-          [ GeneratorEnv.Browser
+          [
+            GeneratorEnv.Browser
             GeneratorEnv.Module
             match runConfig with
             | Some RunConfiguration.Production
             | None -> GeneratorEnv.Production
-            | Some RunConfiguration.Development -> GeneratorEnv.Development ],
+            | Some RunConfiguration.Development -> GeneratorEnv.Development
+          ],
           map,
           provider
         )
@@ -330,12 +340,14 @@ type Dependencies =
       let! resultMap =
         PackageManager.AddJspm(
           parsablePackages,
-          [ GeneratorEnv.Browser
+          [
+            GeneratorEnv.Browser
             GeneratorEnv.Module
             match runConfig with
             | Some RunConfiguration.Production
             | None -> GeneratorEnv.Production
-            | Some RunConfiguration.Development -> GeneratorEnv.Development ],
+            | Some RunConfiguration.Development -> GeneratorEnv.Development
+          ],
           provider = provider
         )
 
@@ -368,10 +380,11 @@ type Dependencies =
           else
             None
         | ValueNone -> None)
-      |> List.map (fun (_, name, version) ->
-        { name = name
-          version = Some version
-          alias = None })
+      |> List.map (fun (_, name, version) -> {
+        name = name
+        version = Some version
+        alias = None
+      })
 
     let deps, devDeps =
       fromImportMap
