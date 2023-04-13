@@ -37,11 +37,14 @@ module Configuration =
 
     Assert.Equal(
       result,
-      { config with
-          devServer =
-            { port = 3000
+      {
+        config with
+            devServer = {
+              port = 3000
               host = "0.0.0.0"
               liveReload = true
               useSSL = false
-              proxy = Map.ofList [ "/reqUrl", "https://target" ] } }
+              proxy = Map.ofList [ "/reqUrl", "https://target" ]
+            }
+      }
     )

@@ -33,13 +33,15 @@ type PerlaOptions =
       )
 
     opt.FromAmong(
-      [| "jspm"
-         "skypack"
-         "unpkg"
-         "jsdelivr"
-         "esm.sh"
-         "jspm.system"
-         "jspm#system" |]
+      [|
+        "jspm"
+        "skypack"
+        "unpkg"
+        "jsdelivr"
+        "esm.sh"
+        "jspm.system"
+        "jspm#system"
+      |]
     )
     |> ignore
 
@@ -335,7 +337,8 @@ module Commands =
         rebuildImportMap: bool option,
         enablePreview: bool option
       ) =
-      { mode =
+      {
+        mode =
           runAsDev
           |> Option.map (fun runAsDev ->
             match runAsDev with
@@ -343,7 +346,8 @@ module Commands =
             | false -> RunConfiguration.Production)
         enablePreloads = defaultArg enablePreloads true
         rebuildImportMap = defaultArg rebuildImportMap false
-        enablePreview = defaultArg enablePreview false },
+        enablePreview = defaultArg enablePreview false
+      },
       context.GetCancellationToken()
 
     command "build" {
@@ -370,7 +374,8 @@ module Commands =
         host: string option,
         ssl: bool option
       ) =
-      { mode =
+      {
+        mode =
           mode
           |> Option.map (fun runAsDev ->
             match runAsDev with
@@ -378,7 +383,8 @@ module Commands =
             | false -> RunConfiguration.Production)
         port = port
         host = host
-        ssl = ssl },
+        ssl = ssl
+      },
       context.GetCancellationToken()
 
     let desc =
@@ -406,8 +412,10 @@ module Commands =
         yes: bool option,
         skipPlaywright: bool option
       ) : SetupOptions * CancellationToken =
-      { skipPrompts = yes |> Option.defaultValue false
-        skipPlaywright = skipPlaywright |> Option.defaultValue true },
+      {
+        skipPrompts = yes |> Option.defaultValue false
+        skipPlaywright = skipPlaywright |> Option.defaultValue true
+      },
       ctx.GetCancellationToken()
 
 
@@ -432,8 +440,10 @@ module Commands =
         package: string,
         page: int option
       ) : SearchOptions * CancellationToken =
-      { package = package
-        page = page |> Option.defaultValue 1 },
+      {
+        package = package
+        page = page |> Option.defaultValue 1
+      },
       ctx.GetCancellationToken()
 
     command "search" {
@@ -489,7 +499,8 @@ module Commands =
         version: string option,
         alias: string option
       ) : AddPackageOptions * CancellationToken =
-      { package = package
+      {
+        package = package
         version = version
         source = source |> Option.ofValueOption
         mode =
@@ -499,7 +510,8 @@ module Commands =
               RunConfiguration.Development
             else
               RunConfiguration.Production)
-        alias = alias },
+        alias = alias
+      },
       ctx.GetCancellationToken()
 
     command "add" {
@@ -522,15 +534,16 @@ module Commands =
 
   let ListPackages =
 
-    let buildArgs (asNpm: bool option) : ListPackagesOptions =
-      { format =
-          asNpm
-          |> Option.map (fun asNpm ->
-            if asNpm then
-              ListFormat.TextOnly
-            else
-              ListFormat.HumanReadable)
-          |> Option.defaultValue ListFormat.HumanReadable }
+    let buildArgs (asNpm: bool option) : ListPackagesOptions = {
+      format =
+        asNpm
+        |> Option.map (fun asNpm ->
+          if asNpm then
+            ListFormat.TextOnly
+          else
+            ListFormat.HumanReadable)
+        |> Option.defaultValue ListFormat.HumanReadable
+    }
 
     command "list" {
       addAlias "ls"
@@ -550,8 +563,10 @@ module Commands =
         source: Provider voption,
         mode: RunConfiguration voption
       ) : RestoreOptions * CancellationToken =
-      { source = source |> Option.ofValueOption
-        mode = mode |> Option.ofValueOption },
+      {
+        source = source |> Option.ofValueOption
+        mode = mode |> Option.ofValueOption
+      },
       ctx.GetCancellationToken()
 
     command "regenerate" {
@@ -604,28 +619,29 @@ module Commands =
         |> Option.orElse add
         |> Option.defaultValue format
 
-      { fullRepositoryName = name
-        operation = operation },
+      {
+        fullRepositoryName = name
+        operation = operation
+      },
       ctx.GetCancellationToken()
 
-    let template =
-      command "templates" {
-        addAlias "t"
+    let template = command "templates" {
+      addAlias "t"
 
-        description
-          "Handles Template Repository operations such as list, add, update, and remove templates"
+      description
+        "Handles Template Repository operations such as list, add, update, and remove templates"
 
-        inputs (
-          Input.Context(),
-          TemplateInputs.repositoryName,
-          TemplateInputs.addTemplate,
-          TemplateInputs.updateTemplate,
-          TemplateInputs.removeTemplate,
-          TemplateInputs.displayMode
-        )
+      inputs (
+        Input.Context(),
+        TemplateInputs.repositoryName,
+        TemplateInputs.addTemplate,
+        TemplateInputs.updateTemplate,
+        TemplateInputs.removeTemplate,
+        TemplateInputs.displayMode
+      )
 
-        setHandler (buildArgs >> Handlers.runTemplate)
-      }
+      setHandler (buildArgs >> Handlers.runTemplate)
+    }
 
     template
 
@@ -639,10 +655,12 @@ module Commands =
         byId: string option,
         byShortName: string option
       ) : ProjectOptions * CancellationToken =
-      { projectName = name
+      {
+        projectName = name
         byTemplateName = template
         byId = byId
-        byShortName = byShortName },
+        byShortName = byShortName
+      },
       ctx.GetCancellationToken()
 
     command "new" {
@@ -674,7 +692,8 @@ module Commands =
         watch: bool option,
         sequential: bool option
       ) : TestingOptions * CancellationToken =
-      { browsers = if Array.isEmpty browsers then None else Some browsers
+      {
+        browsers = if Array.isEmpty browsers then None else Some browsers
         files = if files |> Array.isEmpty then None else Some files
         skip = if skips |> Array.isEmpty then None else Some skips
         headless = headless
@@ -683,7 +702,8 @@ module Commands =
           sequential
           |> Option.map (fun sequential ->
             if sequential then Some BrowserMode.Sequential else None)
-          |> Option.flatten },
+          |> Option.flatten
+      },
       ctx.GetCancellationToken()
 
     command "test" {
@@ -704,9 +724,10 @@ module Commands =
 
   let Describe =
 
-    let buildArgs (properties: string[] option, current: bool) =
-      { properties = properties
-        current = current }
+    let buildArgs (properties: string[] option, current: bool) = {
+      properties = properties
+      current = current
+    }
 
     command "describe" {
       addAlias "ds"

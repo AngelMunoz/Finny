@@ -43,24 +43,30 @@ module Dependency =
   let ``Dependency should be able to give a versioned string`` () =
     Assert.Equal(
       "lit@2.0.0",
-      { name = "lit"
+      {
+        name = "lit"
         version = Some "2.0.0"
-        alias = None }
+        alias = None
+      }
         .AsVersionedString
     )
 
     Assert.Equal(
       "react",
-      { name = "react"
+      {
+        name = "react"
         version = None
-        alias = None }
+        alias = None
+      }
         .AsVersionedString
     )
 
     Assert.Equal(
       "react@17.2.0",
-      { name = "react"
+      {
+        name = "react"
         version = Some "17.2.0"
-        alias = Some "react-17" }
+        alias = Some "react-17"
+      }
         .AsVersionedString
     )

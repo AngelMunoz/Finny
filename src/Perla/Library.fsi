@@ -7,51 +7,63 @@ open Spectre.Console.Rendering
 
 [<AutoOpen>]
 module Lib =
-    open Perla.Types
-    open Perla.PackageManager.Types
+  open Perla.Types
+  open Perla.PackageManager.Types
 
-    [<return: Struct>]
-    val internal (|ParseRegex|_|): regex: Regex -> str: string -> string list voption
+  [<return: Struct>]
+  val internal (|ParseRegex|_|):
+    regex: Regex -> str: string -> string list voption
 
-    val internal ExtractDependencyInfoFromUrl: url: string -> (Provider * string * string) voption
-    val internal parseFullRepositoryName: value: string -> (string * string * string) voption
-    val internal getTemplateAndChild: templateName: string -> string option * string * string option
-    val internal dependencyTable: deps: seq<Dependency> * title: string -> Table
-    val internal (|ScopedPackage|Package|): package: string -> Choice<string, string>
-    val internal parsePackageName: name: string -> string * string option
-    val internal (|Log|Debug|Info|Err|Warning|Clear|): string -> Choice<unit, unit, unit, unit, unit, unit>
+  val internal ExtractDependencyInfoFromUrl:
+    url: string -> (Provider * string * string) voption
 
-    val internal (|TopLevelProp|NestedProp|TripleNestedProp|InvalidPropPath|):
-        string -> Choice<string, string * string, string * string * string, unit>
+  val internal parseFullRepositoryName:
+    value: string -> (string * string * string) voption
 
-    type FableConfig with
+  val internal getTemplateAndChild:
+    templateName: string -> string option * string * string option
 
-        member Item: string -> IRenderable option with get
-        member ToTree: unit -> Tree
+  val internal dependencyTable: deps: seq<Dependency> * title: string -> Table
 
-    type DevServerConfig with
+  val internal (|ScopedPackage|Package|):
+    package: string -> Choice<string, string>
 
-        member Item: string -> IRenderable option with get
-        member ToTree: unit -> Tree
+  val internal parsePackageName: name: string -> string * string option
 
-    type EsbuildConfig with
+  val internal (|Log|Debug|Info|Err|Warning|Clear|):
+    string -> Choice<unit, unit, unit, unit, unit, unit>
 
-        member Item: string -> IRenderable option with get
-        member ToTree: unit -> Tree
+  val internal (|TopLevelProp|NestedProp|TripleNestedProp|InvalidPropPath|):
+    string -> Choice<string, string * string, string * string * string, unit>
 
-    type BuildConfig with
+  type FableConfig with
 
-        member Item: string -> IRenderable option with get
-        member ToTree: unit -> Tree
+    member Item: string -> IRenderable option with get
+    member ToTree: unit -> Tree
 
-    type TestConfig with
+  type DevServerConfig with
 
-        member Item: string -> IRenderable option with get
-        member Item: (string * string) -> IRenderable option with get
-        member ToTree: unit -> Tree
+    member Item: string -> IRenderable option with get
+    member ToTree: unit -> Tree
 
-    type PerlaConfig with
+  type EsbuildConfig with
 
-        member Item: string -> IRenderable option with get
-        member Item: (string * string) -> IRenderable option with get
-        member Item: (string * string * string) -> IRenderable option with get
+    member Item: string -> IRenderable option with get
+    member ToTree: unit -> Tree
+
+  type BuildConfig with
+
+    member Item: string -> IRenderable option with get
+    member ToTree: unit -> Tree
+
+  type TestConfig with
+
+    member Item: string -> IRenderable option with get
+    member Item: (string * string) -> IRenderable option with get
+    member ToTree: unit -> Tree
+
+  type PerlaConfig with
+
+    member Item: string -> IRenderable option with get
+    member Item: (string * string) -> IRenderable option with get
+    member Item: (string * string * string) -> IRenderable option with get

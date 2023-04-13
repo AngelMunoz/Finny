@@ -223,33 +223,33 @@ type Esbuild =
         [ ".jsx"; ".tsx"; ".ts"; ".css"; ".js" ] |> List.contains extension
 
     let transform: TransformTask =
-      fun args ->
-        task {
-          let loader =
-            match args.extension with
-            | ".css" -> Some LoaderType.Css
-            | ".jsx" -> Some LoaderType.Jsx
-            | ".tsx" -> Some LoaderType.Tsx
-            | ".ts" -> Some LoaderType.Typescript
-            | ".js" -> None
-            | _ -> None
+      fun args -> task {
+        let loader =
+          match args.extension with
+          | ".css" -> Some LoaderType.Css
+          | ".jsx" -> Some LoaderType.Jsx
+          | ".tsx" -> Some LoaderType.Tsx
+          | ".ts" -> Some LoaderType.Typescript
+          | ".js" -> None
+          | _ -> None
 
-          let resultsContainer = StringBuilder()
+        let resultsContainer = StringBuilder()
 
-          let result =
-            Esbuild.BuildSingleFile(
-              config,
-              args.content,
-              resultsContainer,
-              ?loader = loader
-            )
+        let result =
+          Esbuild.BuildSingleFile(
+            config,
+            args.content,
+            resultsContainer,
+            ?loader = loader
+          )
 
-          let! _ = result.ExecuteAsync()
+        let! _ = result.ExecuteAsync()
 
-          return
-            { content = resultsContainer.ToString()
-              extension = if args.extension = ".css" then ".css" else ".js" }
+        return {
+          content = resultsContainer.ToString()
+          extension = if args.extension = ".css" then ".css" else ".js"
         }
+      }
 
     plugin "perla-esbuild-plugin" {
       should_process_file shouldTransform

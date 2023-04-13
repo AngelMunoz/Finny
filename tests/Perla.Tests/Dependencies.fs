@@ -90,19 +90,18 @@ module Dependencies =
     | None -> Assert.Fail "The Entry is not in the dictionary"
 
   [<Fact>]
-  let ``Add should respect and add the requested pacakge`` () =
-    task {
-      let! result =
-        Dependencies.Add(
-          VersionedLit,
-          { imports = Map.empty; scopes = None },
-          Provider.Jspm
-        )
-        |> DefaultResponseValues
+  let ``Add should respect and add the requested pacakge`` () = task {
+    let! result =
+      Dependencies.Add(
+        VersionedLit,
+        { imports = Map.empty; scopes = None },
+        Provider.Jspm
+      )
+      |> DefaultResponseValues
 
-      AssertLit(result, Provider.Jspm)
+    AssertLit(result, Provider.Jspm)
 
-    }
+  }
 
   [<Fact>]
   let ``Add should respect an existing import map and add the requested packages``
@@ -112,11 +111,15 @@ module Dependencies =
       let! result =
         Dependencies.Add(
           VersionedLodash,
-          { imports =
-              [ "lit",
-                "https://cdn.skypack.dev/pin/lit@v2.0.0-B36tAUEdI9Ino7UGfR7h/mode=imports,min/optimized/lit.js" ]
+          {
+            imports =
+              [
+                "lit",
+                "https://cdn.skypack.dev/pin/lit@v2.0.0-B36tAUEdI9Ino7UGfR7h/mode=imports,min/optimized/lit.js"
+              ]
               |> Map.ofList
-            scopes = None },
+            scopes = None
+          },
           Provider.Unpkg
         )
         |> DefaultResponseValues
@@ -176,14 +179,17 @@ module Dependencies =
     ()
     =
     task {
-      let importMap =
-        { imports =
-            [ "jquery", "https://ga.jspm.io/npm:jquery@3.6.1/dist/jquery.js"
-              "lodash", "https://ga.jspm.io/npm:lodash@4.17.21/lodash.js"
-              "lit",
-              "https://cdn.skypack.dev/pin/lit@v2.0.0-B36tAUEdI9Ino7UGfR7h/mode=imports,min/optimized/lit.js" ]
-            |> Map.ofList
-          scopes = None }
+      let importMap = {
+        imports =
+          [
+            "jquery", "https://ga.jspm.io/npm:jquery@3.6.1/dist/jquery.js"
+            "lodash", "https://ga.jspm.io/npm:lodash@4.17.21/lodash.js"
+            "lit",
+            "https://cdn.skypack.dev/pin/lit@v2.0.0-B36tAUEdI9Ino7UGfR7h/mode=imports,min/optimized/lit.js"
+          ]
+          |> Map.ofList
+        scopes = None
+      }
 
       let! result =
         Dependencies.Remove("jquery", importMap, Provider.Jspm)
@@ -199,14 +205,17 @@ module Dependencies =
     ()
     =
     task {
-      let importMap =
-        { imports =
-            [ "jquery", "https://ga.jspm.io/npm:jquery@3.6.1/dist/jquery.js"
-              "lodash", "https://ga.jspm.io/npm:lodash@4.17.21/lodash.js"
-              "lit",
-              "https://cdn.skypack.dev/pin/lit@v2.0.0-B36tAUEdI9Ino7UGfR7h/mode=imports,min/optimized/lit.js" ]
-            |> Map.ofList
-          scopes = None }
+      let importMap = {
+        imports =
+          [
+            "jquery", "https://ga.jspm.io/npm:jquery@3.6.1/dist/jquery.js"
+            "lodash", "https://ga.jspm.io/npm:lodash@4.17.21/lodash.js"
+            "lit",
+            "https://cdn.skypack.dev/pin/lit@v2.0.0-B36tAUEdI9Ino7UGfR7h/mode=imports,min/optimized/lit.js"
+          ]
+          |> Map.ofList
+        scopes = None
+      }
 
       let! result =
         Dependencies.SwitchProvider(importMap, Provider.Unpkg)
@@ -221,46 +230,61 @@ module Dependencies =
   let ``LocateDependenciesFromMapAndConfig should not grab dependencies from import map if they don't exist in the configuration``
     ()
     =
-    let importMap =
-      { imports =
-          [ "jquery", "https://ga.jspm.io/npm:jquery@3.6.1/dist/jquery.js"
-            "lodash", "https://ga.jspm.io/npm:lodash@4.17.21/lodash.js"
-            "lit",
-            "https://cdn.skypack.dev/pin/lit@v2.0.0-B36tAUEdI9Ino7UGfR7h/mode=imports,min/optimized/lit.js" ]
-          |> Map.ofList
-        scopes = None }
+    let importMap = {
+      imports =
+        [
+          "jquery", "https://ga.jspm.io/npm:jquery@3.6.1/dist/jquery.js"
+          "lodash", "https://ga.jspm.io/npm:lodash@4.17.21/lodash.js"
+          "lit",
+          "https://cdn.skypack.dev/pin/lit@v2.0.0-B36tAUEdI9Ino7UGfR7h/mode=imports,min/optimized/lit.js"
+        ]
+        |> Map.ofList
+      scopes = None
+    }
 
-    let config =
-      { Configuration.Defaults.PerlaConfig with
-          dependencies =
-            [ { name = LitName
-                version = Some LitVersion
-                alias = None }
-              { name = LodashName
-                version = Some LodashVersion
-                alias = None } ] }
+    let config = {
+      Configuration.Defaults.PerlaConfig with
+          dependencies = [
+            {
+              name = LitName
+              version = Some LitVersion
+              alias = None
+            }
+            {
+              name = LodashName
+              version = Some LodashVersion
+              alias = None
+            }
+          ]
+    }
 
     let dependencies, devDependencies =
       Dependencies.LocateDependenciesFromMapAndConfig(importMap, config)
 
     Assert.Contains(
-      { name = LitName
+      {
+        name = LitName
         version = Some LitVersion
-        alias = None },
+        alias = None
+      },
       dependencies
     )
 
     Assert.Contains(
-      { name = LodashName
+      {
+        name = LodashName
         version = Some LodashVersion
-        alias = None },
+        alias = None
+      },
       dependencies
     )
 
     Assert.DoesNotContain(
-      { name = "jquery"
+      {
+        name = "jquery"
         version = Some "3.6.1"
-        alias = None },
+        alias = None
+      },
       dependencies
     )
 
@@ -270,56 +294,76 @@ module Dependencies =
   let ``LocateDependenciesFromMapAndConfig should grab dependencies from import map if they exist in the configuration``
     ()
     =
-    let importMap =
-      { imports =
-          [ "jquery", "https://ga.jspm.io/npm:jquery@3.6.1/dist/jquery.js"
-            "lodash", "https://ga.jspm.io/npm:lodash@4.17.21/lodash.js"
-            "lit",
-            "https://cdn.skypack.dev/pin/lit@v2.0.0-B36tAUEdI9Ino7UGfR7h/mode=imports,min/optimized/lit.js" ]
-          |> Map.ofList
-        scopes = None }
+    let importMap = {
+      imports =
+        [
+          "jquery", "https://ga.jspm.io/npm:jquery@3.6.1/dist/jquery.js"
+          "lodash", "https://ga.jspm.io/npm:lodash@4.17.21/lodash.js"
+          "lit",
+          "https://cdn.skypack.dev/pin/lit@v2.0.0-B36tAUEdI9Ino7UGfR7h/mode=imports,min/optimized/lit.js"
+        ]
+        |> Map.ofList
+      scopes = None
+    }
 
-    let config =
-      { Configuration.Defaults.PerlaConfig with
-          dependencies =
-            [ { name = LitName
-                version = Some LitVersion
-                alias = None }
-              { name = LodashName
-                version = Some LodashVersion
-                alias = None } ]
-          devDependencies =
-            [ { name = "jquery"
-                version = Some "3.6.1"
-                alias = None } ] }
+    let config = {
+      Configuration.Defaults.PerlaConfig with
+          dependencies = [
+            {
+              name = LitName
+              version = Some LitVersion
+              alias = None
+            }
+            {
+              name = LodashName
+              version = Some LodashVersion
+              alias = None
+            }
+          ]
+          devDependencies = [
+            {
+              name = "jquery"
+              version = Some "3.6.1"
+              alias = None
+            }
+          ]
+    }
 
     let dependencies, devDependencies =
       Dependencies.LocateDependenciesFromMapAndConfig(importMap, config)
 
     Assert.Contains(
-      { name = LitName
+      {
+        name = LitName
         version = Some LitVersion
-        alias = None },
+        alias = None
+      },
       dependencies
     )
 
     Assert.Contains(
-      { name = LodashName
+      {
+        name = LodashName
         version = Some LodashVersion
-        alias = None },
+        alias = None
+      },
       dependencies
     )
 
     Assert.Contains(
-      { name = "jquery"
+      {
+        name = "jquery"
         version = Some "3.6.1"
-        alias = None },
+        alias = None
+      },
       devDependencies
     )
 
     Assert.DoesNotContain(
-      { name = "jquery"
+      {
+        name = "jquery"
         version = Some "3.6.1"
-        alias = None },
+        alias = None
+      },
       dependencies
     )

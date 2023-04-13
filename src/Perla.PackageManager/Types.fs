@@ -11,14 +11,16 @@ open System.IO
 type DictionaryExtensions =
 
   [<Extension>]
-  static member ToSeq(dictionary: Dictionary<'TKey, 'TValue>) =
-    seq { for KeyValue(key, value) in dictionary -> key, value }
+  static member ToSeq(dictionary: Dictionary<'TKey, 'TValue>) = seq {
+    for KeyValue(key, value) in dictionary -> key, value
+  }
 
 module Types =
 
-  type ImportMap =
-    { imports: Map<string, string>
-      scopes: Map<string, Map<string, string>> option }
+  type ImportMap = {
+    imports: Map<string, string>
+    scopes: Map<string, Map<string, string>> option
+  } with
 
     member this.ToJson([<Optional>] ?indented: bool) =
       let opts =
@@ -55,14 +57,13 @@ module Types =
       with ex ->
         Error ex.Message
 
-    static member FromStringAsync(content: Stream) =
-      task {
-        try
-          let! result = JsonSerializer.DeserializeAsync<ImportMap>(content)
-          return Ok result
-        with ex ->
-          return Error ex.Message
-      }
+    static member FromStringAsync(content: Stream) = task {
+      try
+        let! result = JsonSerializer.DeserializeAsync<ImportMap>(content)
+        return Ok result
+      with ex ->
+        return Error ex.Message
+    }
 
   [<Struct; RequireQualifiedAccess>]
   type GeneratorEnv =
@@ -135,8 +136,10 @@ module TypeExtensions =
         map: ImportMap,
         imports: Dictionary<string, string>
       ) =
-      { map with
-          imports = imports.ToSeq() |> Map.ofSeq }
+      {
+        map with
+            imports = imports.ToSeq() |> Map.ofSeq
+      }
 
     [<Extension>]
     static member WithScopes

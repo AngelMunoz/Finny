@@ -33,9 +33,10 @@ module Build =
     let parser = browserCtx.GetService<IHtmlParser>()
     let document = parser.ParseDocument baseIndex
 
-    let map: ImportMap =
-      { imports = [ "lit", "https://lit.dev" ] |> Map.ofList
-        scopes = None }
+    let map: ImportMap = {
+      imports = [ "lit", "https://lit.dev" ] |> Map.ofList
+      scopes = None
+    }
 
     let result =
       Build.GetIndexFile(
@@ -71,9 +72,10 @@ module Build =
     let parser = browserCtx.GetService<IHtmlParser>()
     let document = parser.ParseDocument baseIndex
 
-    let map: ImportMap =
-      { imports = [ "lit", "https://lit.dev" ] |> Map.ofList
-        scopes = None }
+    let map: ImportMap = {
+      imports = [ "lit", "https://lit.dev" ] |> Map.ofList
+      scopes = None
+    }
 
     let result =
       Build.GetIndexFile(
@@ -118,18 +120,25 @@ module Build =
   let ``GetExternals should bring all of the dependencies in the Perla Config``
     ()
     =
-    let config =
-      { Perla.Configuration.Defaults.PerlaConfig with
-          esbuild =
-            { Perla.Configuration.Defaults.EsbuildConfig with
-                externals = [ "my-local-dep"; "external-dep" ] }
-          dependencies =
-            [ { name = "lit"
-                version = None
-                alias = Some "lit-v1" }
-              { name = "lit"
-                version = None
-                alias = None } ] }
+    let config = {
+      Perla.Configuration.Defaults.PerlaConfig with
+          esbuild = {
+            Perla.Configuration.Defaults.EsbuildConfig with
+                externals = [ "my-local-dep"; "external-dep" ]
+          }
+          dependencies = [
+            {
+              name = "lit"
+              version = None
+              alias = Some "lit-v1"
+            }
+            {
+              name = "lit"
+              version = None
+              alias = None
+            }
+          ]
+    }
 
     let externals = Build.GetExternals(config)
     Assert.Contains(externals, (fun p -> p = "lit"))

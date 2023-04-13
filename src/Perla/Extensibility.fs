@@ -27,8 +27,13 @@ type Fsi =
       [<Optional>] ?stdout,
       [<Optional>] ?stderr
     ) =
-    let defaultArgv =
-      [| "fsi.exe"; "--optimize+"; "--nologo"; "--gui-"; "--readline-" |]
+    let defaultArgv = [|
+      "fsi.exe"
+      "--optimize+"
+      "--nologo"
+      "--gui-"
+      "--readline-"
+    |]
 
     let argv =
       match argv with
@@ -109,19 +114,21 @@ module PluginRegistry =
 
 
   let PluginList (pluginOrder: string list) =
-    let plugins =
-      [ for plugin in pluginOrder do
-          match TryGetPluginByName plugin with
-          | Some plugin -> plugin
-          | None -> () ]
+    let plugins = [
+      for plugin in pluginOrder do
+        match TryGetPluginByName plugin with
+        | Some plugin -> plugin
+        | None -> ()
+    ]
 
     let chooser (plugin: PluginInfo) =
       match plugin.shouldProcessFile, plugin.transform with
       | ValueSome st, ValueSome t ->
-        Some
-          { plugin = plugin
-            shouldTransform = st
-            transform = t }
+        Some {
+          plugin = plugin
+          shouldTransform = st
+          transform = t
+        }
       | _ -> None
 
     plugins |> Seq.choose chooser
@@ -139,12 +146,11 @@ module PluginRegistry =
   let ApplyPlugins (plugins: string list) (fileInput: FileTransform) =
     let plugins = PluginList(plugins)
 
-    let folder result next =
-      async {
-        match next.shouldTransform result.extension with
-        | true -> return! (next.transform result).AsTask() |> Async.AwaitTask
-        | false -> return result
-      }
+    let folder result next = async {
+      match next.shouldTransform result.extension with
+      | true -> return! (next.transform result).AsTask() |> Async.AwaitTask
+      | false -> return result
+    }
 
     plugins |> AsyncSeq.ofSeq |> AsyncSeq.foldAsync folder fileInput
 

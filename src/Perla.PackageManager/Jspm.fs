@@ -8,19 +8,21 @@ open System.Net.Http
 open System.Text.Json.Serialization
 open Perla.PackageManager.Types
 
-type FileDependencies =
-  { staticDeps: string seq option
-    dynamicDeps: string seq option }
+type FileDependencies = {
+  staticDeps: string seq option
+  dynamicDeps: string seq option
+}
 
 type File = Map<string, FileDependencies>
 
 type DependencyGraph = Map<string, File>
 
-type InstallResponse =
-  { staticDeps: string seq
-    dynamicDeps: string seq
-    map: ImportMap
-    graph: DependencyGraph option }
+type InstallResponse = {
+  staticDeps: string seq
+  dynamicDeps: string seq
+  map: ImportMap
+  graph: DependencyGraph option
+} with
 
   member this.ToJson
     ([<Optional; DefaultParameterValue false>] ?indented: bool)
@@ -65,21 +67,21 @@ type InstallResponse =
       if preload then
         this.staticDeps
         |> Seq.fold
-             (fun current next ->
-               $"{current}\n<link rel=\"modulepreload\" href=\"{next}\" />")
-             ""
+          (fun current next ->
+            $"{current}\n<link rel=\"modulepreload\" href=\"{next}\" />")
+          ""
       else
         ""
 
     let imports =
       this.map.imports
       |> Map.fold
-           (fun current nextKey _ ->
-             let importName =
-               nextKey.Replace("-", "").Replace(".", "").Replace("@", "")
+        (fun current nextKey _ ->
+          let importName =
+            nextKey.Replace("-", "").Replace(".", "").Replace("@", "")
 
-             $"{current}\nimport {importName} from \"{nextKey}\"")
-           ""
+          $"{current}\nimport {importName} from \"{nextKey}\"")
+        ""
 
     $"""<!doctype html>
 <html>
@@ -109,15 +111,16 @@ type JspmGenerator =
       [<Optional>] ?flattenScope: bool,
       [<Optional>] ?graph: bool
     ) : Task<Result<InstallResponse, string>> =
-    let payload =
-      {| install = packages |> Seq.toArray
-         env =
-          environments
-          |> Option.map (fun envs -> envs |> Seq.map (fun e -> e.AsString))
-         provider = provider |> Option.map (fun p -> p.AsString)
-         inputMap = inputMap
-         flattenScope = flattenScope
-         graph = graph |}
+    let payload = {|
+      install = packages |> Seq.toArray
+      env =
+        environments
+        |> Option.map (fun envs -> envs |> Seq.map (fun e -> e.AsString))
+      provider = provider |> Option.map (fun p -> p.AsString)
+      inputMap = inputMap
+      flattenScope = flattenScope
+      graph = graph
+    |}
 
     let opts =
       JsonSerializerOptions(
@@ -128,8 +131,7 @@ type JspmGenerator =
       let serialized = JsonSerializer.Serialize(payload, opts)
 
       let req =
-        Constants
-          .JSPM_API
+        Constants.JSPM_API
           .WithHeader("content-type", "application/json")
           .SendStringAsync(HttpMethod.Post, serialized)
 

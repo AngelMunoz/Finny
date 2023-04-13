@@ -111,10 +111,11 @@ let ``PerlaDecoder Should Decode from a complete object`` () =
     | Some dependencies ->
       let actual = Assert.Single(dependencies)
 
-      let expected: Dependency =
-        { name = "lit"
-          version = Some "2.4.0"
-          alias = None }
+      let expected: Dependency = {
+        name = "lit"
+        version = Some "2.4.0"
+        alias = None
+      }
 
       Assert.Equal(expected, actual)
 

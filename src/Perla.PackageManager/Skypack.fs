@@ -14,94 +14,94 @@ open Perla.PackageManager.Types
 [<Struct>]
 type PackageMaintainer = { name: string; email: string }
 
-type PackageSearchResult =
-  { createdAt: DateTime
-    description: string
-    hasTypes: bool
-    isDeprecated: bool
-    maintainers: PackageMaintainer seq
-    name: string
-    popularityScore: float
-    updatedAt: DateTime }
+type PackageSearchResult = {
+  createdAt: DateTime
+  description: string
+  hasTypes: bool
+  isDeprecated: bool
+  maintainers: PackageMaintainer seq
+  name: string
+  popularityScore: float
+  updatedAt: DateTime
+}
 
 [<Struct>]
-type PackageCheck =
-  { title: string
-    pass: bool option
-    url: string }
+type PackageCheck = {
+  title: string
+  pass: bool option
+  url: string
+}
 
 [<Struct>]
-type PackageSearchMeta =
-  { page: int
-    resultsPerPage: int
-    time: int64
-    totalCount: int64
-    totalPages: int }
+type PackageSearchMeta = {
+  page: int
+  resultsPerPage: int
+  time: int64
+  totalCount: int64
+  totalPages: int
+}
 
-type PackageSearchResults =
-  { meta: PackageSearchMeta
-    results: PackageSearchResult seq
-    [<JsonExtensionData>]
-    extras: Map<string, JsonElement> }
+type PackageSearchResults = {
+  meta: PackageSearchMeta
+  results: PackageSearchResult seq
+  [<JsonExtensionData>]
+  extras: Map<string, JsonElement>
+}
 
-type PackageInfo =
-  { name: string
-    versions: Map<string, DateTime>
-    maintainers: PackageMaintainer seq
-    license: string
-    projectType: string
-    distTags: Map<string, string>
-    keywords: string seq
-    updatedAt: DateTime
-    links: Map<string, string> seq
-    qualityScore: float
-    createdAt: DateTime
-    buildStatus: string
-    registry: string
-    readmeHtml: string
-    description: string
-    popularityScore: float
-    isDeprecated: bool
-    dependenciesCount: int
-    [<JsonExtensionData>]
-    extras: Map<string, JsonElement> }
+type PackageInfo = {
+  name: string
+  versions: Map<string, DateTime>
+  maintainers: PackageMaintainer seq
+  license: string
+  projectType: string
+  distTags: Map<string, string>
+  keywords: string seq
+  updatedAt: DateTime
+  links: Map<string, string> seq
+  qualityScore: float
+  createdAt: DateTime
+  buildStatus: string
+  registry: string
+  readmeHtml: string
+  description: string
+  popularityScore: float
+  isDeprecated: bool
+  dependenciesCount: int
+  [<JsonExtensionData>]
+  extras: Map<string, JsonElement>
+}
 
 [<Struct>]
-type ImportUrls =
-  { name: string
-    packageUri: Uri
-    productionUri: Uri
-    developmentUri: Uri
-    typescriptTypes: Uri option }
+type ImportUrls = {
+  name: string
+  packageUri: Uri
+  productionUri: Uri
+  developmentUri: Uri
+  typescriptTypes: Uri option
+}
 
 exception PackageNotFoundException of string
 
 type Skypack =
 
-  static member PackageInfo(name: string) : Task<PackageInfo> =
-    task {
-      use! res =
-        Constants
-          .SKYPACK_API
-          .AppendPathSegments("package", name)
-          .GetStreamAsync()
+  static member PackageInfo(name: string) : Task<PackageInfo> = task {
+    use! res =
+      Constants.SKYPACK_API.AppendPathSegments("package", name).GetStreamAsync()
 
-      return! JsonSerializer.DeserializeAsync<PackageInfo>(res)
-    }
+    return! JsonSerializer.DeserializeAsync<PackageInfo>(res)
+  }
 
-  static member SearchPackage(name: string, [<Optional>] ?page: int) =
-    task {
-      let page = defaultArg page 1
+  static member SearchPackage(name: string, [<Optional>] ?page: int) = task {
+    let page = defaultArg page 1
 
-      use! res =
-        Constants
-          .SKYPACK_API
-          .AppendPathSegment("search")
-          .SetQueryParams({| q = name; p = page |})
-          .GetStreamAsync()
+    use! res =
+      Constants.SKYPACK_API
+        .AppendPathSegment("search")
+        .SetQueryParams({| q = name; p = page |})
+        .GetStreamAsync()
 
-      return! JsonSerializer.DeserializeAsync<PackageSearchResults>(res)
-    }
+    return! JsonSerializer.DeserializeAsync<PackageSearchResults>(res)
+  }
 
   static member PackageUrls
     (
@@ -151,10 +151,11 @@ type Skypack =
         else
           None
 
-      return
-        { name = name
-          packageUri = packageUri.ToUri()
-          productionUri = pinnedUrl
-          developmentUri = importUrl
-          typescriptTypes = typescriptTypes }
+      return {
+        name = name
+        packageUri = packageUri.ToUri()
+        productionUri = pinnedUrl
+        developmentUri = importUrl
+        typescriptTypes = typescriptTypes
+      }
     }

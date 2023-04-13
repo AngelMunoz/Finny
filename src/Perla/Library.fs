@@ -62,6 +62,7 @@ module Lib =
 
   let dependencyTable (deps: Dependency seq, title: string) =
     let table = Table().AddColumns([| "Name"; "Version"; "Alias" |])
+
     table.Title <- TableTitle(title)
 
     for column in table.Columns do
