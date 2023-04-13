@@ -20,7 +20,7 @@ let libraries = [ "Perla.PackageManager"; "Perla.Plugins"; "Perla.Logger" ]
 let NugetApiKey = EnvVar.getOrFail "NUGET_DEPLOY_KEY"
 
 [<Literal>]
-let PackageVersion = "1.0.0-beta-015"
+let PackageVersion = "1.0.0-beta-016"
 
 let fsSources =
     Glob.create "*.fsx"
@@ -84,7 +84,7 @@ module Operations =
 
     let buildBinaries (project: string) (runtime: string) =
         let cmd =
-            let framework = "net6.0"
+            let framework = "net7.0"
             let outdir = $"{outDir}/{runtime}"
             $"publish {project} -c Release -f {framework} -r {runtime} --self-contained -p:Version={PackageVersion} -o {outdir}"
 
