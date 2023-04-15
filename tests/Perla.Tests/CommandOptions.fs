@@ -154,27 +154,27 @@ module CommandOptions =
   [<Fact>]
   let ``Commands.Setup can parse options`` () =
     let result =
-      ParseRootCommand(Commands.Setup, "setup -y --skip-playwright false")
+      ParseRootCommand(Commands.Setup, "setup -y -t false")
 
-    let skipPlaywright: bool option = SetupInputs.skipPlaywright.GetValue result
+    let installTemplates: bool option = SetupInputs.installTemplates.GetValue result
 
     let skipPrompts: bool option = SetupInputs.skipPrompts.GetValue result
 
     Assert.Empty(result.Errors)
-    Assert.True(skipPrompts |> Option.defaultValue false)
-    Assert.False(skipPlaywright |> Option.defaultValue true)
+    Assert.True(skipPrompts.Value)
+    Assert.False(installTemplates.Value)
 
   [<Fact>]
   let ``Parse Commands.Setup without options should not fail`` () =
     let result = ParseRootCommand(Commands.Setup, "setup")
 
-    let skipPlaywright: bool option = SetupInputs.skipPlaywright.GetValue result
+    let installTemplates: bool option = SetupInputs.installTemplates.GetValue result
 
     let skipPrompts: bool option = SetupInputs.skipPrompts.GetValue result
 
     Assert.Empty(result.Errors)
     Assert.True(skipPrompts |> Option.isNone)
-    Assert.True(skipPlaywright |> Option.isNone)
+    Assert.True(installTemplates |> Option.isNone)
 
   [<Fact>]
   let ``Commands.Build can parse options`` () =
