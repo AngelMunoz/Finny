@@ -31,6 +31,20 @@
             "console": "integratedTerminal"
         },
         {
+            "name": "Perla new",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build",
+            "program": "${workspaceFolder}/src/Perla/bin/Debug/net7.0/Perla.dll",
+            "args": [
+                "new",
+                "samplixor"
+            ],
+            "cwd": "${workspaceFolder}/../",
+            "stopAtEntry": false,
+            "console": "integratedTerminal"
+        },
+        {
             "name": "Perla test watch",
             "type": "coreclr",
             "request": "launch",

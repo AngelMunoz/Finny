@@ -12,7 +12,8 @@ open Perla.Extensibility
 
 open Perla.Json.TemplateDecoders
 open Perla.Units
-open Thoth.Json.Net
+
+open Perla.Database
 
 
 module Scaffolding =
@@ -87,7 +88,6 @@ module Scaffolding =
   [<RequireQualifiedAccess>]
   type TemplateSearchKind =
     | Id of ObjectId
-    | Group of group: string<RepositoryGroup>
     | Username of name: string
     | Repository of repository: string
     | FullName of username: string * repository: string
@@ -105,12 +105,6 @@ module Scaffolding =
     | Template of template: TemplateItem
     | Repository of repository: PerlaTemplateRepository
 
-  let Database =
-    lazy
-      (new LiteDatabase(
-        $"Filename='{UMX.untag FileSystem.Database}';Connection='shared'"
-      ))
-
   let RepositoriesCol =
     lazy
       (let database = Database.Value
@@ -118,7 +112,7 @@ module Scaffolding =
 
        repo.EnsureIndex(fun template -> template.username) |> ignore
        repo.EnsureIndex(fun template -> template.repository) |> ignore
-       repo.EnsureIndex((fun template -> template.group), true) |> ignore
+       repo.EnsureIndex(fun template -> template.group) |> ignore
        repo)
 
   let TemplatesCol =
@@ -293,16 +287,6 @@ module Scaffolding =
                 username,
                 StringComparison.InvariantCultureIgnoreCase
               ))
-            .SingleOrDefault()
-        | TemplateSearchKind.Group group ->
-          templates
-            .Query()
-            .Where(fun tplRepo ->
-              (UMX.untag tplRepo.group)
-                .Equals(
-                  UMX.untag group,
-                  StringComparison.InvariantCultureIgnoreCase
-                ))
             .SingleOrDefault()
         | TemplateSearchKind.Repository repository ->
           templates

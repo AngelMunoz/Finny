@@ -48,3 +48,13 @@ let TemplatingScriptName = "templating.fsx"
 [<Literal>]
 let JsonSchemaUrl =
   "https://raw.githubusercontent.com/AngelMunoz/Perla/main/perla.schema.json"
+
+module CliDirectives =
+  [<Literal>]
+  let Preview: string = "preview"
+
+  [<Literal>]
+  let NoEsbuildPlugin: string = "no-esbuild-plugin"
+
+  [<Literal>]
+  let CiRun: string = "ci-run"

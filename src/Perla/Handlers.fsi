@@ -26,8 +26,8 @@ type BuildOptions = {
 }
 
 type SetupOptions = {
+  installTemplates: bool
   skipPrompts: bool
-  skipPlaywright: bool
 }
 
 type SearchOptions = { package: string; page: int }

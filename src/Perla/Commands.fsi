@@ -38,8 +38,8 @@ module BuildInputs =
 
 [<RequireQualifiedAccess>]
 module SetupInputs =
+  val installTemplates: HandlerInput<bool option>
   val skipPrompts: HandlerInput<bool option>
-  val skipPlaywright: HandlerInput<bool option>
 
 [<RequireQualifiedAccess>]
 module PackageInputs =
