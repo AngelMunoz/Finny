@@ -56,6 +56,13 @@ module Scaffolding =
   }
 
   [<RequireQualifiedAccess>]
+  type TemplateSearchKind =
+    | Id of ObjectId
+    | Username of name: string
+    | Repository of repository: string
+    | FullName of username: string * repository: string
+
+  [<RequireQualifiedAccess>]
   type QuickAccessSearch =
     | Id of ObjectId
     | Name of string
@@ -64,13 +71,6 @@ module Scaffolding =
     | Parent of ObjectId
 
 
-  [<RequireQualifiedAccess>]
-  type TemplateSearchKind =
-    | Id of ObjectId
-    | Group of group: string<RepositoryGroup>
-    | Username of name: string
-    | Repository of repository: string
-    | FullName of username: string * repository: string
 
   [<RequireQualifiedAccess; Struct>]
   type TemplateScriptKind =

@@ -133,8 +133,11 @@ module SharedInputs =
       "Use the dev mode configuration"
     )
 
-  let source: HandlerInput<Provider voption> = PerlaOptions.PackageSource |> Input.OfOption
-  let mode: HandlerInput<RunConfiguration voption> = PerlaOptions.RunConfiguration |> Input.OfOption
+  let source: HandlerInput<Provider voption> =
+    PerlaOptions.PackageSource |> Input.OfOption
+
+  let mode: HandlerInput<RunConfiguration voption> =
+    PerlaOptions.RunConfiguration |> Input.OfOption
 
 [<RequireQualifiedAccess>]
 module DescribeInputs =
@@ -182,17 +185,18 @@ module BuildInputs =
 
 [<RequireQualifiedAccess>]
 module SetupInputs =
-  let skipPrompts: HandlerInput<bool option> =
+  let installTemplates: HandlerInput<bool option> =
     Input.OptionMaybe(
-      [ "--skip-prompts"; "-y"; "--yes"; "-sp" ],
-      "Skip prompts"
+      [ "--templates"; "-t" ],
+      "Install Default templates (defaults to true)"
     )
 
-  let skipPlaywright: HandlerInput<bool option> =
+  let skipPrompts: HandlerInput<bool option> =
     Input.OptionMaybe(
-      [ "--skip-playwright" ],
-      "Skips installing playwright (defaults to true)"
+      [ "--skip"; "-s"; "-y" ],
+      "Skip Prompts and accept all defaults"
     )
+
 
 [<RequireQualifiedAccess>]
 module PackageInputs =
@@ -409,12 +413,12 @@ module Commands =
     let buildArgs
       (
         ctx: InvocationContext,
-        yes: bool option,
-        skipPlaywright: bool option
+        installTemplates: bool option,
+        skipPrompts: bool option
       ) : SetupOptions * CancellationToken =
       {
-        skipPrompts = yes |> Option.defaultValue false
-        skipPlaywright = skipPlaywright |> Option.defaultValue true
+        installTemplates = defaultArg installTemplates true
+        skipPrompts = defaultArg skipPrompts false
       },
       ctx.GetCancellationToken()
 
@@ -424,8 +428,8 @@ module Commands =
 
       inputs (
         Input.Context(),
-        SetupInputs.skipPrompts,
-        SetupInputs.skipPlaywright
+        SetupInputs.installTemplates,
+        SetupInputs.skipPrompts
       )
 
       setHandler (buildArgs >> Handlers.runSetup)
@@ -445,13 +449,17 @@ module Commands =
       },
       ctx.GetCancellationToken()
 
-    command "search" {
+    let cmd = command "search" {
       description
         "Search a package name in the Skypack api, this will bring potential results"
 
       inputs (Input.Context(), PackageInputs.package, PackageInputs.currentPage)
+
       setHandler (buildArgs >> Handlers.runSearchPackage)
     }
+
+    cmd.IsHidden <- true
+    cmd
 
   let ShowPackage =
 
@@ -462,13 +470,16 @@ module Commands =
       ) : ShowPackageOptions * CancellationToken =
       { package = package }, ctx.GetCancellationToken()
 
-    command "show" {
+    let cmd = command "show" {
       description
         "Shows information about a package if the name matches an existing one"
 
       inputs (Input.Context(), PackageInputs.package)
       setHandler (buildArgs >> Handlers.runShowPackage)
     }
+
+    cmd.IsHidden <- true
+    cmd
 
   let RemovePackage =
 
@@ -705,7 +716,7 @@ module Commands =
       },
       ctx.GetCancellationToken()
 
-    command "test" {
+    let cmd = command "test" {
       description "Runs client side tests in a headless browser"
 
       inputs (
@@ -720,6 +731,9 @@ module Commands =
 
       setHandler (buildArgs >> Handlers.runTesting)
     }
+
+    cmd.IsHidden <- true
+    cmd
 
   let Describe =
 

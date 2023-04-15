@@ -62,8 +62,8 @@ type BuildOptions = {
 }
 
 type SetupOptions = {
+  installTemplates: bool
   skipPrompts: bool
-  skipPlaywright: bool
 }
 
 type SearchOptions = { package: string; page: int }
@@ -510,37 +510,25 @@ module Testing =
 
 [<RequireQualifiedAccess>]
 module Handlers =
+  open Perla.Database
 
   let runSetup (options: SetupOptions, cancellationToken: CancellationToken) = task {
     Logger.log "Perla will set up the following resources:"
     Logger.log "- Esbuild"
     Logger.log "- Default Templates"
 
-    if not options.skipPlaywright then
-      Logger.log "- Playwright browsers (required for the 'perla test' command)"
-    else
-      Logger.log "- Playwright browsers (skipped)"
-
     Logger.log
-      "After that you should be able to run 'perla build' or 'perla new'"
+      "After that you should be able to run perla commands without extra effort."
 
-    do! FileSystem.SetupEsbuild(UMX.tag Constants.Esbuild_Version)
+    do!
+      FileSystem.SetupEsbuild(
+        UMX.tag Constants.Esbuild_Version,
+        cancellationToken
+      )
+
+    Checks.SaveEsbuildBinPresent(UMX.tag Constants.Esbuild_Version) |> ignore
+
     Logger.log ("[bold green]esbuild[/] has been setup!", escape = false)
-
-    match options.skipPrompts, options.skipPlaywright with
-    | true, true -> Logger.log "Skipping Playwright setup"
-    | true, false -> Testing.SetupPlaywright()
-    | false, true -> Logger.log "Skipping Playwright setup"
-    | false, false ->
-      if
-        AnsiConsole.Confirm(
-          "Install Playwright browsers? (required for 'perla test' command)",
-          false
-        )
-      then
-        Testing.SetupPlaywright()
-      else
-        Logger.log "Skipping Playwright setup"
 
     let username, repository, branch =
       PerlaTemplateRepository.DefaultTemplatesRepository
@@ -555,25 +543,37 @@ module Handlers =
           Templates.TemplateOperation.Add(username, repository, branch)
         ))
 
-    if options.skipPrompts then
+    match options.skipPrompts, options.installTemplates with
+    | false, true
+    | true, true ->
       let! operation = getTemplate ()
 
       match operation with
-      | Ok() -> return 0
+      | Ok() ->
+        Checks.SaveTemplatesPresent() |> ignore
+        return 0
       | Error err ->
-        Logger.log (err)
+        Logger.log err
         return 1
-    else if AnsiConsole.Confirm("Add default templates?", false) then
-      let! operation = getTemplate ()
+    | true, false ->
+      if AnsiConsole.Confirm("Add default templates?", false) then
+        let! operation = getTemplate ()
 
-      match operation with
-      | Ok() -> return 0
-      | Error err ->
-        Logger.log (err)
-        return 1
-    else
+        match operation with
+        | Ok() ->
+          Checks.SaveTemplatesPresent() |> ignore
+          return 0
+        | Error err ->
+          Logger.log err
+          return 1
+      else
+        Logger.log "Skip installing templates"
+        return 0
+    | false, false ->
       Logger.log "Skip installing templates"
       return 0
+
+
   }
 
   let runNew
@@ -726,20 +726,24 @@ module Handlers =
 
 
         if mentionQuickCommand then
-          Logger.log "This template has quick access commands:"
+          let ffCmd =
+            $"perla new [blue]<my-project-name>[/] [yellow]-t {item.shortName}[/]"
+
+          let groupCmd =
+            $"perla new [blue]<my-project-name>[/] [yellow]-id {item.group}[/]"
 
           Logger.log (
-            $"[bold yellow]perla new <my-project-name> -t {item.shortName}[/]",
+            $"You can run this template directly with:\n{ffCmd}\n{groupCmd}",
             escape = false
           )
 
-          Logger.log (
-            $"Next time you can run [bold yellow]perla new <my-project-name> -id {item.group}[/]",
-            escape = false
-          )
+        let chdir = $"cd ./{options.projectName}"
+        let serve = "perla serve"
 
-        Logger.log
-          $"Project [yellow]{options.projectName}[/] created successfully!"
+        Logger.log (
+          $"Project [green]{options.projectName}[/] created!, to get started run:\n{chdir}\n{serve}",
+          escape = false
+        )
 
         return 0
 
@@ -749,7 +753,7 @@ module Handlers =
         Logger.log
           "please check for typos or run 'perla new <my-project-name>' to run the templating wizard"
 
-        return 0
+        return 1
     }
 
   let runTemplate
