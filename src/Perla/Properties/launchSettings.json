@@ -64,6 +64,11 @@
       "commandLineArgs": "build",
       "workingDirectory": "$(ProjectDir)/../../docs"
     },
+    "New Project": {
+      "commandName": "Project",
+      "commandLineArgs": "new samplixor",
+      "workingDirectory": "$(ProjectDir)/../../../"
+    },
     "Add Template": {
       "commandName": "Project",
       "commandLineArgs": "add-template -n AngelMunoz/perla-templates -b clam-poc",
