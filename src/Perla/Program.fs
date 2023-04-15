@@ -8,6 +8,7 @@ open FSharp.SystemCommandLine
 
 open Perla
 open Perla.Commands
+open Perla.CliMiddleware
 
 [<EntryPoint>]
 let main argv =
@@ -24,8 +25,17 @@ let main argv =
     setHandler handler
 
     usePipeline (fun pipeline ->
-      // don't replace leading @ strings e.g. @lit-labs/task
-      pipeline.UseTokenReplacer(fun _ _ _ -> false) |> ignore)
+      pipeline
+        // don't replace leading @ strings e.g. @lit-labs/task
+        .UseTokenReplacer(fun _ _ _ -> false)
+        .AddMiddleware(Middleware.SetupCheck)
+        .AddMiddleware(Middleware.EsbuildBinCheck)
+        .AddMiddleware(Middleware.TemplatesCheck)
+        // Check if the esbuild plugin is present in PerlaConfiguration
+        .AddMiddleware(Middleware.EsbuildPluginCheck)
+        // Check for hidden commands and if the preview directive is enabled
+        .AddMiddleware(Middleware.PreviewCheck)
+      |> ignore)
 
     addCommands [
       Commands.Setup
