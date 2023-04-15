@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -30,6 +30,8 @@
     <Compile Include="Json.fs" />
     <Compile Include="FileSystem.fsi" />
     <Compile Include="FileSystem.fs" />
+    <Compile Include="Database.fsi" />
+    <Compile Include="Database.fs" />
     <Compile Include="Esbuild.fsi" />
     <Compile Include="Esbuild.fs" />
     <Compile Include="Extensibility.fsi" />
@@ -55,6 +57,8 @@
     <Compile Include="Handlers.fs" />
     <Compile Include="Commands.fsi" />
     <Compile Include="Commands.fs" />
+    <Compile Include="CliMiddleware.fsi" />
+    <Compile Include="CliMiddleware.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
   <ItemGroup>
