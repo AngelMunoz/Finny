@@ -8,7 +8,7 @@ If that sounds like something nice, [Check The docs!](https://perla-docs.web.app
 
 ## Status
 
-The current ***v1.0.0*** development is taking place in the `dev` branch, please check it out, also the releases tab contains the most recen betas to try out!
+The current **_v1.0.0_** development is taking place in the `dev` branch, please check it out, also the releases tab contains the most recen betas to try out!
 
 ```
 Description:
@@ -28,9 +28,6 @@ Commands:
   describe, ds <properties>              Describes the perla.json file or it's properties as requested
   b, build                               Builds the SPA application for distribution
   s, serve, start                        Starts the development server and if fable projects are present it also takes care of it.
-  test                                   Runs client side tests in a headless browser
-  search <package>                       Search a package name in the Skypack api, this will bring potential results
-  show <package>                         Shows information about a package if the name matches an existing one
   add, install <package>                 Shows information about a package if the name matches an existing one
   remove <package>                       removes a package from the
   list, ls                               Lists the current dependencies in a table or an npm style json string
