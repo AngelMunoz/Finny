@@ -1551,5 +1551,3 @@ module Handlers =
     table.DoubleBorder() |> AnsiConsole.Write
     return 0
   }
-    return 0
-  }
