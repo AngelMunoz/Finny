@@ -28,13 +28,20 @@ let main argv =
       pipeline
         // don't replace leading @ strings e.g. @lit-labs/task
         .UseTokenReplacer(fun _ _ _ -> false)
+        // Check for hidden commands and if the preview directive is enabled
+        .AddMiddleware(Middleware.PreviewCheck)
+        // Setup Perla if it's not already setup
         .AddMiddleware(Middleware.SetupCheck)
+        // Setup Esbuild in case it's not already setup
         .AddMiddleware(Middleware.EsbuildBinCheck)
+        // Download templates if they're not already present
         .AddMiddleware(Middleware.TemplatesCheck)
         // Check if the esbuild plugin is present in PerlaConfiguration
         .AddMiddleware(Middleware.EsbuildPluginCheck)
-        // Check for hidden commands and if the preview directive is enabled
-        .AddMiddleware(Middleware.PreviewCheck)
+        // Run Dotnet tool if fable is in config and not installed
+        .AddMiddleware(Middleware.FableCheck)
+        // Add .env files to the environment
+        .AddMiddleware(Middleware.RunDotEnv)
       |> ignore)
 
     addCommands [
