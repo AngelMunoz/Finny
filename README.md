@@ -8,7 +8,7 @@ If that sounds like something nice, [Check The docs!](https://perla-docs.web.app
 
 ## Status
 
-The current ***The v1.0.0*** is taking place in the dev branch, please check it out, also the releases tab contains the most recen betas to try out!
+The current ***v1.0.0*** development is taking place in the `dev` branch, please check it out, also the releases tab contains the most recen betas to try out!
 
 ## Existing tools
 
