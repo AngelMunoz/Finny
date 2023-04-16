@@ -54,6 +54,9 @@ module FileSystem =
   val TplRepositoryChildTemplates:
     path: string<SystemPath> -> string<SystemPath> seq
 
+  val DotNetToolRestore: unit -> Task<Result<unit, string>>
+  val CheckFableExists: unit -> Task<bool>
+
 [<Class>]
 type FileSystem =
   static member PerlaConfigText:

@@ -3,6 +3,7 @@
 open System
 open System.IO
 open System.IO.Compression
+open System.Text
 open System.Text.Json.Nodes
 open System.Threading
 open System.Threading.Tasks
@@ -341,6 +342,42 @@ module FileSystem =
     fsw.Filters.Add(".html")
     fsw.Filters.Add(".jsonc")
     fsw
+
+  let DotNetToolRestore () : Task<Result<unit, string>> = task {
+    let ext = if Env.IsWindows then ".exe" else ""
+    let dotnet = $"dotnet{ext}"
+    let err = StringBuilder()
+
+    let cmd =
+      Cli
+        .Wrap(dotnet)
+        .WithArguments("tool restore")
+        .WithStandardErrorPipe(PipeTarget.ToStringBuilder(err))
+
+    try
+      let! result = cmd.ExecuteAsync()
+
+      if result.ExitCode <> 0 then
+        return Error(err.ToString())
+      else
+        return Ok()
+    with ex ->
+      return Error $"{ex.Message}\n{err.ToString()}"
+  }
+
+  let CheckFableExists () : Task<bool> = task {
+    let ext = if Env.IsWindows then ".exe" else ""
+    let dotnet = $"dotnet{ext}"
+
+    let cmd = Cli.Wrap(dotnet).WithArguments("fable --version")
+
+    try
+      let! result = cmd.ExecuteAsync()
+
+      if result.ExitCode <> 0 then return false else return true
+    with ex ->
+      return false
+  }
 
 type FileSystem =
 

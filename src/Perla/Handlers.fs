@@ -409,43 +409,6 @@ module Esbuild =
 
     Task.WhenAll(cssTasks, jsTasks)
 
-module Setup =
-  /// set esbuild, playwright and import map dependencies in parallel
-  /// as these are not overlapping and should save time
-  let EnsureDependencies (config, cancel) = task {
-    let! results =
-      [
-        task {
-          do Testing.SetupPlaywright()
-          return None
-        }
-        task {
-          do! FileSystem.SetupEsbuild(config.esbuild.version, cancel)
-          return None
-        }
-        task {
-          let! result =
-            Logger.spinner (
-              "Resolving Static dependencies and import map...",
-              Dependencies.GetMapAndDependencies(
-                [ yield! config.dependencies; yield! config.devDependencies ]
-                |> Seq.map (fun d -> d.AsVersionedString),
-                config.provider
-              )
-            )
-
-          return
-            result
-            |> Result.defaultWith (fun _ ->
-              (Seq.empty, FileSystem.GetImportMap()))
-            |> Some
-        }
-      ]
-      |> Task.WhenAll
-
-    return results[2].Value
-  }
-
 module Testing =
   let RunOnce
     (
@@ -833,15 +796,11 @@ module Handlers =
 
 
   let runBuild (options: BuildOptions, cancellationToken: CancellationToken) = task {
-    FileSystem.GetDotEnvFilePaths() |> Env.LoadEnvFiles
 
     ConfigurationManager.UpdateFromCliArgs(?runConfig = options.mode)
     let config = ConfigurationManager.CurrentConfig
 
     do! Fable.StartFable(config, cancellationToken)
-
-    if not <| File.Exists($"{FileSystem.EsbuildBinaryPath}") then
-      do! FileSystem.SetupEsbuild(config.esbuild.version, cancellationToken)
 
     let outDir = UMX.untag config.build.outDir
 
@@ -944,7 +903,6 @@ module Handlers =
   }
 
   let runServe (options: ServeOptions, cancellationToken: CancellationToken) = task {
-    FileSystem.GetDotEnvFilePaths() |> Env.LoadEnvFiles
 
     let cliArgs = [
       match options.port with
@@ -987,10 +945,6 @@ module Handlers =
         | FableEvent.WaitingForChanges -> ())
 
     do! FsMonitor.FirstCompileDone true fableEvents
-
-    do! FileSystem.SetupEsbuild(config.esbuild.version, cancellationToken)
-
-    PluginRegistry.LoadPlugins(config.esbuild)
 
     do! VirtualFileSystem.Mount(config)
 
@@ -1038,7 +992,6 @@ module Handlers =
       cancellationToken: CancellationToken
     ) =
     task {
-      FileSystem.GetDotEnvFilePaths() |> Env.LoadEnvFiles
 
       ConfigurationManager.UpdateFromCliArgs(
         testingOptions = [
@@ -1065,6 +1018,7 @@ module Handlers =
 
       let config = {
         ConfigurationManager.CurrentConfig with
+            runConfiguration = RunConfiguration.Development
             mountDirectories =
               ConfigurationManager.CurrentConfig.mountDirectories
               |> Map.add
@@ -1073,8 +1027,6 @@ module Handlers =
       }
 
       let isWatch = config.testing.watch
-
-      let! dependencies = Setup.EnsureDependencies(config, cancellationToken)
 
       let fableEvents =
         match config.testing.fable with
@@ -1090,7 +1042,6 @@ module Handlers =
         | FableEvent.WaitingForChanges -> ())
 
       do! FsMonitor.FirstCompileDone isWatch fableEvents
-
 
       PluginRegistry.LoadPlugins config.esbuild
 
@@ -1118,6 +1069,14 @@ module Handlers =
       }
 
       let events = Subject<TestEvent>.broadcast
+
+      let! dependencies =
+        Dependencies.GetMapAndDependencies(
+          Seq.empty,
+          config.provider,
+          config.runConfiguration
+        )
+        |> TaskResult.defaultValue (Seq.empty, FileSystem.GetImportMap())
 
       let mutable app =
         Server.GetTestingApp(
@@ -1590,5 +1549,7 @@ module Handlers =
       )
 
     table.DoubleBorder() |> AnsiConsole.Write
+    return 0
+  }
     return 0
   }

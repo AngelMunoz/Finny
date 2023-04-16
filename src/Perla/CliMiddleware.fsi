@@ -34,8 +34,12 @@ module internal MiddlewareImpl =
   val esbuildBinCheck: checks: EsbuildBinCheck -> MiddlewareFn
 
   val templatesCheck:
-    templatesArePresent: (unit -> bool) * setCheck: (unit -> ObjectId) -> MiddlewareFn
+    templatesArePresent: (unit -> bool) * setCheck: (unit -> ObjectId) ->
+      MiddlewareFn
 
+  val fableCheck: isFableInConfig: bool -> MiddlewareFn
+
+  val runDotEnv: MiddlewareFn
 
 module Middleware =
   val PreviewCheck: InvocationMiddleware
@@ -43,3 +47,5 @@ module Middleware =
   val SetupCheck: InvocationMiddleware
   val EsbuildBinCheck: InvocationMiddleware
   val TemplatesCheck: InvocationMiddleware
+  val FableCheck: InvocationMiddleware
+  val RunDotEnv: InvocationMiddleware

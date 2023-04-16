@@ -225,6 +225,46 @@ module internal MiddlewareImpl =
         return ()
     }
 
+  let fableCheck (isFableInConfig: bool) : MiddlewareFn =
+    fun context next -> task {
+      let cmdName = context.ParseResult.CommandResult.Command.Name
+
+      let isFableRequired =
+        [ "serve"; "build"; "test" ] |> List.contains cmdName
+
+      if not isFableRequired || not isFableInConfig then
+        return! next.Invoke context
+      else
+        let! isFablePresent = FileSystem.CheckFableExists()
+
+        if isFablePresent then
+          return! next.Invoke context
+        else
+          Logger.log
+            "Looks like you don't have fable installed, we'll try to call [yellow]dotnet tool restore[/]."
+
+          match! FileSystem.DotNetToolRestore() with
+          | Ok() -> return! next.Invoke context
+          | Error err ->
+            Logger.log "dotnet tool restore failed:"
+            Logger.log err
+            Logger.log "Please try installing fable manually and try again."
+            context.ExitCode <- 1
+            return ()
+
+    }
+
+  let runDotEnv: MiddlewareFn =
+    fun context next -> task {
+      let cmdName = context.ParseResult.CommandResult.Command.Name
+
+      let runDotEnv = [ "serve"; "build"; "test" ] |> List.contains cmdName
+
+      if runDotEnv then
+        FileSystem.GetDotEnvFilePaths() |> Env.LoadEnvFiles
+
+      return! next.Invoke context
+    }
 
 [<RequireQualifiedAccess>]
 module Middleware =
@@ -265,3 +305,11 @@ module Middleware =
         Checks.SaveTemplatesPresent
       )
     )
+
+  let FableCheck =
+    ConfigurationManager.UpdateFromFile()
+    let config = ConfigurationManager.CurrentConfig
+
+    InvocationMiddleware(MiddlewareImpl.fableCheck config.fable.IsSome)
+
+  let RunDotEnv = InvocationMiddleware(MiddlewareImpl.runDotEnv)
