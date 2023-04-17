@@ -341,3 +341,39 @@ module CommandOptions =
     Assert.Equal(expectedPackage, package)
     Assert.Equal(expectedAlias, alias.Value)
     Assert.Equal(expectedVersion, version.Value)
+
+  [<Theory>]
+  [<InlineData("-tn", "username/repository/directory", "username/repository/directory")>]
+  [<InlineData("--template-name", "username/repository/directory", "username/repository/directory")>]
+  let ``Commands.NewProject can parse template name options`` (option: string, name: string, expectedTemplateName: string) =
+    let result =
+      ParseRootCommand(Commands.NewProject, $"new MyTestProject {option} {name}")
+
+    let templateName: string option = ProjectInputs.templateName.GetValue result
+
+    Assert.Empty(result.Errors)
+    Assert.Equal(expectedTemplateName, templateName.Value)
+
+  [<Theory>]
+  [<InlineData("-id", "perla.templates.vanilla.js", "perla.templates.vanilla.js")>]
+  [<InlineData("--group-id", "perla.templates.vanilla.js", "perla.templates.vanilla.js")>]
+  let ``Commands.NewProject can parse group id options`` (option: string, name: string, expectedGroupId: string) =
+    let result =
+      ParseRootCommand(Commands.NewProject, $"new MyTestProject {option} {name}")
+
+    let groupId: string option = ProjectInputs.byId.GetValue result
+
+    Assert.Empty(result.Errors)
+    Assert.Equal(expectedGroupId, groupId.Value)
+
+  [<Theory>]
+  [<InlineData("-t", "ff", "ff")>]
+  [<InlineData("--template", "ff", "ff")>]
+  let ``Commands.NewProject can parse shortname options`` (option: string, name: string, expectedShortName: string) =
+    let result =
+      ParseRootCommand(Commands.NewProject, $"new MyTestProject {option} {name}")
+
+    let shortname: string option = ProjectInputs.byShortName.GetValue result
+
+    Assert.Empty(result.Errors)
+    Assert.Equal(expectedShortName, shortname.Value)

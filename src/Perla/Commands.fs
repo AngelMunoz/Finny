@@ -263,19 +263,19 @@ module ProjectInputs =
     Input.Argument("name", "Name of the new project")
 
   let templateName: HandlerInput<string option> =
-    Input.Option(
+    Input.OptionMaybe(
       [ "-tn"; "--template-name" ],
       "repository/directory combination of the template name, or the full name in case of name conflicts username/repository/directory"
     )
 
   let byId: HandlerInput<string option> =
-    Input.Option(
+    Input.OptionMaybe(
       [ "-id"; "--group-id" ],
       "fully.qualified.name of the template, e.g. perla.templates.vanilla.js"
     )
 
   let byShortName: HandlerInput<string option> =
-    Input.Option([ "-t"; "--template" ], "shortname of the template, e.g. ff")
+    Input.OptionMaybe([ "-t"; "--template" ], "shortname of the template, e.g. ff")
 
 [<RequireQualifiedAccess>]
 module TestingInputs =
