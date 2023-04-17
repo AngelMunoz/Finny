@@ -275,7 +275,10 @@ module ProjectInputs =
     )
 
   let byShortName: HandlerInput<string option> =
-    Input.OptionMaybe([ "-t"; "--template" ], "shortname of the template, e.g. ff")
+    Input.OptionMaybe(
+      [ "-t"; "--template" ],
+      "shortname of the template, e.g. ff"
+    )
 
 [<RequireQualifiedAccess>]
 module TestingInputs =
