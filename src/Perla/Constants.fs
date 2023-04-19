@@ -49,6 +49,10 @@ let TemplatingScriptName = "templating.fsx"
 let JsonSchemaUrl =
   "https://raw.githubusercontent.com/AngelMunoz/Perla/main/perla.schema.json"
 
+
+[<Literal>]
+let PerlaEsbuildPluginName = "perla-esbuild-plugin"
+
 module CliDirectives =
   [<Literal>]
   let Preview: string = "preview"

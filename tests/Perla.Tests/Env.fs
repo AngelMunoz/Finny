@@ -1,4 +1,4 @@
-module Perla.Tests.Env
+namespace Perla.Tests
 
 open System
 open Xunit

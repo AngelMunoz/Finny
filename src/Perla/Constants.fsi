@@ -46,6 +46,9 @@ val TemplatingScriptName: string = "templating.fsx"
 val JsonSchemaUrl: string = "https://raw.githubusercontent.com/AngelMunoz/Perla/main/perla.schema.json"
 
 [<Literal>]
+val PerlaEsbuildPluginName: string = "perla-esbuild-plugin"
+
+[<Literal>]
 val ArtifactsDirectoryname: string = "perla"
 
 module CliDirectives =
