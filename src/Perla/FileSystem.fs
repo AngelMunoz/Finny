@@ -32,7 +32,6 @@ open Perla.Units
 open Perla.Json
 open Perla.Logger
 open Perla.PackageManager.Types
-open Perla.Types
 
 [<RequireQualifiedAccess>]
 type PerlaFileChange =
@@ -245,7 +244,7 @@ module FileSystem =
           use stream = new GZipInputStream(File.OpenRead path)
 
           use archive =
-            TarArchive.CreateInputTarArchive(stream, Text.Encoding.UTF8)
+            TarArchive.CreateInputTarArchive(stream, Encoding.UTF8)
 
           path |> Path.GetDirectoryName |> archive.ExtractContents
 
@@ -340,42 +339,45 @@ module FileSystem =
       )
 
     fsw.Filters.Add(".html")
-    fsw.Filters.Add(".jsonc")
+    fsw.Filters.Add(".json")
     fsw
 
-  let DotNetToolRestore () : Task<Result<unit, string>> = task {
-    let ext = if Env.IsWindows then ".exe" else ""
-    let dotnet = $"dotnet{ext}"
-    let err = StringBuilder()
+  let DotNetToolRestore
+    (cancellationToken: CancellationToken)
+    : Task<Result<unit, string>> =
+    task {
+      let ext = if Env.IsWindows then ".exe" else ""
+      let dotnet = $"dotnet{ext}"
+      let err = StringBuilder()
 
-    let cmd =
-      Cli
-        .Wrap(dotnet)
-        .WithArguments("tool restore")
-        .WithStandardErrorPipe(PipeTarget.ToStringBuilder(err))
+      let cmd =
+        Cli
+          .Wrap(dotnet)
+          .WithArguments("tool restore")
+          .WithStandardErrorPipe(PipeTarget.ToStringBuilder(err))
 
-    try
-      let! result = cmd.ExecuteAsync()
+      try
+        let! result = cmd.ExecuteAsync(cancellationToken)
 
-      if result.ExitCode <> 0 then
-        return Error(err.ToString())
-      else
-        return Ok()
-    with ex ->
-      return Error $"{ex.Message}\n{err.ToString()}"
-  }
+        if result.ExitCode <> 0 then
+          return Error(err.ToString())
+        else
+          return Ok()
+      with ex ->
+        return Error $"{ex.Message}\n{err.ToString()}"
+    }
 
-  let CheckFableExists () : Task<bool> = task {
+  let CheckFableExists (cancellationToken: CancellationToken) : Task<bool> = task {
     let ext = if Env.IsWindows then ".exe" else ""
     let dotnet = $"dotnet{ext}"
 
     let cmd = Cli.Wrap(dotnet).WithArguments("fable --version")
 
     try
-      let! result = cmd.ExecuteAsync()
+      let! result = cmd.ExecuteAsync(cancellationToken)
 
       if result.ExitCode <> 0 then return false else return true
-    with ex ->
+    with _ ->
       return false
   }
 
