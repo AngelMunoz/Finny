@@ -1,10 +1,12 @@
+System.CommandLine
 AngleSharp
+CliWrap
+LiteDB
+
 FSharp.UMX
 Thoth.Json.Net
 FsToolkit.ErrorHandling.TaskResult
-CliWrap
 FsHttp
-System.CommandLine
 FSharp.SystemCommandLine
 
 group Tests
