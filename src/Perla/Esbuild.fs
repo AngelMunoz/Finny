@@ -251,7 +251,7 @@ type Esbuild =
         }
       }
 
-    plugin "perla-esbuild-plugin" {
+    plugin Constants.PerlaEsbuildPluginName {
       should_process_file shouldTransform
       with_transform transform
     }
