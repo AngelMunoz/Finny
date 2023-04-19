@@ -11,7 +11,7 @@ open type Feliz.length
 open Types
 open Translations
 
-[<ImportMember "./js-file.js">]
+[<ImportMember "../src/js-file.js">]
 let renderLit: unit -> unit = jsNative
 
 let setTranslations
