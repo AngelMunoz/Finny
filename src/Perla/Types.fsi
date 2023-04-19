@@ -24,6 +24,13 @@ module Units =
   [<Measure>]
   type TemplateGroup
 
+  [<Measure>]
+  type BareImport
+
+  [<Measure>]
+  type ResolutionUrl
+
+
 
 module Types =
   open FSharp.UMX
@@ -121,6 +128,7 @@ module Types =
     mountDirectories: Map<string<ServerUrl>, string<UserPath>>
     enableEnv: bool
     envPath: string<ServerUrl>
+    paths: Map<string<BareImport>, string<ResolutionUrl>>
     dependencies: Dependency seq
     devDependencies: Dependency seq
   }
