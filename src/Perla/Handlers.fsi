@@ -68,7 +68,6 @@ type TemplateRepositoryOptions = {
 
 type ProjectOptions = {
   projectName: string
-  byTemplateName: string option
   byId: string option
   byShortName: string option
 }

@@ -101,7 +101,6 @@ type TemplateRepositoryOptions = {
 
 type ProjectOptions = {
   projectName: string
-  byTemplateName: string option
   byId: string option
   byShortName: string option
 }
@@ -591,14 +590,10 @@ module Handlers =
       |> Option.map UMX.tag<TemplateGroup>
       |> Option.map QuickAccessSearch.Group
 
-    let inline byTemplateName () =
-      options.byTemplateName |> Option.map QuickAccessSearch.Name
-
     let queryParam =
       options.byShortName
       |> Option.map QuickAccessSearch.ShortName
       |> Option.orElseWith byId
-      |> Option.orElseWith byTemplateName
 
     let foundRepo = result {
       let! query = queryParam |> Result.requireSome Templates.NoQueryParams

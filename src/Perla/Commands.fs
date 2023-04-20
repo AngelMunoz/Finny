@@ -332,12 +332,6 @@ module ProjectInputs =
   let projectName: HandlerInput<string> =
     Input.Argument("name", "Name of the new project")
 
-  let templateName: HandlerInput<string option> =
-    Input.OptionMaybe(
-      [ "-tn"; "--template-name" ],
-      "repository/directory combination of the template name, or the full name in case of name conflicts username/repository/directory"
-    )
-
   let byId: HandlerInput<string option> =
     Input.OptionMaybe(
       [ "-id"; "--group-id" ],
@@ -786,13 +780,11 @@ module Commands =
       (
         ctx: InvocationContext,
         name: string,
-        template: string option,
         byId: string option,
         byShortName: string option
       ) : ProjectOptions * CancellationToken =
       {
         projectName = name
-        byTemplateName = template
         byId = byId
         byShortName = byShortName
       },
@@ -807,7 +799,6 @@ module Commands =
       inputs (
         Input.Context(),
         ProjectInputs.projectName,
-        ProjectInputs.templateName,
         ProjectInputs.byId,
         ProjectInputs.byShortName
       )
