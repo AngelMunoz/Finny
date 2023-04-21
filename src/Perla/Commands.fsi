@@ -19,6 +19,9 @@ type PerlaOptions =
 type PerlaArguments =
   static member Properties: Argument<string array>
 
+  static member ArgStringMaybe:
+    name: string * ?description: string -> Argument<string option>
+
 [<RequireQualifiedAccess>]
 module SharedInputs =
   val asDev: HandlerInput<bool option>
@@ -48,6 +51,11 @@ module PackageInputs =
   val version: HandlerInput<string option>
   val currentPage: HandlerInput<int option>
   val showAsNpm: HandlerInput<bool option>
+
+  val import: HandlerInput<string>
+  val resolution: HandlerInput<string option>
+  val addOrUpdate: HandlerInput<bool option>
+  val remove: HandlerInput<bool option>
 
 [<RequireQualifiedAccess>]
 module TemplateInputs =
@@ -92,6 +100,7 @@ module Commands =
   val SearchPackage: Command
   val ShowPackage: Command
   val AddPackage: Command
+  val AddResolution: Command
   val RemovePackage: Command
   val ListPackages: Command
   val RestoreImportMap: Command
