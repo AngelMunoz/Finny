@@ -3,6 +3,9 @@
 open System.Threading
 open System.Threading.Tasks
 
+open FSharp.UMX
+
+open Perla.Units
 open Perla.Types
 open Perla.PackageManager.Types
 
@@ -89,6 +92,15 @@ type DescribeOptions = {
   current: bool
 }
 
+[<Struct>]
+type PathOperation =
+  | AddOrUpdate of addImport: string<BareImport> * addPath: string<ResolutionUrl>
+  | Remove of removeImport: string
+
+type PathsOptions = {
+  operation: PathOperation
+}
+
 module Handlers =
 
   val runSetup:
@@ -116,6 +128,8 @@ module Handlers =
   val runShowPackage:
     options: ShowPackageOptions * cancellationToken: CancellationToken ->
       Task<int>
+
+  val runAddResolution: options: PathsOptions -> Task<int>
 
   val runAddPackage:
     options: AddPackageOptions * cancellationToken: CancellationToken ->

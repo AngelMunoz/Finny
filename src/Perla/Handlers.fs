@@ -125,6 +125,15 @@ type DescribeOptions = {
   current: bool
 }
 
+[<Struct>]
+type PathOperation =
+  | AddOrUpdate of
+    addImport: string<BareImport> *
+    addPath: string<ResolutionUrl>
+  | Remove of removeImport: string
+
+type PathsOptions = { operation: PathOperation }
+
 module Templates =
 
   type FoundTemplate =
@@ -1179,6 +1188,47 @@ module Handlers =
       return 0
     }
 
+  let runAddResolution (options: PathsOptions) =
+    let config = ConfigurationManager.CurrentConfig
+    let importMap = FileSystem.GetImportMap()
+    // remove existing custom resolutions from the import map
+    let imports =
+      let inline removeFromMap
+        (current: Map<string, string>)
+        (import: string<BareImport>)
+        (_: string<ResolutionUrl>)
+        =
+        current |> Map.remove (UMX.untag import)
+
+      config.paths |> Map.fold removeFromMap importMap.imports
+
+    let updatedPaths =
+      match options.operation with
+      // Either adding or updating will overwrite the existing key in the custom resolution's map
+      | AddOrUpdate(bareImport, path) -> config.paths |> Map.add bareImport path
+      | Remove(removeImport) ->
+        config.paths |> Map.remove (UMX.tag<BareImport> removeImport)
+
+    // add the updated custom resolutions to the import map
+    let imports =
+      let inline addToMap
+        (current: Map<string, string>)
+        (import: string<BareImport>)
+        (resolution: string<ResolutionUrl>)
+        =
+        current |> Map.add (UMX.untag import) (UMX.untag resolution)
+
+      updatedPaths |> Map.fold addToMap imports
+
+    // write updated values to both config and import map to disk
+    ConfigurationManager.WriteFieldsToFile(
+      [ PerlaWritableField.Paths updatedPaths ]
+    )
+
+    FileSystem.WriteImportMap({ importMap with imports = imports }) |> ignore
+
+    Task.FromResult 0
+
   let runAddPackage
     (
       options: AddPackageOptions,
@@ -1193,18 +1243,28 @@ module Handlers =
       let config = ConfigurationManager.CurrentConfig
       let package, packageVersion = parsePackageName options.package
 
-      match options.alias with
-      | Some _ ->
-        Logger.log (
-          $"[bold yellow]Aliases management will change in the future, they will be ignored if this warning appears[/]",
-          escape = false
-        )
-      | None -> ()
-
       let version =
         match packageVersion with
         | Some version -> $"@{version}"
         | None -> ""
+
+      let looksLikeCustomResolution =
+        package
+        |> Seq.filter (fun c -> c = '/')
+        // This should account for packages like:
+        // - @shoelace-style/shoelace/dist/components/button/button.js
+        // - lit/directives/join.js
+        |> Seq.length > 1
+
+      let addAsResolution =
+        if options.alias.IsSome then
+          true
+        else
+          looksLikeCustomResolution
+          && (AnsiConsole.Confirm(
+            $"[bold yellow]{package}[/] looks like a nested or a custom import. Do you want to add it as a custom path?",
+            true
+          ))
 
       let importMap = FileSystem.GetImportMap()
       Logger.log "Updating Import Map..."
@@ -1220,12 +1280,44 @@ module Handlers =
           )
         )
 
-      match map with
-      | Ok map ->
+      match map, addAsResolution with
+      | Ok map, true ->
+        match map.imports |> Map.tryFind package with
+        | Some resolution ->
+          let name = defaultArg options.alias package
+
+          let deps, devDeps =
+            Dependencies.LocateDependenciesFromMapAndConfig(map, config)
+
+          let exceptWithResolution =
+            Seq.filter (fun (value: Dependency) -> value.name <> package)
+
+          ConfigurationManager.WriteFieldsToFile(
+            [
+              PerlaWritableField.Dependencies(exceptWithResolution deps)
+              PerlaWritableField.DevDependencies(exceptWithResolution devDeps)
+            ]
+          )
+
+          let options = {
+            operation =
+              AddOrUpdate(
+                UMX.tag<BareImport> name,
+                UMX.tag<ResolutionUrl> resolution
+              )
+          }
+
+          return! runAddResolution options
+        | None ->
+          Logger.log
+            "We were unable to find the package in the import map. This is likely a bug, please report it."
+
+          return 1
+      | Ok map, false ->
         let newDep = {
           name = package
           version = packageVersion
-          alias = options.alias
+          alias = None
         }
 
         let dependencies, devDependencies =
@@ -1252,7 +1344,7 @@ module Handlers =
 
         FileSystem.WriteImportMap(map) |> ignore
         return 0
-      | Error err ->
+      | Error err, _ ->
         Logger.log ($"[bold red]{err}[/]", escape = false)
         return 1
     }
