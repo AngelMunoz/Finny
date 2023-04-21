@@ -138,6 +138,7 @@ let main argv =
       Commands.SearchPackage
       Commands.ShowPackage
       Commands.AddPackage
+      Commands.AddResolution
       Commands.RemovePackage
       Commands.ListPackages
       Commands.RestoreImportMap
