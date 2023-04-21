@@ -177,10 +177,9 @@ module Templates =
       |> List.groupBy (fun x -> x.parent)
       |> List.choose (fun (parentId, children) ->
         match Templates.FindOne(TemplateSearchKind.Id parentId) with
-        | Some parent -> Some(parent, children)
+        | Some _ -> Some(children)
         | None -> None)
-      |> List.collect (fun (parent, children) ->
-        children |> List.map (fun child -> (parent, child)))
+      |> List.concat
 
     match options.format with
     | ListFormat.HumanReadable ->
@@ -189,65 +188,39 @@ module Templates =
           .AddColumns(
             [|
               "Name"
-              "Group"
-              "Belongs to"
-              "Parent Location"
-              "Last Update"
+              "perla new -t"
+              "perla new -id"
             |]
           )
 
       for column in table.Columns do
         column.Alignment <- Justify.Center
 
-      for parent, template in results do
+      for template in results do
         let name: Rendering.IRenderable =
           Markup($"[bold green]{template.name}[/]")
 
-        let group = Markup($"[bold yellow]{template.group}[/]")
-        let belongsTo = Markup($"[bold blue]{parent.ToFullNameWithBranch}[/]")
+        let shortname = Markup($"[bold yellow]{template.shortName}[/]")
+        let group = Markup($"[bold blue]{template.group}[/]")
 
-        let lastUpdate =
-          parent.updatedAt
-          |> Option.ofNullable
-          |> Option.defaultValue parent.createdAt
-          |> (fun x -> $"[bold green]{x.ToShortDateString()}[/]")
-          |> Markup
-
-        let location =
-          TextPath(
-            UMX.untag parent.path,
-            LeafStyle = Style(Color.Green),
-            StemStyle = Style(Color.Yellow),
-            SeparatorStyle = Style(Color.Blue)
-          )
-
-        table.AddRow([| name; group; belongsTo; location; lastUpdate |])
+        table.AddRow([| name; shortname; group |])
         |> ignore
 
       AnsiConsole.Write table
       0
     | ListFormat.TextOnly ->
       let columns =
-        Columns([| "Name"; "Group"; "Belongs to"; "Parent Location" |])
+        Columns([|"Name";"perla new -t";"perla new -id"|])
 
       AnsiConsole.Write columns
 
       let rows = [|
-        for parent, template in results do
+        for template in results do
           let name = Markup($"[bold green]{template.name}[/]")
-          let group = Markup($"[bold yellow]{template.group}[/]")
+          let shortname = Markup($"[bold yellow]{template.shortName}[/]")
+          let group = TextPath(UMX.untag template.group, LeafStyle=Style(Color.Green),StemStyle=Style(Color.Yellow),SeparatorStyle = Style(Color.Blue))
 
-          let belongsTo = Markup($"[bold blue]{parent.ToFullNameWithBranch}[/]")
-
-          let location =
-            TextPath(
-              UMX.untag parent.path,
-              LeafStyle = Style(Color.Green),
-              StemStyle = Style(Color.Yellow),
-              SeparatorStyle = Style(Color.Blue)
-            )
-
-          Columns(name, group, belongsTo, location) :> Rendering.IRenderable
+          Columns(name, shortname, group) :> Rendering.IRenderable
       |]
 
       rows |> Rows |> AnsiConsole.Write
