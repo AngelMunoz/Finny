@@ -113,7 +113,6 @@ type Build =
           yield! config.dependencies
           yield! config.devDependencies
         ]
-
     seq {
       for dependency in dependencies do
         dependency.name
@@ -123,6 +122,7 @@ type Build =
 
       if config.enableEnv && config.build.emitEnvFile then
         UMX.untag config.envPath
+        Constants.EnvBareImport
 
       yield! config.esbuild.externals
     }
