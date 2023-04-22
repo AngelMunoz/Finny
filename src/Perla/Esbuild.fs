@@ -1,12 +1,11 @@
 ﻿namespace Perla.Esbuild
 
 open System
-open System.Diagnostics
-open System.IO
 open System.Runtime.InteropServices
 open CliWrap
 
 open FsToolkit.ErrorHandling
+open FSharp.UMX
 
 open Perla
 open Perla.Types
@@ -14,7 +13,6 @@ open Perla.Units
 open Perla.Logger
 open Perla.FileSystem
 open Perla.Plugins
-open FSharp.UMX
 open System.Text
 
 [<RequireQualifiedAccess; Struct>]
@@ -27,44 +25,34 @@ type LoaderType =
 [<RequireQualifiedAccess>]
 module Esbuild =
 
-  let internal addEsExternals
-    (externals: (string seq))
-    (args: Builders.ArgumentsBuilder)
-    =
-
+  let addEsExternals (externals: string seq) (args: Builders.ArgumentsBuilder) =
     externals |> Seq.map (fun ex -> $"--external:{ex}") |> args.Add
 
-  let internal addIsBundle (isBundle: bool) (args: Builders.ArgumentsBuilder) =
+  let addIsBundle (isBundle: bool) (args: Builders.ArgumentsBuilder) =
 
     if isBundle then args.Add("--bundle") else args
 
-  let internal addMinify (minify: bool) (args: Builders.ArgumentsBuilder) =
+  let addMinify (minify: bool) (args: Builders.ArgumentsBuilder) =
 
     if minify then args.Add("--minify") else args
 
-  let internal addFormat (format: string) (args: Builders.ArgumentsBuilder) =
+  let addFormat (format: string) (args: Builders.ArgumentsBuilder) =
     args.Add $"--format={format}"
 
-  let internal addTarget (target: string) (args: Builders.ArgumentsBuilder) =
+  let addTarget (target: string) (args: Builders.ArgumentsBuilder) =
     args.Add $"--target={target}"
 
-  let internal addOutDir
-    (outdir: string<SystemPath>)
-    (args: Builders.ArgumentsBuilder)
-    =
-    args.Add $"--outdir={outdir}"
+  let addOutDir (outDir: string) (args: Builders.ArgumentsBuilder) =
+    args.Add $"--outdir={outDir}"
 
-  let internal addOutFile
+  let addOutFile
     (outfile: string<SystemPath>)
     (args: Builders.ArgumentsBuilder)
     =
     args.Add $"--outfile={outfile}"
 
   /// This is used for known file types when compiling on the fly or at build time
-  let internal addLoader
-    (loader: LoaderType option)
-    (args: Builders.ArgumentsBuilder)
-    =
+  let addLoader (loader: LoaderType option) (args: Builders.ArgumentsBuilder) =
     match loader with
     | Some loader ->
       let loader =
@@ -77,25 +65,22 @@ module Esbuild =
       args.Add $"--loader={loader}"
     | None -> args
 
-  /// This one is used for unknown file assets like png's, svg's font files and similar assets
-  let internal addDefaultFileLoaders
+  /// This one is used for unknown file assets like pngs, svgs font files and similar assets
+  let addDefaultFileLoaders
     (loaders: Map<string, string>)
     (args: Builders.ArgumentsBuilder)
     =
     let loaders = loaders |> Map.toSeq
 
-    for (extension, loader) in loaders do
+    for extension, loader in loaders do
       args.Add $"--loader:{extension}={loader}" |> ignore
 
     args
 
-  let internal addJsxAutomatic
-    (addAutomatic: bool)
-    (args: Builders.ArgumentsBuilder)
-    =
+  let addJsxAutomatic (addAutomatic: bool) (args: Builders.ArgumentsBuilder) =
     if addAutomatic then args.Add "--jsx=automatic" else args
 
-  let internal addJsxImportSource
+  let addJsxImportSource
     (importSource: string option)
     (args: Builders.ArgumentsBuilder)
     =
@@ -103,7 +88,7 @@ module Esbuild =
     | Some source -> args.Add $"--jsx-import-source={source}"
     | None -> args
 
-  let internal addJsxFragment
+  let addJsxFragment
     (fragment: string option)
     (args: Builders.ArgumentsBuilder)
     =
@@ -111,17 +96,14 @@ module Esbuild =
     | Some fragment -> args.Add $"--jsx-fragment={fragment}"
     | None -> args
 
-  let internal addInlineSourceMaps (args: Builders.ArgumentsBuilder) =
+  let addInlineSourceMaps (args: Builders.ArgumentsBuilder) =
     args.Add "--sourcemap=inline"
 
-  let internal addInjects
-    (injects: string seq)
-    (args: Builders.ArgumentsBuilder)
-    =
+  let addInjects (injects: string seq) (args: Builders.ArgumentsBuilder) =
 
     injects |> Seq.map (fun inject -> $"--inject:{inject}") |> args.Add
 
-  let internal addTsconfigRaw
+  let addTsconfigRaw
     (tsconfig: string option)
     (args: Builders.ArgumentsBuilder)
     =
@@ -132,14 +114,31 @@ module Esbuild =
       args.Add $"""--tsconfig-raw={tsconfig} """
     | None -> args
 
+  let addAliases
+    (aliases: Map<string<BareImport>, string<ResolutionUrl>> option)
+    (args: Builders.ArgumentsBuilder)
+    =
+    match aliases with
+    | Some aliases ->
+      for KeyValue(alias, path) in aliases do
+        if (UMX.untag path).StartsWith("./") then
+          args.Add $"--alias:{alias}={path}" |> ignore
+    | None -> ()
+
+    args
+
+  let addKeepNames (args: Builders.ArgumentsBuilder) = args.Add "--keep-names"
+
 type Esbuild =
 
   static member ProcessJS
     (
+      workingDirectory: string,
       entryPoint: string,
       config: EsbuildConfig,
-      outDir: string<SystemPath>,
-      [<Optional>] ?externals: string seq
+      outDir: string,
+      [<Optional>] ?externals: string seq,
+      [<Optional>] ?aliases: Map<string<BareImport>, string<ResolutionUrl>>
     ) : Command =
 
     let execBin = config.esBuildPath |> UMX.untag
@@ -147,6 +146,8 @@ type Esbuild =
 
     Cli
       .Wrap(execBin)
+      // ensure esbuild is called where the actual sources are
+      .WithWorkingDirectory(UMX.untag workingDirectory)
       .WithStandardErrorPipe(PipeTarget.ToStream(Console.OpenStandardError()))
       .WithStandardOutputPipe(PipeTarget.ToStream(Console.OpenStandardOutput()))
       .WithArguments(fun args ->
@@ -160,19 +161,23 @@ type Esbuild =
         |> Esbuild.addJsxAutomatic config.jsxAutomatic
         |> Esbuild.addJsxImportSource config.jsxImportSource
         |> Esbuild.addOutDir outDir
+        |> Esbuild.addAliases aliases
         |> ignore)
 
   static member ProcessCss
     (
+      workingDirectory: string,
       entryPoint: string,
       config: EsbuildConfig,
-      outDir: string<SystemPath>
+      outDir: string
     ) =
     let execBin = config.esBuildPath |> UMX.untag
     let fileLoaders = config.fileLoaders
 
     Cli
       .Wrap(execBin)
+      // ensure esbuild is called where the actual sources are
+      .WithWorkingDirectory(workingDirectory)
       .WithStandardErrorPipe(PipeTarget.ToStream(Console.OpenStandardError()))
       .WithStandardOutputPipe(PipeTarget.ToStream(Console.OpenStandardOutput()))
       .WithArguments(fun args ->
@@ -214,6 +219,7 @@ type Esbuild =
         |> Esbuild.addJsxAutomatic config.jsxAutomatic
         |> Esbuild.addJsxImportSource config.jsxImportSource
         |> Esbuild.addTsconfigRaw tsconfig
+        |> Esbuild.addKeepNames
         |> ignore)
       .WithValidation(CommandResultValidation.None)
 
