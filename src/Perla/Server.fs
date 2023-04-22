@@ -244,7 +244,6 @@ module LiveReload =
     Logger.log ($"Compilation Error: {err.Substring(0, 80)}...", target = Serve)
     response.WriteAsync(ReloadEvents.CompileError(err).AsString)
 
-
 [<RequireQualifiedAccess>]
 module Middleware =
 
@@ -256,7 +255,7 @@ module Middleware =
 
   let processFile
     (
-      setContentAndWrite: string * (byte array) -> Task<_>,
+      setContentAndWrite: string * byte array -> Task<_>,
       reqPath: string,
       mimeType: string,
       requestedAs: RequestedAs,
@@ -272,14 +271,14 @@ document.head.appendChild(style).innerHTML=String.raw`{content}`;"""
     | "application/json", RequestedAs.JS ->
       setContentAndWrite (
         MimeTypeNames.DefaultJavaScript,
-        (processJsonAsJs (System.Text.Encoding.UTF8.GetString(content))
-         |> System.Text.Encoding.UTF8.GetBytes)
+        (processJsonAsJs (Encoding.UTF8.GetString(content))
+         |> Encoding.UTF8.GetBytes)
       )
     | "text/css", Normal ->
       setContentAndWrite (
         MimeTypeNames.DefaultJavaScript,
-        (processCssAsJs (System.Text.Encoding.UTF8.GetString(content), reqPath)
-         |> System.Text.Encoding.UTF8.GetBytes)
+        (processCssAsJs (Encoding.UTF8.GetString(content), reqPath)
+         |> Encoding.UTF8.GetBytes)
       )
     | mimeType, ModuleAssertion
     | mimeType, Normal -> setContentAndWrite (mimeType, content)
@@ -338,7 +337,7 @@ document.head.appendChild(style).innerHTML=String.raw`{content}`;"""
       Json.TestEventFromJson toDecode
       |> Result.teeError (fun err ->
         Logger.log $"[bold red]{err.EscapeMarkup()}[/]")
-      |> Result.iter (testEvents.OnNext)
+      |> Result.iter testEvents.OnNext
 
       return Results.Ok()
     }
@@ -438,7 +437,7 @@ document.head.appendChild(style).innerHTML=String.raw`{content}`;"""
 
   let IndexHandler (config: PerlaConfig) (_: HttpContext) =
     let content = FileSystem.IndexFile(config.index)
-    let map = FileSystem.GetImportMap()
+    let map = FileSystem.GetImportMap().AddEnvResolution(config)
 
     use context = BrowsingContext.New(Configuration.Default)
 
