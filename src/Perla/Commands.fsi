@@ -55,7 +55,7 @@ module PackageInputs =
   val import: HandlerInput<string>
   val resolution: HandlerInput<string option>
   val addOrUpdate: HandlerInput<bool option>
-  val remove: HandlerInput<bool option>
+  val removeResolution: HandlerInput<bool>
 
 [<RequireQualifiedAccess>]
 module TemplateInputs =
