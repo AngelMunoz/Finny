@@ -2,14 +2,48 @@
 
 open Spectre.Console.Rendering
 
+open FSharp.UMX
+open Perla.Units
+open Perla.PackageManager.Types
+
+module private ImportMap =
+
+  let private RemoveResolutionsFromMap
+    (current: Map<string, string>)
+    (import: string<BareImport>)
+    (_: string<ResolutionUrl>)
+    =
+    current |> Map.remove (UMX.untag import)
+
+  let private AddResolutionsToMap
+    (current: Map<string, string>)
+    (import: string<BareImport>)
+    (resolution: string<ResolutionUrl>)
+    =
+    current |> Map.add (UMX.untag import) (UMX.untag resolution)
+
+  [<RequireQualifiedAccess>]
+  type MapUpdate =
+    | Add of Map<string<BareImport>, string<ResolutionUrl>>
+    | Remove of Map<string<BareImport>, string<ResolutionUrl>>
+
+  let ModifyMap (map: ImportMap, operation: MapUpdate) =
+    let imports =
+      match operation with
+      | MapUpdate.Add resolutions ->
+        Map.fold AddResolutionsToMap map.imports resolutions
+      | MapUpdate.Remove resolutions ->
+        Map.fold RemoveResolutionsFromMap map.imports resolutions
+
+    { map with imports = imports }
+
 [<AutoOpen>]
 module Lib =
   open System
   open Perla.Types
-  open Perla.PackageManager.Types
   open Spectre.Console
   open System.Text.RegularExpressions
-  open FSharp.UMX
+  open ImportMap
 
   [<return: Struct>]
   let internal (|ParseRegex|_|) (regex: Regex) str =
@@ -418,3 +452,24 @@ module Lib =
         match testing.ToLowerInvariant() with
         | "testing" -> this.testing[(fable, node)]
         | _ -> None
+
+  type ImportMap with
+
+    member this.RemoveResolutions
+      (resolutions: Map<string<BareImport>, string<ResolutionUrl>>)
+      =
+      ModifyMap(this, MapUpdate.Remove resolutions)
+
+    member this.AddResolutions
+      (resolutions: Map<string<BareImport>, string<ResolutionUrl>>)
+      =
+      ModifyMap(this, MapUpdate.Add resolutions)
+
+    member this.AddEnvResolution(config: PerlaConfig) =
+      if config.enableEnv then
+        this.AddResolutions(
+          [ Constants.EnvBareImport |> UMX.tag, config.envPath |> UMX.cast ]
+          |> Map.ofList
+        )
+      else
+        this
