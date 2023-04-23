@@ -299,8 +299,8 @@ module PackageInputs =
 
 [<RequireQualifiedAccess>]
 module TemplateInputs =
-  let repositoryName: HandlerInput<string> =
-    Input.Argument(
+  let repositoryName: HandlerInput<string option> =
+    Input.ArgumentMaybe(
       "templateRepositoryName",
       "The User/repository name combination"
     )
@@ -713,7 +713,7 @@ module Commands =
     let buildArgs
       (
         ctx: InvocationContext,
-        name: string,
+        name: string option,
         add: bool option,
         update: bool option,
         remove: bool option,
@@ -749,7 +749,7 @@ module Commands =
         |> Option.defaultValue format
 
       {
-        fullRepositoryName = name
+        fullRepositoryName = name |> Option.defaultValue ""
         operation = operation
       },
       ctx.GetCancellationToken()

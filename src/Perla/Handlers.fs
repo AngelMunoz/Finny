@@ -741,15 +741,25 @@ module Handlers =
       }
 
       let updateRepo () = task {
-        let template = template.Value
-        Logger.log $"Template {template.ToFullNameWithBranch} already exists."
+        match template with
+        | ValueSome template ->
+          Logger.log $"Template {template.ToFullNameWithBranch} already exists."
 
-        match!
-          Templates.AddOrUpdate(Templates.TemplateOperation.Update template)
-        with
-        | Ok() -> return 0
-        | Error err ->
-          Logger.log (err, escape = false)
+          match!
+            Templates.AddOrUpdate(Templates.TemplateOperation.Update template)
+          with
+          | Ok() -> return 0
+          | Error err ->
+            Logger.log (err, escape = false)
+            return 1
+        | ValueNone ->
+          Logger.log "We were unable to parse the repository name."
+
+          Logger.log (
+            "please ensure that the repository name is in the format: [bold blue]username/repository:branch[/]",
+            escape = false
+          )
+
           return 1
       }
 
