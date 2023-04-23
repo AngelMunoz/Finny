@@ -113,6 +113,7 @@ type Build =
           yield! config.dependencies
           yield! config.devDependencies
         ]
+
     seq {
       for dependency in dependencies do
         dependency.name
@@ -207,13 +208,14 @@ type Build =
 
         lfsGlob |> Seq.toArray |> Array.Parallel.iter copyLocal)
 
-  static member EmitEnvFile(config: PerlaConfig) =
+  static member EmitEnvFile(config: PerlaConfig, ?tmpPath: string<SystemPath>) =
+    let tmpPath = defaultArg tmpPath config.build.outDir |> UMX.untag
+
     match Env.GetEnvContent() with
     | Some content ->
       // remove the leading slash
       let targetFile = (UMX.untag config.envPath)[1..]
 
-      let path = Path.Combine(UMX.untag config.build.outDir, targetFile)
-
+      let path = Path.Combine(tmpPath, targetFile) |> Path.GetFullPath
       File.WriteAllText(path, content)
     | None -> ()
