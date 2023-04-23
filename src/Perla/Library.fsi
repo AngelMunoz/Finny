@@ -4,11 +4,13 @@ open System.Text.RegularExpressions
 
 open Spectre.Console
 open Spectre.Console.Rendering
+open FSharp.UMX
+open Perla.Units
+open Perla.Types
+open Perla.PackageManager.Types
 
 [<AutoOpen>]
 module Lib =
-  open Perla.Types
-  open Perla.PackageManager.Types
 
   [<return: Struct>]
   val internal (|ParseRegex|_|):
@@ -67,3 +69,13 @@ module Lib =
     member Item: string -> IRenderable option with get
     member Item: (string * string) -> IRenderable option with get
     member Item: (string * string * string) -> IRenderable option with get
+
+  type ImportMap with
+
+    member RemoveResolutions:
+      resolutions: Map<string<BareImport>, string<ResolutionUrl>> -> ImportMap
+
+    member AddResolutions:
+      resolutions: Map<string<BareImport>, string<ResolutionUrl>> -> ImportMap
+
+    member AddEnvResolution: config: PerlaConfig -> ImportMap

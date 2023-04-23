@@ -140,6 +140,7 @@ module ConfigDecoders =
     mountDirectories: Map<string<ServerUrl>, string<UserPath>> option
     enableEnv: bool option
     envPath: string<ServerUrl> option
+    paths: Map<string<BareImport>, string<ResolutionUrl>> option
     dependencies: Dependency seq option
     devDependencies: Dependency seq option
   }
@@ -257,6 +258,23 @@ module ConfigDecoders =
           | "jspm.system" -> Decode.succeed Provider.JspmSystem
           | value -> Decode.fail $"{value} is not a valid run configuration")
 
+      let directoriesDecoder =
+        get.Optional.Field "mountDirectories" (Decode.dict Decode.string)
+        |> Option.map (fun m ->
+          m
+          |> Map.toSeq
+          |> Seq.map (fun (k, v) -> UMX.tag<ServerUrl> k, UMX.tag<UserPath> v)
+          |> Map.ofSeq)
+
+      let pathsDecoder =
+        get.Optional.Field "paths" (Decode.dict Decode.string)
+        |> Option.map (fun m ->
+          m
+          |> Map.toSeq
+          |> Seq.map (fun (k, v) ->
+            UMX.tag<BareImport> k, UMX.tag<ResolutionUrl> v)
+          |> Map.ofSeq)
+
       {
         index =
           get.Optional.Field "index" Decode.string
@@ -270,14 +288,6 @@ module ConfigDecoders =
         fable = get.Optional.Field "fable" FableFileDecoder
         esbuild = get.Optional.Field "esbuild" EsbuildDecoder
         testing = get.Optional.Field "testing" TestConfigDecoder
-        mountDirectories =
-          get.Optional.Field "mountDirectories" (Decode.dict Decode.string)
-          |> Option.map (fun m ->
-            m
-            |> Map.toSeq
-            |> Seq.map (fun (k, v) ->
-              UMX.tag<ServerUrl> k, UMX.tag<UserPath> v)
-            |> Map.ofSeq)
         enableEnv = get.Optional.Field "enableEnv" Decode.bool
         envPath =
           get.Optional.Field "envPath" Decode.string
@@ -288,6 +298,8 @@ module ConfigDecoders =
         devDependencies =
           get.Optional.Field "devDependencies" (Decode.list DependencyDecoder)
           |> Option.map Seq.ofList
+        mountDirectories = directoriesDecoder
+        paths = pathsDecoder
       })
 
 [<RequireQualifiedAccess>]

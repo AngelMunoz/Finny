@@ -29,4 +29,5 @@ type Build =
   static member CopyGlobs:
     config: BuildConfig * tempDir: string<SystemPath> -> unit
 
-  static member EmitEnvFile: config: PerlaConfig -> unit
+  static member EmitEnvFile:
+    config: PerlaConfig * ?tmpPath: string<SystemPath> -> unit

@@ -1,6 +1,5 @@
 ﻿namespace Perla.Esbuild
 
-open System.IO
 open System.Text
 open System.Runtime.InteropServices
 open CliWrap
@@ -19,17 +18,27 @@ type LoaderType =
 
 [<Class>]
 type Esbuild =
+  /// Uses esbuild's build API
+  /// This is the most flexible option and allows for simpler customization
+  /// This should be performed only when the file system is available
   static member ProcessJS:
+    workingDirectory: string *
     entryPoint: string *
     config: EsbuildConfig *
-    outDir: string<SystemPath> *
-    [<Optional>] ?externals: seq<string> ->
+    outDir: string *
+    [<Optional>] ?externals: string seq *
+    [<Optional>] ?aliases: Map<string<BareImport>, string<ResolutionUrl>> ->
       Command
 
   static member ProcessCss:
-    entryPoint: string * config: EsbuildConfig * outDir: string<SystemPath> ->
+    workingDirectory: string *
+    entryPoint: string *
+    config: EsbuildConfig *
+    outDir: string ->
       Command
 
+  /// Uses esbuild's transform API via stdin/stdout
+  /// This means each file will be processed in isolation
   static member BuildSingleFile:
     config: EsbuildConfig *
     content: string *

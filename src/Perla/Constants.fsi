@@ -25,6 +25,9 @@ val FableProject: string = "./src/App.fsproj"
 val EnvPath: string = "/env.js"
 
 [<Literal>]
+val EnvBareImport: string = "@@perla/env"
+
+[<Literal>]
 val ProxyConfigName: string = "proxy-config.json"
 
 [<Literal>]

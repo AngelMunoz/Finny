@@ -39,6 +39,7 @@ module Types =
     | Dependencies of Dependency seq
     | DevDependencies of Dependency seq
     | Fable of FableField seq
+    | Paths of Map<string<BareImport>, string<ResolutionUrl>>
 
 open Types
 
@@ -52,18 +53,37 @@ module Defaults =
   val TestConfig: TestConfig
   val PerlaConfig: PerlaConfig
 
-val internal fromEnv: config: PerlaConfig -> PerlaConfig
+module internal ConfigExtraction =
 
-val internal fromCli:
-  runConfig: RunConfiguration option ->
-  provider: Provider option ->
-  serverOptions: DevServerField seq option ->
-  testingOptions: TestingField seq option ->
-  config: PerlaConfig ->
-    PerlaConfig
+  [<RequireQualifiedAccess>]
+  module FromDecoders =
+    open Json.ConfigDecoders
 
-val internal fromFile:
-  fileContent: JsonObject option -> config: PerlaConfig -> PerlaConfig
+    val GetFable: FableConfig option * DecodedFableConfig option -> FableConfig option
+    val GetDevServer: DevServerConfig * DecodedDevServer option -> DevServerConfig option
+    val GetBuild: BuildConfig * DecodedBuild option -> BuildConfig option
+    val GetEsbuild: EsbuildConfig * DecodedEsbuild option -> EsbuildConfig option
+    val GetTesting: TestConfig * DecodedTesting option -> TestConfig option
+
+  [<RequireQualifiedAccess>]
+  module FromFields =
+    val GetServerFields: DevServerConfig * DevServerField seq option -> DevServerField seq
+    val GetMinify: RunConfiguration * DevServerField seq -> bool
+    val GetDevServerOptions: DevServerConfig * DevServerField seq -> DevServerConfig
+    val GetTesting: TestConfig * TestingField seq option -> TestConfig
+
+  val FromEnv: config: PerlaConfig -> PerlaConfig
+
+  val FromCli:
+    runConfig: RunConfiguration option ->
+    provider: Provider option ->
+    serverOptions: DevServerField seq option ->
+    testingOptions: TestingField seq option ->
+    config: PerlaConfig ->
+      PerlaConfig
+
+  val FromFile:
+    fileContent: JsonObject option -> config: PerlaConfig -> PerlaConfig
 
 [<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
 module internal Json =

@@ -7,17 +7,47 @@ open System.CommandLine.Invocation
 open System.CommandLine.Parsing
 
 open FSharp.SystemCommandLine
-open FSharp.SystemCommandLine.Aliases
 
 open FsToolkit.ErrorHandling
+open FSharp.UMX
 
 open Perla
 open Perla.PackageManager.Types
 open Perla.Types
 open Perla.Handlers
 
+
 [<Class; Sealed>]
 type PerlaOptions =
+
+  static member BoolOption
+    (
+      aliases: string seq,
+      description: string
+    ) : Option<bool option> =
+    let parser (result: ArgumentResult) =
+      let defaultValue = Some true
+
+      let withToken =
+        result.Tokens
+        |> Seq.tryHead
+        |> Option.map (fun value ->
+          match value.Value.Trim().ToLowerInvariant() with
+          | "true" -> true
+          | "false" -> false
+          | _ -> false)
+
+      Option.orElse defaultValue withToken
+
+
+
+    Option<bool option>(
+      aliases |> Seq.toArray,
+      parseArgument = parser,
+      description = description,
+      Arity = ArgumentArity.ZeroOrOne
+    )
+
   static member PackageSource: Option<Provider voption> =
     let parser (result: ArgumentResult) =
       match result.Tokens |> Seq.tryHead with
@@ -110,6 +140,22 @@ type PerlaOptions =
 
 [<Class; Sealed>]
 type PerlaArguments =
+
+  static member ArgStringMaybe
+    (
+      name: string,
+      ?description: string
+    ) : Argument<string option> =
+    let parser (result: ArgumentResult) =
+      result.Tokens |> Seq.tryHead |> Option.map (fun value -> value.Value)
+
+    Argument<string option>(
+      name,
+      parse = parser,
+      ?description = description,
+      Arity = ArgumentArity.ZeroOrOne
+    )
+
   static member Properties: Argument<string array> =
     let parser (result: ArgumentResult) =
       result.Tokens
@@ -142,7 +188,7 @@ module SharedInputs =
 [<RequireQualifiedAccess>]
 module DescribeInputs =
   let perlaProperties: HandlerInput<string[] option> =
-    Arg<string[] option>(
+    Argument<string[] option>(
       "properties",
       (fun (result: ArgumentResult) ->
         match result.Tokens |> Seq.toArray with
@@ -197,11 +243,35 @@ module SetupInputs =
       "Skip Prompts and accept all defaults"
     )
 
-
 [<RequireQualifiedAccess>]
 module PackageInputs =
   let package: HandlerInput<string> =
     Input.Argument("package", "Name of the JS Package")
+
+  let import: HandlerInput<string> =
+    Input.Argument(
+      "import",
+      "Name to assign to this import e.g 'app/buttons' 'lodashv3'"
+    )
+
+  let resolution: HandlerInput<string option> =
+    PerlaArguments.ArgStringMaybe(
+      "resolution",
+      "URL, or path (absolute or relative) to your import's actual source."
+    )
+    |> Input.OfArgument
+
+  let addOrUpdate: HandlerInput<bool option> =
+    Input.OptionMaybe(
+      [ "--add"; "--update"; "-u"; "-a" ],
+      "Attempts to add or update an import in paths configuration."
+    )
+
+  let removeResolution: HandlerInput<bool> =
+    Input.Option(
+      [ "--remove-resolution"; "-r" ],
+      "Remove the resolution from the config file"
+    )
 
   let currentPage: HandlerInput<int option> =
     Input.OptionMaybe(
@@ -334,6 +404,14 @@ module ServeInputs =
 
 [<RequireQualifiedAccess>]
 module Commands =
+  type HandlerInput<'T> with
+
+    member this.GetValue(ctx: CommandResult) : 'T =
+      match this.Source with
+      | ParsedOption o -> o :?> Option<'T> |> ctx.GetValueForOption
+      | ParsedArgument a -> a :?> Argument<'T> |> ctx.GetValueForArgument
+      | Context -> failwith "Unable to get a result from context"
+
   let Build =
 
     let buildArgs
@@ -544,6 +622,50 @@ module Commands =
 
       setHandler (buildArgs >> Handlers.runAddPackage)
     }
+
+  let AddResolution =
+
+    let buildArgs (import: string, resolution: string option, remove: bool) =
+      match resolution with
+      | Some resolution -> {
+          operation = AddOrUpdate(UMX.tag import, UMX.tag resolution)
+        }
+      | None ->
+        if remove then
+          { operation = Remove import }
+        else
+          failwith "This should not have happened"
+
+    let cmd = command "resolution" {
+      addAlias "custom-path"
+
+      description
+        $"Saves a manual resolution in the {Constants.PerlaConfigName} file that will be included in the import map for this application."
+
+      inputs (
+        PackageInputs.import,
+        PackageInputs.resolution,
+        PackageInputs.removeResolution
+      )
+
+      setHandler (buildArgs >> Handlers.runAddResolution)
+    }
+
+    cmd.AddValidator(fun cmdResult ->
+      let resolution = PackageInputs.resolution.GetValue cmdResult
+
+      let remove = PackageInputs.removeResolution.GetValue cmdResult
+
+      match resolution, remove with
+      | Some _, true ->
+        cmdResult.ErrorMessage <-
+          "A resolution has been provided together with the '--remove' option, if you intend to add it, remove the flag otherwise remove the resolution and just use the flag."
+      | None, false ->
+        cmdResult.ErrorMessage <-
+          "You have to provide the '--remove' option to remove this import when the resolution is not present."
+      | _, _ -> ())
+
+    cmd
 
   let ListPackages =
 

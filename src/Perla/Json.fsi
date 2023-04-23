@@ -97,6 +97,7 @@ module ConfigDecoders =
     mountDirectories: Map<string<ServerUrl>, string<UserPath>> option
     enableEnv: bool option
     envPath: string<ServerUrl> option
+    paths: Map<string<BareImport>, string<ResolutionUrl>> option
     dependencies: Dependency seq option
     devDependencies: Dependency seq option
   }

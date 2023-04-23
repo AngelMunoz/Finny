@@ -28,6 +28,9 @@ let FableProject = "./src/App.fsproj"
 let EnvPath = "/env.js"
 
 [<Literal>]
+let EnvBareImport = "@@perla/env"
+
+[<Literal>]
 let ProxyConfigName = "proxy-config.json"
 
 [<Literal>]

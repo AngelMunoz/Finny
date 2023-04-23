@@ -125,6 +125,15 @@ type DescribeOptions = {
   current: bool
 }
 
+[<Struct>]
+type PathOperation =
+  | AddOrUpdate of
+    addImport: string<BareImport> *
+    addPath: string<ResolutionUrl>
+  | Remove of removeImport: string
+
+type PathsOptions = { operation: PathOperation }
+
 module Templates =
 
   type FoundTemplate =
@@ -369,6 +378,8 @@ module Esbuild =
       externals: string seq,
       cancel: CancellationToken
     ) =
+    let taggedCwd = fs.ConvertPathToInternal workingDirectory
+
     let cssTasks = backgroundTask {
       for css in css do
         let path =
@@ -377,18 +388,35 @@ module Esbuild =
 
         let targetPath =
           Path.Combine(UMX.untag config.build.outDir, UMX.untag css)
+          |> Path.GetFullPath
           |> Path.GetDirectoryName
-          |> UMX.tag<SystemPath>
 
         let tsk =
           Esbuild
-            .ProcessCss(path, config.esbuild, targetPath)
+            .ProcessCss(taggedCwd, path, config.esbuild, targetPath)
             .ExecuteAsync(cancel)
 
         do! tsk.Task :> Task
     }
 
     let jsTasks = backgroundTask {
+      let aliases =
+        // remove all the paths that are not relative
+        let aliases =
+          config.paths |> Map.filter (fun _ v -> (UMX.untag v).StartsWith("./"))
+
+        // if the env is enabled, also check if we want to produce the file
+        // if the user doesn't want to produce the file it is likely that they
+        // will provide said file at runtime and we don't want to make esbuild remove that import
+        if config.enableEnv && config.build.emitEnvFile then
+          // envPaths should be at the root of the server "/" so we can prefix it with a dot
+          // to make it relative to the root of the server, when build command runs it will
+          // be produced there
+          let path = UMX.tag $".{config.envPath}"
+          Map.add (UMX.tag Constants.EnvBareImport) path aliases
+        else
+          aliases
+
       for js in js do
         let path =
           UPath.Combine(workingDirectory, UMX.untag js)
@@ -396,12 +424,19 @@ module Esbuild =
 
         let targetPath =
           Path.Combine(UMX.untag config.build.outDir, UMX.untag js)
+          |> Path.GetFullPath
           |> Path.GetDirectoryName
-          |> UMX.tag<SystemPath>
 
         let tsk =
           Esbuild
-            .ProcessJS(path, config.esbuild, targetPath, externals)
+            .ProcessJS(
+              taggedCwd,
+              path,
+              config.esbuild,
+              targetPath,
+              externals,
+              aliases
+            )
             .ExecuteAsync(cancel)
 
         do! tsk.Task :> Task
@@ -760,7 +795,7 @@ module Handlers =
             Logger.log (err, escape = false)
             return 1
         | ValueNone ->
-          Logger.log ("We were unable to parse the repository name.")
+          Logger.log "We were unable to parse the repository name."
 
           Logger.log (
             "please ensure that the repository name is in the format: [bold blue]username/repository:branch[/]",
@@ -784,7 +819,7 @@ module Handlers =
             Logger.log (err, escape = false)
             return 1
         | ValueNone ->
-          Logger.log ("We were unable to parse the repository name.")
+          Logger.log "We were unable to parse the repository name."
 
           Logger.log (
             "please ensure that the repository name is in the format: [bold blue]username/repository:branch[/]",
@@ -818,12 +853,18 @@ module Handlers =
         VirtualFileSystem.Mount config
       )
 
-    let tempDirectory = VirtualFileSystem.CopyToDisk() |> UMX.tag<SystemPath>
+    let tempDirectory = VirtualFileSystem.CopyToDisk() |> UMX.tag
+
 
     Logger.log (
       $"Copying Processed files to {tempDirectory}",
       target = PrefixKind.Build
     )
+
+    if config.build.emitEnvFile then
+      Logger.log "Writing Env File"
+
+      Build.EmitEnvFile(config, tempDirectory)
 
     use fs = new PhysicalFileSystem()
 
@@ -861,16 +902,21 @@ module Handlers =
       |> Path.GetFullPath
       |> fs.ConvertPathFromInternal
 
-    // copy any glob files
-    Build.CopyGlobs(config.build, tempDirectory)
-
     // copy any root files
     fs.EnumerateFileEntries(tmp, "*.*", SearchOption.TopDirectoryOnly)
     |> Seq.iter (fun file ->
       file.CopyTo(UPath.Combine(outDir, file.Name), true) |> ignore)
 
-    let indexContent =
-      Build.GetIndexFile(document, css, js, FileSystem.GetImportMap())
+    // copy any glob files
+    Build.CopyGlobs(config.build, tempDirectory)
+
+    let map =
+      FileSystem
+        .GetImportMap()
+        .AddResolutions(config.paths)
+        .AddEnvResolution(config)
+
+    let indexContent = Build.GetIndexFile(document, css, js, map)
     // Always copy the index file at the end to avoid
     // clashing with any index.html file in the root of the virtual file system
     fs.WriteAllText(UPath.Combine(outDir, "index.html"), indexContent)
@@ -882,9 +928,6 @@ module Handlers =
     with ex ->
       Logger.log ($"Failed to delete {tempDirectory}", ex = ex)
 
-    if config.build.emitEnvFile then
-      Logger.log "Writing Env File"
-      Build.EmitEnvFile(config)
 
     if options.enablePreview then
       let app = Server.GetStaticServer(config)
@@ -1076,7 +1119,16 @@ module Handlers =
           config.provider,
           config.runConfiguration
         )
-        |> TaskResult.defaultValue (Seq.empty, FileSystem.GetImportMap())
+        |> TaskResult.map (fun (deps, map) ->
+          let map = map.AddResolutions(config.paths).AddEnvResolution(config)
+          deps, map)
+        |> TaskResult.defaultValue (
+          Seq.empty,
+          FileSystem
+            .GetImportMap()
+            .AddResolutions(config.paths)
+            .AddEnvResolution(config)
+        )
 
       let mutable app =
         Server.GetTestingApp(
@@ -1179,6 +1231,29 @@ module Handlers =
       return 0
     }
 
+  let runAddResolution (options: PathsOptions) =
+    let config = ConfigurationManager.CurrentConfig
+
+    let importMap =
+      // remove existing custom resolutions from the import map
+      FileSystem.GetImportMap().RemoveResolutions(config.paths)
+
+    let updatedPaths =
+      match options.operation with
+      // Either adding or updating will overwrite the existing key in the custom resolution's map
+      | AddOrUpdate(bareImport, path) -> config.paths |> Map.add bareImport path
+      | Remove(removeImport) ->
+        config.paths |> Map.remove (UMX.tag<BareImport> removeImport)
+
+    // write updated values to both config and import map to disk
+    ConfigurationManager.WriteFieldsToFile(
+      [ PerlaWritableField.Paths updatedPaths ]
+    )
+    // add the updated custom resolutions to the import map
+    FileSystem.WriteImportMap(importMap.AddResolutions(updatedPaths)) |> ignore
+
+    Task.FromResult 0
+
   let runAddPackage
     (
       options: AddPackageOptions,
@@ -1193,20 +1268,31 @@ module Handlers =
       let config = ConfigurationManager.CurrentConfig
       let package, packageVersion = parsePackageName options.package
 
-      match options.alias with
-      | Some _ ->
-        Logger.log (
-          $"[bold yellow]Aliases management will change in the future, they will be ignored if this warning appears[/]",
-          escape = false
-        )
-      | None -> ()
-
       let version =
         match packageVersion with
         | Some version -> $"@{version}"
         | None -> ""
 
-      let importMap = FileSystem.GetImportMap()
+      let looksLikeCustomResolution =
+        package
+        |> Seq.filter (fun c -> c = '/')
+        // This should account for packages like:
+        // - @shoelace-style/shoelace/dist/components/button/button.js
+        // - lit/directives/join.js
+        |> Seq.length > 1
+
+      let addAsResolution =
+        if options.alias.IsSome then
+          true
+        else
+          looksLikeCustomResolution
+          && AnsiConsole.Confirm(
+            $"[bold yellow]{package}[/] looks like a nested or a custom import. Do you want to add it as a custom path?",
+            true
+          )
+
+      let importMap = FileSystem.GetImportMap().RemoveResolutions(config.paths)
+
       Logger.log "Updating Import Map..."
 
       let! map =
@@ -1220,12 +1306,43 @@ module Handlers =
           )
         )
 
-      match map with
-      | Ok map ->
+      match map, addAsResolution with
+      | Ok map, true ->
+        match map.imports |> Map.tryFind package with
+        | Some resolution ->
+          let name = defaultArg options.alias package
+
+          let deps, devDeps =
+            Dependencies.LocateDependenciesFromMapAndConfig(map, config)
+
+          let exceptWithResolution =
+            Seq.filter (fun (value: Dependency) -> value.name <> package)
+
+          ConfigurationManager.WriteFieldsToFile(
+            [
+              PerlaWritableField.Dependencies(exceptWithResolution deps)
+              PerlaWritableField.DevDependencies(exceptWithResolution devDeps)
+            ]
+          )
+
+          return!
+            runAddResolution {
+              operation =
+                AddOrUpdate(
+                  UMX.tag<BareImport> name,
+                  UMX.tag<ResolutionUrl> resolution
+                )
+            }
+        | None ->
+          Logger.log
+            "We were unable to find the package in the import map. This is likely a bug, please report it."
+
+          return 1
+      | Ok map, false ->
         let newDep = {
           name = package
           version = packageVersion
-          alias = options.alias
+          alias = None
         }
 
         let dependencies, devDependencies =
@@ -1250,9 +1367,10 @@ module Handlers =
           [ dependencies; devDependencies ]
         )
 
-        FileSystem.WriteImportMap(map) |> ignore
+        FileSystem.WriteImportMap(map.AddResolutions(config.paths)) |> ignore
+
         return 0
-      | Error err ->
+      | Error err, _ ->
         Logger.log ($"[bold red]{err}[/]", escape = false)
         return 1
     }
@@ -1267,7 +1385,7 @@ module Handlers =
       Logger.log ($"Removing: [red]{name}[/]", escape = false)
       let config = ConfigurationManager.CurrentConfig
 
-      let map = FileSystem.GetImportMap()
+      let map = FileSystem.GetImportMap().RemoveResolutions(config.paths)
 
       let dependencies, devDependencies =
         let deps, devDeps =
@@ -1308,7 +1426,8 @@ module Handlers =
         )
       with
       | Ok map ->
-        FileSystem.WriteImportMap(map) |> ignore
+        FileSystem.WriteImportMap(map.AddResolutions(config.paths)) |> ignore
+
         return 0
       | Error err ->
         Logger.log $"[bold red]{err}[/]"
@@ -1396,7 +1515,10 @@ module Handlers =
         )
       with
       | Ok response ->
-        FileSystem.WriteImportMap(response) |> ignore
+
+        FileSystem.WriteImportMap(response.AddResolutions(config.paths))
+        |> ignore
+
         return 0
       | Error err ->
         Logger.log (
