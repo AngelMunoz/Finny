@@ -21,7 +21,7 @@ let libraries = [ "Perla.PackageManager"; "Perla.Plugins"; "Perla.Logger" ]
 let NugetApiKey = EnvVar.getOrFail "NUGET_DEPLOY_KEY"
 
 [<Literal>]
-let PackageVersion = "1.0.0-beta-018"
+let PackageVersion = "1.0.0-beta-019"
 
 let fsSources =
   Glob.create "*.fsx"
@@ -205,8 +205,8 @@ module Pipelines =
     run Steps.restore
     run Steps.packNugets
     run Steps.pushNugets
-    run Steps.buildBin
-    run Steps.zip
+  // run Steps.buildBin
+  // run Steps.zip
   }
 
   let buildRuntime = Pipeline.createFrom packNuget "build:runtime" {
