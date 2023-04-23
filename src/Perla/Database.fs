@@ -29,7 +29,15 @@ type PerlaCheck() =
 
 let Database =
   lazy
-    (new LiteDatabase($"Filename='{FileSystem.Database}';Connection='shared'"))
+    (try
+      UMX.untag FileSystem.Database
+      |> IO.Path.GetDirectoryName
+      |> IO.Directory.CreateDirectory
+      |> ignore
+     with ex ->
+       ()
+
+     new LiteDatabase($"Filename='{FileSystem.Database}';Connection='shared'"))
 
 [<RequireQualifiedAccess>]
 module PerlaCheck =
@@ -59,59 +67,54 @@ type Checks =
   static member IsSetupPresent() : bool =
     let collection = PerlaCheck.Collection.Value
     let checkName = PerlaCheck.SetupCheckName
-
-    collection
-      .Query()
-      .Where(fun check -> check.Name = checkName && check.IsDone)
-      .Exists()
+    collection.Exists(fun check -> check.Name = checkName && check.IsDone)
 
   static member SaveSetup() : ObjectId =
-    let check = PerlaCheck(Name = PerlaCheck.SetupCheckName, IsDone = true)
     let collection = PerlaCheck.Collection.Value
-    collection.Insert(check)
+
+    match
+      collection.FindOne(fun check -> check.Name = PerlaCheck.SetupCheckName)
+      |> Option.ofObj
+    with
+    | Some found -> found.CheckId
+    | None ->
+      let check = PerlaCheck(Name = PerlaCheck.SetupCheckName, IsDone = true)
+      collection.Insert(check)
 
 
   static member IsEsbuildBinPresent(version: string<Semver>) : bool =
     let checkName = $"{PerlaCheck.EsbuildCheckPrefix}{version}"
     let collection = PerlaCheck.Collection.Value
-
-    collection
-      .Query()
-      .Where(fun check -> check.Name = checkName && check.IsDone)
-      .Exists()
+    collection.Exists(fun check -> check.Name = checkName && check.IsDone)
 
   static member SaveEsbuildBinPresent(version: string<Semver>) : ObjectId =
-    let checkName = $"{PerlaCheck.EsbuildCheckPrefix}{version}"
-    let check = PerlaCheck(Name = checkName, IsDone = true)
     let collection = PerlaCheck.Collection.Value
-    collection.Insert(check)
+    let checkName = $"{PerlaCheck.EsbuildCheckPrefix}{version}"
+
+    match
+      collection.FindOne(fun check -> check.Name = checkName && check.IsDone)
+      |> Option.ofObj
+    with
+    | Some found -> found.CheckId
+    | None ->
+      let check = PerlaCheck(Name = checkName, IsDone = true)
+      collection.Insert(check)
 
 
   static member AreTemplatesPresent() : bool =
     let checkName = PerlaCheck.TemplatesCheckName
     let collection = PerlaCheck.Collection.Value
 
-    collection
-      .Query()
-      .Where(fun check -> check.Name = checkName && check.IsDone)
-      .Exists()
+    collection.Exists(fun check -> check.Name = checkName && check.IsDone)
 
   static member SaveTemplatesPresent() : ObjectId =
     let checkName = PerlaCheck.TemplatesCheckName
     let collection = PerlaCheck.Collection.Value
 
-    let check =
-      collection
-        .Query()
-        .Where(fun check -> check.Name = checkName)
-        .ToEnumerable()
-      |> Seq.tryHead
-      |> Option.map (fun check ->
-        check.UpdatedAt <- Nullable(DateTime.Now)
-        check)
-      |> Option.defaultValue (PerlaCheck(Name = checkName, IsDone = true))
-
-    if collection.Upsert(check) then
-      check.CheckId
-    else
-      failwith "Failed to save templates check"
+    match
+      collection.FindOne(fun check -> check.Name = checkName) |> Option.ofObj
+    with
+    | Some found -> found.CheckId
+    | None ->
+      let check = PerlaCheck(Name = checkName, IsDone = true)
+      collection.Insert(check)

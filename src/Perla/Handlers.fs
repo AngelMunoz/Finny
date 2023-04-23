@@ -549,6 +549,7 @@ module Handlers =
       match operation with
       | Ok() ->
         Checks.SaveTemplatesPresent() |> ignore
+        Checks.SaveSetup() |> ignore
         return 0
       | Error err ->
         Logger.log err
@@ -560,15 +561,18 @@ module Handlers =
         match operation with
         | Ok() ->
           Checks.SaveTemplatesPresent() |> ignore
+          Checks.SaveSetup() |> ignore
           return 0
         | Error err ->
           Logger.log err
           return 1
       else
         Logger.log "Skip installing templates"
+        Checks.SaveSetup() |> ignore
         return 0
     | false, false ->
       Logger.log "Skip installing templates"
+      Checks.SaveSetup() |> ignore
       return 0
 
 
