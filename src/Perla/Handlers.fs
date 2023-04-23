@@ -401,7 +401,21 @@ module Esbuild =
 
     let jsTasks = backgroundTask {
       let aliases =
-        config.paths |> Map.filter (fun _ v -> (UMX.untag v).StartsWith("./"))
+        // remove all the paths that are not relative
+        let aliases =
+          config.paths |> Map.filter (fun _ v -> (UMX.untag v).StartsWith("./"))
+
+        // if the env is enabled, also check if we want to produce the file
+        // if the user doesn't want to produce the file it is likely that they
+        // will provide said file at runtime and we don't want to make esbuild remove that import
+        if config.enableEnv && config.build.emitEnvFile then
+          // envPaths should be at the root of the server "/" so we can prefix it with a dot
+          // to make it relative to the root of the server, when build command runs it will
+          // be produced there
+          let path = UMX.tag $".{config.envPath}"
+          Map.add (UMX.tag Constants.EnvBareImport) path aliases
+        else
+          aliases
 
       for js in js do
         let path =
@@ -839,12 +853,18 @@ module Handlers =
         VirtualFileSystem.Mount config
       )
 
-    let tempDirectory = VirtualFileSystem.CopyToDisk() |> UMX.tag<SystemPath>
+    let tempDirectory = VirtualFileSystem.CopyToDisk() |> UMX.tag
+
 
     Logger.log (
       $"Copying Processed files to {tempDirectory}",
       target = PrefixKind.Build
     )
+
+    if config.build.emitEnvFile then
+      Logger.log "Writing Env File"
+
+      Build.EmitEnvFile(config, tempDirectory)
 
     use fs = new PhysicalFileSystem()
 
@@ -903,14 +923,11 @@ module Handlers =
 
     Logger.log $"Cleaning up temp dir {tempDirectory}"
 
-    // try
-    //   Directory.Delete(UMX.untag tempDirectory, true)
-    // with ex ->
-    //   Logger.log ($"Failed to delete {tempDirectory}", ex = ex)
+    try
+      Directory.Delete(UMX.untag tempDirectory, true)
+    with ex ->
+      Logger.log ($"Failed to delete {tempDirectory}", ex = ex)
 
-    if config.build.emitEnvFile then
-      Logger.log "Writing Env File"
-      Build.EmitEnvFile(config)
 
     if options.enablePreview then
       let app = Server.GetStaticServer(config)
