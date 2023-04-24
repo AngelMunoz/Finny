@@ -95,10 +95,10 @@ module Scaffolding =
   [<RequireQualifiedAccess>]
   type QuickAccessSearch =
     | Id of ObjectId
-    | Name of string // TODO ask: remove from search as well?
+    | Name of string
     | Group of string<TemplateGroup>
     | ShortName of string
-    | Parent of ObjectId // TODO ask: remove from search as well?
+    | Parent of ObjectId
 
   [<RequireQualifiedAccess; Struct>]
   type TemplateScriptKind =
