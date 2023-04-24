@@ -62,13 +62,12 @@ type RunTemplateOperation =
   | List of ListFormat
 
 type TemplateRepositoryOptions = {
-  fullRepositoryName: string
+  fullRepositoryName: string option
   operation: RunTemplateOperation
 }
 
 type ProjectOptions = {
   projectName: string
-  byTemplateName: string option
   byId: string option
   byShortName: string option
 }
@@ -94,12 +93,12 @@ type DescribeOptions = {
 
 [<Struct>]
 type PathOperation =
-  | AddOrUpdate of addImport: string<BareImport> * addPath: string<ResolutionUrl>
+  | AddOrUpdate of
+    addImport: string<BareImport> *
+    addPath: string<ResolutionUrl>
   | Remove of removeImport: string
 
-type PathsOptions = {
-  operation: PathOperation
-}
+type PathsOptions = { operation: PathOperation }
 
 module Handlers =
 

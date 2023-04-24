@@ -243,8 +243,7 @@ module FileSystem =
         let extract () =
           use stream = new GZipInputStream(File.OpenRead path)
 
-          use archive =
-            TarArchive.CreateInputTarArchive(stream, Encoding.UTF8)
+          use archive = TarArchive.CreateInputTarArchive(stream, Encoding.UTF8)
 
           path |> Path.GetDirectoryName |> archive.ExtractContents
 

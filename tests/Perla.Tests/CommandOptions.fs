@@ -153,10 +153,10 @@ module CommandOptions =
 
   [<Fact>]
   let ``Commands.Setup can parse options`` () =
-    let result =
-      ParseRootCommand(Commands.Setup, "setup -y -t false")
+    let result = ParseRootCommand(Commands.Setup, "setup -y -t false")
 
-    let installTemplates: bool option = SetupInputs.installTemplates.GetValue result
+    let installTemplates: bool option =
+      SetupInputs.installTemplates.GetValue result
 
     let skipPrompts: bool option = SetupInputs.skipPrompts.GetValue result
 
@@ -168,7 +168,8 @@ module CommandOptions =
   let ``Parse Commands.Setup without options should not fail`` () =
     let result = ParseRootCommand(Commands.Setup, "setup")
 
-    let installTemplates: bool option = SetupInputs.installTemplates.GetValue result
+    let installTemplates: bool option =
+      SetupInputs.installTemplates.GetValue result
 
     let skipPrompts: bool option = SetupInputs.skipPrompts.GetValue result
 
@@ -343,23 +344,21 @@ module CommandOptions =
     Assert.Equal(expectedVersion, version.Value)
 
   [<Theory>]
-  [<InlineData("-tn", "username/repository/directory", "username/repository/directory")>]
-  [<InlineData("--template-name", "username/repository/directory", "username/repository/directory")>]
-  let ``Commands.NewProject can parse template name options`` (option: string, name: string, expectedTemplateName: string) =
-    let result =
-      ParseRootCommand(Commands.NewProject, $"new MyTestProject {option} {name}")
-
-    let templateName: string option = ProjectInputs.templateName.GetValue result
-
-    Assert.Empty(result.Errors)
-    Assert.Equal(expectedTemplateName, templateName.Value)
-
-  [<Theory>]
   [<InlineData("-id", "perla.templates.vanilla.js", "perla.templates.vanilla.js")>]
-  [<InlineData("--group-id", "perla.templates.vanilla.js", "perla.templates.vanilla.js")>]
-  let ``Commands.NewProject can parse group id options`` (option: string, name: string, expectedGroupId: string) =
+  [<InlineData("--group-id",
+               "perla.templates.vanilla.js",
+               "perla.templates.vanilla.js")>]
+  let ``Commands.NewProject can parse group id options``
+    (
+      option: string,
+      name: string,
+      expectedGroupId: string
+    ) =
     let result =
-      ParseRootCommand(Commands.NewProject, $"new MyTestProject {option} {name}")
+      ParseRootCommand(
+        Commands.NewProject,
+        $"new MyTestProject {option} {name}"
+      )
 
     let groupId: string option = ProjectInputs.byId.GetValue result
 
@@ -369,9 +368,17 @@ module CommandOptions =
   [<Theory>]
   [<InlineData("-t", "ff", "ff")>]
   [<InlineData("--template", "ff", "ff")>]
-  let ``Commands.NewProject can parse shortname options`` (option: string, name: string, expectedShortName: string) =
+  let ``Commands.NewProject can parse shortname options``
+    (
+      option: string,
+      name: string,
+      expectedShortName: string
+    ) =
     let result =
-      ParseRootCommand(Commands.NewProject, $"new MyTestProject {option} {name}")
+      ParseRootCommand(
+        Commands.NewProject,
+        $"new MyTestProject {option} {name}"
+      )
 
     let shortname: string option = ProjectInputs.byShortName.GetValue result
 

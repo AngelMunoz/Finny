@@ -59,17 +59,29 @@ module internal ConfigExtraction =
   module FromDecoders =
     open Json.ConfigDecoders
 
-    val GetFable: FableConfig option * DecodedFableConfig option -> FableConfig option
-    val GetDevServer: DevServerConfig * DecodedDevServer option -> DevServerConfig option
+    val GetFable:
+      FableConfig option * DecodedFableConfig option -> FableConfig option
+
+    val GetDevServer:
+      DevServerConfig * DecodedDevServer option -> DevServerConfig option
+
     val GetBuild: BuildConfig * DecodedBuild option -> BuildConfig option
-    val GetEsbuild: EsbuildConfig * DecodedEsbuild option -> EsbuildConfig option
+
+    val GetEsbuild:
+      EsbuildConfig * DecodedEsbuild option -> EsbuildConfig option
+
     val GetTesting: TestConfig * DecodedTesting option -> TestConfig option
 
   [<RequireQualifiedAccess>]
   module FromFields =
-    val GetServerFields: DevServerConfig * DevServerField seq option -> DevServerField seq
+    val GetServerFields:
+      DevServerConfig * DevServerField seq option -> DevServerField seq
+
     val GetMinify: RunConfiguration * DevServerField seq -> bool
-    val GetDevServerOptions: DevServerConfig * DevServerField seq -> DevServerConfig
+
+    val GetDevServerOptions:
+      DevServerConfig * DevServerField seq -> DevServerConfig
+
     val GetTesting: TestConfig * TestingField seq option -> TestConfig
 
   val FromEnv: config: PerlaConfig -> PerlaConfig

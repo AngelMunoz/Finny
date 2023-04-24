@@ -59,7 +59,7 @@ module PackageInputs =
 
 [<RequireQualifiedAccess>]
 module TemplateInputs =
-  val repositoryName: HandlerInput<string>
+  val repositoryName: HandlerInput<string option>
   val addTemplate: HandlerInput<bool option>
   val updateTemplate: HandlerInput<bool option>
   val removeTemplate: HandlerInput<bool option>
@@ -68,7 +68,6 @@ module TemplateInputs =
 [<RequireQualifiedAccess>]
 module ProjectInputs =
   val projectName: HandlerInput<string>
-  val templateName: HandlerInput<string option>
   val byId: HandlerInput<string option>
   val byShortName: HandlerInput<string option>
 

@@ -95,13 +95,12 @@ type RunTemplateOperation =
   | List of ListFormat
 
 type TemplateRepositoryOptions = {
-  fullRepositoryName: string
+  fullRepositoryName: string option
   operation: RunTemplateOperation
 }
 
 type ProjectOptions = {
   projectName: string
-  byTemplateName: string option
   byId: string option
   byShortName: string option
 }
@@ -188,13 +187,7 @@ module Templates =
       let table =
         Table()
           .AddColumns(
-            [|
-              "Name"
-              "Group"
-              "Belongs to"
-              "Parent Location"
-              "Last Update"
-            |]
+            [| "Name"; "perla new -t"; "perla new -id"; "Repository name" |]
           )
 
       for column in table.Columns do
@@ -204,51 +197,37 @@ module Templates =
         let name: Rendering.IRenderable =
           Markup($"[bold green]{template.name}[/]")
 
-        let group = Markup($"[bold yellow]{template.group}[/]")
-        let belongsTo = Markup($"[bold blue]{parent.ToFullNameWithBranch}[/]")
+        let shortname = Markup($"[bold yellow]{template.shortName}[/]")
+        let group = Markup($"[bold blue]{template.group}[/]")
 
-        let lastUpdate =
-          parent.updatedAt
-          |> Option.ofNullable
-          |> Option.defaultValue parent.createdAt
-          |> (fun x -> $"[bold green]{x.ToShortDateString()}[/]")
-          |> Markup
+        let repositoryName =
+          Markup($"[bold blue]{parent.ToFullNameWithBranch}[/]")
 
-        let location =
-          TextPath(
-            UMX.untag parent.path,
-            LeafStyle = Style(Color.Green),
-            StemStyle = Style(Color.Yellow),
-            SeparatorStyle = Style(Color.Blue)
-          )
-
-        table.AddRow([| name; group; belongsTo; location; lastUpdate |])
-        |> ignore
+        table.AddRow([| name; shortname; group; repositoryName |]) |> ignore
 
       AnsiConsole.Write table
       0
     | ListFormat.TextOnly ->
-      let columns =
-        Columns([| "Name"; "Group"; "Belongs to"; "Parent Location" |])
+      let columns = Columns([| "Name"; "perla new -t"; "perla new -id" |])
 
       AnsiConsole.Write columns
 
       let rows = [|
         for parent, template in results do
           let name = Markup($"[bold green]{template.name}[/]")
-          let group = Markup($"[bold yellow]{template.group}[/]")
+          let shortname = Markup($"[bold yellow]{template.shortName}[/]")
+          let group = Markup($"[bold blue]{template.group}[/]")
 
-          let belongsTo = Markup($"[bold blue]{parent.ToFullNameWithBranch}[/]")
-
-          let location =
+          let repositoryName =
             TextPath(
-              UMX.untag parent.path,
+              UMX.untag parent.ToFullNameWithBranch,
               LeafStyle = Style(Color.Green),
               StemStyle = Style(Color.Yellow),
               SeparatorStyle = Style(Color.Blue)
             )
 
-          Columns(name, group, belongsTo, location) :> Rendering.IRenderable
+          Columns(name, shortname, group, repositoryName)
+          :> Rendering.IRenderable
       |]
 
       rows |> Rows |> AnsiConsole.Write
@@ -591,14 +570,10 @@ module Handlers =
       |> Option.map UMX.tag<TemplateGroup>
       |> Option.map QuickAccessSearch.Group
 
-    let inline byTemplateName () =
-      options.byTemplateName |> Option.map QuickAccessSearch.Name
-
     let queryParam =
       options.byShortName
       |> Option.map QuickAccessSearch.ShortName
       |> Option.orElseWith byId
-      |> Option.orElseWith byTemplateName
 
     let foundRepo = result {
       let! query = queryParam |> Result.requireSome Templates.NoQueryParams
@@ -773,15 +748,25 @@ module Handlers =
       }
 
       let updateRepo () = task {
-        let template = template.Value
-        Logger.log $"Template {template.ToFullNameWithBranch} already exists."
+        match template with
+        | ValueSome template ->
+          Logger.log $"Template {template.ToFullNameWithBranch} already exists."
 
-        match!
-          Templates.AddOrUpdate(Templates.TemplateOperation.Update template)
-        with
-        | Ok() -> return 0
-        | Error err ->
-          Logger.log (err, escape = false)
+          match!
+            Templates.AddOrUpdate(Templates.TemplateOperation.Update template)
+          with
+          | Ok() -> return 0
+          | Error err ->
+            Logger.log (err, escape = false)
+            return 1
+        | ValueNone ->
+          Logger.log "We were unable to parse the repository name."
+
+          Logger.log (
+            "please ensure that the repository name is in the format: [bold blue]username/repository:branch[/]",
+            escape = false
+          )
+
           return 1
       }
 

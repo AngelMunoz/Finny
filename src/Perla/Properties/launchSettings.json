@@ -88,6 +88,11 @@
       "commandName": "Project",
       "commandLineArgs": "add @esm-bundle/chai -d",
       "workingDirectory": "$(ProjectDir)/../../sample"
+    },
+    "Show templates in table": {
+      "commandName": "Project",
+      "commandLineArgs": "t foo -ls table",
+      "workingDirectory": "$(ProjectDir)/../../sample"
     }
   }
 }
