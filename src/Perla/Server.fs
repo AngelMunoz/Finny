@@ -249,7 +249,6 @@ module Middleware =
 
   [<Struct>]
   type RequestedAs =
-    | ModuleAssertion
     | JS
     | Normal
 
@@ -268,24 +267,22 @@ document.head.appendChild(style).innerHTML=String.raw`{content}`;"""
     let processJsonAsJs content = $"""export default {content};"""
 
     match mimeType, requestedAs with
-    | "application/json", RequestedAs.JS ->
+    | "application/json", JS ->
       setContentAndWrite (
         MimeTypeNames.DefaultJavaScript,
         (processJsonAsJs (Encoding.UTF8.GetString(content))
          |> Encoding.UTF8.GetBytes)
       )
-    | "text/css", Normal ->
+    | "text/css", JS ->
       setContentAndWrite (
         MimeTypeNames.DefaultJavaScript,
         (processCssAsJs (Encoding.UTF8.GetString(content), reqPath)
          |> Encoding.UTF8.GetBytes)
       )
-    | mimeType, ModuleAssertion
     | mimeType, Normal -> setContentAndWrite (mimeType, content)
-    | mimeType, value ->
+    | mimeType, JS ->
       Logger.log
-        $"Requested %A{value} - {mimeType} - {reqPath} as JS, this file type is not supported as JS, sending default content"
-
+        $"Requested %A{JS} - {mimeType} - {reqPath} as JS, this file type is not supported as JS, sending default content"
 
       setContentAndWrite (mimeType, content)
 
@@ -308,13 +305,7 @@ document.head.appendChild(style).innerHTML=String.raw`{content}`;"""
             let requestedAs =
               let query = ctx.Request.Query
 
-              let isModule =
-                ctx.Request.Path.HasValue
-                && ctx.Request.Path.Value.Contains(".module.")
-
-              if query.ContainsKey("module") || isModule then JS
-              elif query.ContainsKey("assertion") then ModuleAssertion
-              else Normal
+              if query.ContainsKey("js") then JS else Normal
 
             return!
               processFile (

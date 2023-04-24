@@ -879,9 +879,8 @@ module Handlers =
     let css = [
       yield! css
       yield!
-        js
-        |> Seq.map (fun p ->
-          Path.ChangeExtension(UMX.untag p, ".css") |> UMX.tag)
+        fs.EnumerateFiles(tmp, "*.css", SearchOption.AllDirectories)
+        |> Seq.map (fun path -> fs.ConvertPathToInternal path |> UMX.tag)
     ]
 
 
@@ -890,11 +889,6 @@ module Handlers =
       |> UMX.untag
       |> Path.GetFullPath
       |> fs.ConvertPathFromInternal
-
-    // copy any root files
-    fs.EnumerateFileEntries(tmp, "*.*", SearchOption.TopDirectoryOnly)
-    |> Seq.iter (fun file ->
-      file.CopyTo(UPath.Combine(outDir, file.Name), true) |> ignore)
 
     // copy any glob files
     Build.CopyGlobs(config.build, tempDirectory)
