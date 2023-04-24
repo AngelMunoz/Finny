@@ -294,7 +294,7 @@ module PackageInputs =
   let showAsNpm: HandlerInput<bool option> =
     Input.OptionMaybe(
       [ "--npm"; "--as-package-json"; "-j" ],
-      "Show the packages simlar to npm's package.json"
+      "Show the packages similar to npm's package.json"
     )
 
 [<RequireQualifiedAccess>]
@@ -302,7 +302,7 @@ module TemplateInputs =
   let repositoryName: HandlerInput<string option> =
     Input.ArgumentMaybe(
       "templateRepositoryName",
-      "The User/repository name combination"
+      "The User/repository name combination or ID of the template"
     )
 
   let addTemplate: HandlerInput<bool option> =

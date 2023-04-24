@@ -177,9 +177,10 @@ module Templates =
       |> List.groupBy (fun x -> x.parent)
       |> List.choose (fun (parentId, children) ->
         match Templates.FindOne(TemplateSearchKind.Id parentId) with
-        | Some _ -> Some(children)
+        | Some parent -> Some(parent, children)
         | None -> None)
-      |> List.concat
+      |> List.collect (fun (parent, children) ->
+        children |> List.map (fun child -> (parent, child)))
 
     match options.format with
     | ListFormat.HumanReadable ->
@@ -190,20 +191,22 @@ module Templates =
               "Name"
               "perla new -t"
               "perla new -id"
+              "Repository name"
             |]
           )
 
       for column in table.Columns do
         column.Alignment <- Justify.Center
 
-      for template in results do
+      for parent, template in results do
         let name: Rendering.IRenderable =
           Markup($"[bold green]{template.name}[/]")
 
         let shortname = Markup($"[bold yellow]{template.shortName}[/]")
         let group = Markup($"[bold blue]{template.group}[/]")
+        let repositoryName = Markup($"[bold blue]{parent.ToFullNameWithBranch}[/]")
 
-        table.AddRow([| name; shortname; group |])
+        table.AddRow([| name; shortname; group; repositoryName |])
         |> ignore
 
       AnsiConsole.Write table
@@ -215,12 +218,13 @@ module Templates =
       AnsiConsole.Write columns
 
       let rows = [|
-        for template in results do
+        for parent, template in results do
           let name = Markup($"[bold green]{template.name}[/]")
           let shortname = Markup($"[bold yellow]{template.shortName}[/]")
-          let group = TextPath(UMX.untag template.group, LeafStyle=Style(Color.Green),StemStyle=Style(Color.Yellow),SeparatorStyle = Style(Color.Blue))
+          let group = Markup($"[bold blue]{template.group}[/]")
+          let repositoryName = TextPath(UMX.untag parent.ToFullNameWithBranch, LeafStyle=Style(Color.Green),StemStyle=Style(Color.Yellow),SeparatorStyle = Style(Color.Blue))
 
-          Columns(name, shortname, group) :> Rendering.IRenderable
+          Columns(name, shortname, group, repositoryName) :> Rendering.IRenderable
       |]
 
       rows |> Rows |> AnsiConsole.Write
