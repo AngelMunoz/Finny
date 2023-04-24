@@ -54,7 +54,9 @@ module FileSystem =
   val TplRepositoryChildTemplates:
     path: string<SystemPath> -> string<SystemPath> seq
 
-  val DotNetToolRestore: cancellationToken: CancellationToken -> Task<Result<unit, string>>
+  val DotNetToolRestore:
+    cancellationToken: CancellationToken -> Task<Result<unit, string>>
+
   val CheckFableExists: cancellationToken: CancellationToken -> Task<bool>
 
 [<Class>]

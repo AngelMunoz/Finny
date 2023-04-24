@@ -79,6 +79,7 @@ module Middleware =
         bool
 
     val ToSCLMiddleware: middleware: PerlaCliMiddleware -> InvocationMiddleware
+
     val previewCheck:
       command: Command * directives: KeyValuePair<string, string seq> seq ->
         Task<Result<unit, PerlaMdResult>>

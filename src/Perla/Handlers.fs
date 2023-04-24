@@ -187,12 +187,7 @@ module Templates =
       let table =
         Table()
           .AddColumns(
-            [|
-              "Name"
-              "perla new -t"
-              "perla new -id"
-              "Repository name"
-            |]
+            [| "Name"; "perla new -t"; "perla new -id"; "Repository name" |]
           )
 
       for column in table.Columns do
@@ -204,16 +199,16 @@ module Templates =
 
         let shortname = Markup($"[bold yellow]{template.shortName}[/]")
         let group = Markup($"[bold blue]{template.group}[/]")
-        let repositoryName = Markup($"[bold blue]{parent.ToFullNameWithBranch}[/]")
 
-        table.AddRow([| name; shortname; group; repositoryName |])
-        |> ignore
+        let repositoryName =
+          Markup($"[bold blue]{parent.ToFullNameWithBranch}[/]")
+
+        table.AddRow([| name; shortname; group; repositoryName |]) |> ignore
 
       AnsiConsole.Write table
       0
     | ListFormat.TextOnly ->
-      let columns =
-        Columns([|"Name";"perla new -t";"perla new -id"|])
+      let columns = Columns([| "Name"; "perla new -t"; "perla new -id" |])
 
       AnsiConsole.Write columns
 
@@ -222,9 +217,17 @@ module Templates =
           let name = Markup($"[bold green]{template.name}[/]")
           let shortname = Markup($"[bold yellow]{template.shortName}[/]")
           let group = Markup($"[bold blue]{template.group}[/]")
-          let repositoryName = TextPath(UMX.untag parent.ToFullNameWithBranch, LeafStyle=Style(Color.Green),StemStyle=Style(Color.Yellow),SeparatorStyle = Style(Color.Blue))
 
-          Columns(name, shortname, group, repositoryName) :> Rendering.IRenderable
+          let repositoryName =
+            TextPath(
+              UMX.untag parent.ToFullNameWithBranch,
+              LeafStyle = Style(Color.Green),
+              StemStyle = Style(Color.Yellow),
+              SeparatorStyle = Style(Color.Blue)
+            )
+
+          Columns(name, shortname, group, repositoryName)
+          :> Rendering.IRenderable
       |]
 
       rows |> Rows |> AnsiConsole.Write

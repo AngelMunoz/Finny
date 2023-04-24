@@ -76,19 +76,18 @@ module Lib =
       ValueSome(Provider.Unpkg, name, $"{version}{preview}")
     | _ -> ValueNone
 
-  let parseFullRepositoryName (value: string option) =
-    voption {
-      let! name = value
-      let regex = Regex(@"^([-_\w\d]+)\/([-_\w\d]+):?([\w\d-_]+)?$")
+  let parseFullRepositoryName (value: string option) = voption {
+    let! name = value
+    let regex = Regex(@"^([-_\w\d]+)\/([-_\w\d]+):?([\w\d-_]+)?$")
 
-      return!
-        match name with
-        | ParseRegex regex [ username; repository; branch ] ->
-          ValueSome(username, repository, branch)
-        | ParseRegex regex [ username; repository ] ->
-          ValueSome(username, repository, "main")
-        | _ -> ValueNone
-    }
+    return!
+      match name with
+      | ParseRegex regex [ username; repository; branch ] ->
+        ValueSome(username, repository, branch)
+      | ParseRegex regex [ username; repository ] ->
+        ValueSome(username, repository, "main")
+      | _ -> ValueNone
+  }
 
   let getTemplateAndChild (templateName: string) =
     match

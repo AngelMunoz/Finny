@@ -93,12 +93,12 @@ type DescribeOptions = {
 
 [<Struct>]
 type PathOperation =
-  | AddOrUpdate of addImport: string<BareImport> * addPath: string<ResolutionUrl>
+  | AddOrUpdate of
+    addImport: string<BareImport> *
+    addPath: string<ResolutionUrl>
   | Remove of removeImport: string
 
-type PathsOptions = {
-  operation: PathOperation
-}
+type PathsOptions = { operation: PathOperation }
 
 module Handlers =
 
