@@ -62,7 +62,7 @@ type RunTemplateOperation =
   | List of ListFormat
 
 type TemplateRepositoryOptions = {
-  fullRepositoryName: string
+  fullRepositoryName: string option
   operation: RunTemplateOperation
 }
 

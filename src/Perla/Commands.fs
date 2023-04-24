@@ -302,7 +302,7 @@ module TemplateInputs =
   let repositoryName: HandlerInput<string option> =
     Input.ArgumentMaybe(
       "templateRepositoryName",
-      "The User/repository name combination or ID of the template"
+      "The User/repository name combination"
     )
 
   let addTemplate: HandlerInput<bool option> =
@@ -749,7 +749,7 @@ module Commands =
         |> Option.defaultValue format
 
       {
-        fullRepositoryName = name |> Option.defaultValue ""
+        fullRepositoryName = name
         operation = operation
       },
       ctx.GetCancellationToken()

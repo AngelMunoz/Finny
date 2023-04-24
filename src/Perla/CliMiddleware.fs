@@ -296,7 +296,7 @@ module Middleware =
           env.RunSetupTemplates(
             {
               fullRepositoryName =
-                $"{Default_Templates_Repository}:{Default_Templates_Repository_Branch}"
+                Some $"{Default_Templates_Repository}:{Default_Templates_Repository_Branch}"
               operation = RunTemplateOperation.Add
             },
             cancellationToken

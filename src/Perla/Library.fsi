@@ -20,7 +20,7 @@ module Lib =
     url: string -> (Provider * string * string) voption
 
   val internal parseFullRepositoryName:
-    value: string -> (string * string * string) voption
+    value: string option -> (string * string * string) voption
 
   val internal getTemplateAndChild:
     templateName: string -> string option * string * string option
