@@ -290,14 +290,7 @@ module VirtualFileSystem =
 
     let withFs = serverPaths.Value
 
-    let withFilter event =
-      event.path
-      |> UMX.untag
-      |> IO.Path.GetExtension
-      |> PluginRegistry.HasPluginsForExtension plugins
-
     stream
-    |> Observable.filter withFilter
     |> Observable.map (tryReadFile withReadFile)
     |> Observable.switchTask
     |> Observable.map (tryCompileFile (PluginRegistry.ApplyPlugins plugins))
@@ -343,12 +336,12 @@ module VirtualFileSystem =
     ]
     |> Observable.mergeSeq
     |> Observable.filter (fun event ->
-      (UMX.untag event.path).Contains(".fsproj")
-      || (UMX.untag event.path).Contains("/bin/")
-      || (UMX.untag event.path).Contains(".gitignore")
+      (UMX.untag event.path).Contains("/bin/")
       || (UMX.untag event.path).Contains("/obj/")
-      || (UMX.untag event.path).Contains(".fs")
-      || (UMX.untag event.path).Contains(".fsx") |> not)
+      || (UMX.untag event.path).EndsWith(".fsproj")
+      || (UMX.untag event.path).EndsWith(".gitignore")
+      || (UMX.untag event.path).EndsWith(".fs")
+      || (UMX.untag event.path).EndsWith(".fsx") |> not)
     |> Observable.throttle (TimeSpan.FromMilliseconds(450))
 
   let TryResolveFile (url: string<ServerUrl>) =
