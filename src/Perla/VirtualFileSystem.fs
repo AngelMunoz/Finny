@@ -47,8 +47,22 @@ type internal PathInfo = {
 type internal ApplyPluginsFn = FileTransform -> Async<FileTransform>
 
 
+
+
 [<RequireQualifiedAccess>]
 module VirtualFileSystem =
+  [<return: Struct>]
+  let (|IsFSharpSource|_|) (value: string) =
+    let isBin = value.Contains("/bin/")
+    let isObj = value.Contains("/obj/")
+    let isFsproj = value.EndsWith(".fsproj")
+    let isFSharp = value.EndsWith(".fs")
+    let isFSharpScript = value.EndsWith(".fsx")
+
+    if isBin || isObj || isFsproj || isFSharp || isFSharpScript then
+      ValueSome()
+    else
+      ValueNone
 
   let internal getGlobbedFiles path =
     !! $"{path}/**/*"
@@ -336,12 +350,9 @@ module VirtualFileSystem =
     ]
     |> Observable.mergeSeq
     |> Observable.filter (fun event ->
-      (UMX.untag event.path).Contains("/bin/")
-      || (UMX.untag event.path).Contains("/obj/")
-      || (UMX.untag event.path).EndsWith(".fsproj")
-      || (UMX.untag event.path).EndsWith(".gitignore")
-      || (UMX.untag event.path).EndsWith(".fs")
-      || (UMX.untag event.path).EndsWith(".fsx") |> not)
+      match UMX.untag event.path with
+      | IsFSharpSource() -> false
+      | _ -> true)
     |> Observable.throttle (TimeSpan.FromMilliseconds(450))
 
   let TryResolveFile (url: string<ServerUrl>) =
