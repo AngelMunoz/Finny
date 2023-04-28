@@ -109,7 +109,7 @@ module Build =
     let parser = browserCtx.GetService<IHtmlParser>()
     let document = parser.ParseDocument baseIndex
 
-    let css, js = Build.GetEntryPoints(document)
+    let css, js, _ = Build.GetEntryPoints(document)
 
     let url = Assert.Single(css)
     Assert.Equal("./src/app-styles.css", url)

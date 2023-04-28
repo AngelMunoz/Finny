@@ -86,13 +86,12 @@ const a = /* @__PURE__ */ jsx("a", { children: b });
 
   [<Fact>]
   member _.``Esbuild Plugin should process Typescript``() = task {
-    let plugin =
-      Esbuild.GetPlugin(
-        {
-          Defaults.EsbuildConfig with
-              minify = false
-        }
-      )
+    let config = {
+      Defaults.EsbuildConfig with
+          minify = false
+    }
+
+    let plugin = Esbuild.GetPlugin(config)
 
     match plugin.transform with
     | ValueSome transform ->
@@ -106,8 +105,10 @@ const a = /* @__PURE__ */ jsx("a", { children: b });
       Assert.Equal(".js", result.extension)
 
       Assert.Equal(
-        """const b = "hello";
-const a = (msg) => console.log(msg);
+        """var __defProp = Object.defineProperty;
+var __name = (target, value) => __defProp(target, "name", { value, configurable: true });
+const b = "hello";
+const a = /* @__PURE__ */ __name((msg) => console.log(msg), "a");
 a(b);
 """,
         result.content
@@ -117,14 +118,13 @@ a(b);
 
   [<Fact>]
   member _.``Esbuild Plugin should process Javascript``() = task {
-    let plugin =
-      Esbuild.GetPlugin(
-        {
-          Defaults.EsbuildConfig with
-              minify = false
-              ecmaVersion = "es2016"
-        }
-      )
+    let config = {
+      Defaults.EsbuildConfig with
+          minify = false
+          ecmaVersion = "es2016"
+    }
+
+    let plugin = Esbuild.GetPlugin(config)
 
     match plugin.transform with
     | ValueSome transform ->
@@ -138,7 +138,9 @@ a(b);
       Assert.Equal(".js", result.extension)
 
       Assert.Equal(
-        """const a = (msg2) => console.log(msg2 != null ? msg2 : "no message");
+        """var __defProp = Object.defineProperty;
+var __name = (target, value) => __defProp(target, "name", { value, configurable: true });
+const a = /* @__PURE__ */ __name((msg2) => console.log(msg2 != null ? msg2 : "no message"), "a");
 a(msg);
 """,
         result.content
