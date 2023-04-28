@@ -1,4 +1,4 @@
-import "./MarkdownContent.css";
+import "./MarkdownContent.css?js";
 //@ts-ignore
 import { useEffect } from "preact/hooks";
 //@ts-ignore

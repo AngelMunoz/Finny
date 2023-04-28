@@ -86,12 +86,12 @@ type Route = {
 
 // json modules
 
-declare module "*toc.json?module" {
+declare module "*toc.json?js" {
   var toc: TableOfContents;
   export default toc;
 }
 
-declare module "*blogs.json?module" {
+declare module "*blogs.json?js" {
   var blogs: Blog[];
   export default blogs;
 }

@@ -1,4 +1,4 @@
-import "./index.css";
+import "./index.css?js";
 //@ts-ignore
 import { render } from "preact";
 import { App } from "./App.js";

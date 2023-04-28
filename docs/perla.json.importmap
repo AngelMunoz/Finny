@@ -1,9 +1,9 @@
 {
   "imports": {
-    "@preact/signals": "https://ga.jspm.io/npm:@preact/signals@1.1.2/dist/signals.module.js",
-    "@preact/signals-core": "https://ga.jspm.io/npm:@preact/signals-core@1.2.2/dist/signals-core.module.js",
-    "@shoelace-style/shoelace": "https://ga.jspm.io/npm:@shoelace-style/shoelace@2.0.0-beta.85/dist/shoelace.js",
-    "@shoelace-style/shoelace/dist/utilities/base-path.js": "https://ga.jspm.io/npm:@shoelace-style/shoelace@2.0.0-beta.85/dist/utilities/base-path.js",
+    "@preact/signals": "https://ga.jspm.io/npm:@preact/signals@1.1.3/dist/signals.module.js",
+    "@preact/signals-core": "https://ga.jspm.io/npm:@preact/signals-core@1.3.0/dist/signals-core.module.js",
+    "@shoelace-style/shoelace": "https://ga.jspm.io/npm:@shoelace-style/shoelace@2.4.0/dist/shoelace.js",
+    "@shoelace-style/shoelace/dist/utilities/base-path.js": "https://ga.jspm.io/npm:@shoelace-style/shoelace@2.4.0/dist/utilities/base-path.js",
     "highlight.js": "https://ga.jspm.io/npm:highlight.js@11.7.0/es/index.js",
     "highlight.js/lib/core": "https://ga.jspm.io/npm:highlight.js@11.7.0/es/core.js",
     "highlight.js/lib/languages/bash": "https://ga.jspm.io/npm:highlight.js@11.7.0/es/languages/bash.js",
@@ -14,10 +14,10 @@
     "highlight.js/lib/languages/plaintext": "https://ga.jspm.io/npm:highlight.js@11.7.0/es/languages/plaintext.js",
     "highlight.js/lib/languages/xml": "https://ga.jspm.io/npm:highlight.js@11.7.0/es/languages/xml.js",
     "navigo": "https://ga.jspm.io/npm:navigo@8.11.1/lib/navigo.min.js",
-    "preact": "https://ga.jspm.io/npm:preact@10.11.3/dist/preact.module.js",
-    "preact/hooks": "https://ga.jspm.io/npm:preact@10.11.3/hooks/dist/hooks.module.js",
-    "preact/jsx-runtime": "https://ga.jspm.io/npm:preact@10.11.3/jsx-runtime/dist/jsxRuntime.module.js",
-    "rxjs": "https://ga.jspm.io/npm:rxjs@7.5.7/dist/esm5/index.js",
-    "tslib": "https://ga.jspm.io/npm:tslib@2.4.1/tslib.es6.js"
+    "preact": "https://ga.jspm.io/npm:preact@10.13.2/dist/preact.module.js",
+    "preact/hooks": "https://ga.jspm.io/npm:preact@10.13.2/hooks/dist/hooks.module.js",
+    "preact/jsx-runtime": "https://ga.jspm.io/npm:preact@10.13.2/jsx-runtime/dist/jsxRuntime.module.js",
+    "rxjs": "https://ga.jspm.io/npm:rxjs@7.8.0/dist/esm5/index.js",
+    "tslib": "https://ga.jspm.io/npm:tslib@2.5.0/tslib.es6.js"
   }
 }

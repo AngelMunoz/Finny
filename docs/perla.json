@@ -23,11 +23,11 @@
   "dependencies": [
     {
       "name": "@preact/signals",
-      "version": "1.1.2"
+      "version": "1.1.3"
     },
     {
       "name": "@shoelace-style/shoelace",
-      "version": "2.0.0-beta.85"
+      "version": "2.4.0"
     },
     {
       "name": "highlight.js",
@@ -39,12 +39,26 @@
     },
     {
       "name": "preact",
-      "version": "10.11.3"
+      "version": "10.13.2"
     },
     {
       "name": "rxjs",
-      "version": "7.5.7"
+      "version": "7.8.0"
     }
   ],
-  "devDependencies": []
+  "devDependencies": [],
+  "paths": {
+    "highlight.js/lib/core": "https://ga.jspm.io/npm:highlight.js@11.7.0/es/core.js",
+    "highlight.js/lib/languages/bash": "https://ga.jspm.io/npm:highlight.js@11.7.0/es/languages/bash.js",
+    "highlight.js/lib/languages/diff": "https://ga.jspm.io/npm:highlight.js@11.7.0/es/languages/diff.js",
+    "highlight.js/lib/languages/fsharp": "https://ga.jspm.io/npm:highlight.js@11.7.0/es/languages/fsharp.js",
+    "highlight.js/lib/languages/javascript": "https://ga.jspm.io/npm:highlight.js@11.7.0/es/languages/javascript.js",
+    "highlight.js/lib/languages/json": "https://ga.jspm.io/npm:highlight.js@11.7.0/es/languages/json.js",
+    "highlight.js/lib/languages/plaintext": "https://ga.jspm.io/npm:highlight.js@11.7.0/es/languages/plaintext.js",
+    "highlight.js/lib/languages/xml": "https://ga.jspm.io/npm:highlight.js@11.7.0/es/languages/xml.js",
+    "preact/hooks": "https://ga.jspm.io/npm:preact@10.13.2/hooks/dist/hooks.module.js",
+    "preact/jsx-runtime": "https://ga.jspm.io/npm:preact@10.13.2/jsx-runtime/dist/jsxRuntime.module.js",
+    "@shoelace-style/shoelace": "https://ga.jspm.io/npm:@shoelace-style/shoelace@2.4.0/dist/shoelace.js",
+    "@shoelace-style/shoelace/dist/utilities/base-path.js": "https://ga.jspm.io/npm:@shoelace-style/shoelace@2.4.0/dist/utilities/base-path.js"
+  }
 }

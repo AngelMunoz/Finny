@@ -1,4 +1,4 @@
-import "./App.css";
+import "./App.css?js";
 //@ts-ignore
 import { useSignal, signal } from "@preact/signals";
 import { Page } from "./router.js";
@@ -6,8 +6,8 @@ import { Index } from "./Components/Index.js";
 import { Sidenav } from "./Components/Sidenav.js";
 import { MarkdownContent } from "./Components/MarkdownContent.js";
 import { BlogList } from "./Components/BlogList.js";
-import Blogs from "./blogs.json?module";
-import Toc from "./toc.json?module";
+import Blogs from "./blogs.json?js";
+import Toc from "./toc.json?js";
 
 const route = signal("Home");
 
