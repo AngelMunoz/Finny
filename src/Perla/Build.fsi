@@ -22,7 +22,8 @@ type Build =
       string
 
   static member GetEntryPoints:
-    document: IHtmlDocument -> string<ServerUrl> seq * string<ServerUrl> seq
+    document: IHtmlDocument ->
+      string<ServerUrl> seq * string<ServerUrl> seq * string<ServerUrl> seq
 
   static member GetExternals: config: PerlaConfig -> string seq
 

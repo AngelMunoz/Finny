@@ -16,6 +16,7 @@ open Fake.IO.Globbing
 
 open FSharp.UMX
 open Spectre.Console
+open FsToolkit.ErrorHandling
 
 [<RequireQualifiedAccess>]
 module Build =
@@ -82,6 +83,9 @@ type Build =
     document.QuerySelectorAll("[data-entry-point][type=module]")
     |> Seq.iter (fun f -> f.Remove())
 
+    document.QuerySelectorAll("[data-entry-point=standalone][type=module]")
+    |> Seq.iter (fun f -> f.Remove())
+
     document.QuerySelectorAll("[data-entry-point][rel=stylesheet]")
     |> Seq.iter (fun f -> f.Remove())
 
@@ -93,17 +97,30 @@ type Build =
     | false -> document.ToHtml()
 
   static member GetEntryPoints(document: IHtmlDocument) =
-    let css =
+    let cssBundles =
       document.QuerySelectorAll("[data-entry-point][rel=stylesheet]")
       |> Seq.choose (fun el -> el.Attributes["href"] |> Option.ofObj)
       |> Seq.map (fun el -> UMX.tag<ServerUrl> el.Value)
 
-    let js =
+    let htmlBundles =
       document.QuerySelectorAll("[data-entry-point][type=module]")
+      |> Seq.choose (fun el -> option {
+        let! entryPoint = el.Attributes["data-entry-point"].Value
+
+        if entryPoint = "standalone" then
+          return! None
+        else
+          return! el.Attributes["src"] |> Option.ofObj
+      })
+
+      |> Seq.map (fun el -> UMX.tag<ServerUrl> el.Value)
+
+    let standaloneBundles =
+      document.QuerySelectorAll("[data-entry-point=standalone][type=module]")
       |> Seq.choose (fun el -> el.Attributes["src"] |> Option.ofObj)
       |> Seq.map (fun el -> UMX.tag<ServerUrl> el.Value)
 
-    css, js
+    cssBundles, htmlBundles, standaloneBundles
 
   static member GetExternals(config: PerlaConfig) =
     let dependencies =

@@ -191,10 +191,10 @@ module VirtualFileSystem =
 
       let isInFableMdules = globPath.FullName.Contains("fable_modules")
 
-      if
-        not (PluginRegistry.HasPluginsForExtension plugins extension)
-        || isInFableMdules
-      then
+      let hasPluginForExtension =
+        PluginRegistry.HasPluginsForExtension plugins extension
+
+      if not hasPluginForExtension || isInFableMdules then
         return
           copyFileWithoutPlugins pathInfo memoryFileSystem physicalFileSystem
       else
@@ -304,7 +304,14 @@ module VirtualFileSystem =
 
     let withFs = serverPaths.Value
 
+    let withFilter event =
+      event.path
+      |> UMX.untag
+      |> IO.Path.GetExtension
+      |> PluginRegistry.HasPluginsForExtension plugins
+
     stream
+    |> Observable.filter withFilter
     |> Observable.map (tryReadFile withReadFile)
     |> Observable.switchTask
     |> Observable.map (tryCompileFile (PluginRegistry.ApplyPlugins plugins))

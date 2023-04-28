@@ -353,10 +353,16 @@ module Esbuild =
       config: PerlaConfig,
       workingDirectory: UPath,
       fs: IFileSystem,
-      (css, js): string<ServerUrl> seq * string<ServerUrl> seq,
+      (css, js, standalone):
+        string<ServerUrl> seq * string<ServerUrl> seq * string<ServerUrl> seq,
       externals: string seq,
       cancel: CancellationToken
     ) =
+    let js = seq {
+      yield! js
+      yield! standalone
+    }
+
     let taggedCwd = fs.ConvertPathToInternal workingDirectory
 
     let cssTasks = backgroundTask {
@@ -867,12 +873,19 @@ module Handlers =
 
     let tmp = UMX.untag tempDirectory |> fs.ConvertPathFromInternal
 
-    let css, js = Build.GetEntryPoints(document)
+    let css, js, standalone = Build.GetEntryPoints(document)
 
     do!
       Logger.spinner (
         "Transpiling CSS and JS Files",
-        Esbuild.Run(config, tmp, fs, (css, js), externals, cancellationToken)
+        Esbuild.Run(
+          config,
+          tmp,
+          fs,
+          (css, js, standalone),
+          externals,
+          cancellationToken
+        )
       )
       :> Task
 
@@ -971,6 +984,8 @@ module Handlers =
         | FableEvent.WaitingForChanges -> ())
 
     do! FsMonitor.FirstCompileDone true fableEvents
+
+    PluginRegistry.LoadPlugins config.esbuild
 
     do! VirtualFileSystem.Mount(config)
 

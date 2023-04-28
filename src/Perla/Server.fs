@@ -439,6 +439,9 @@ document.head.appendChild(style).innerHTML=String.raw`{content}`;"""
     script.SetAttribute("type", "importmap")
     script.TextContent <- Json.ToText map
     doc.Head.AppendChild script |> ignore
+    // remove standalone entry points, we don't need them in the browser
+    doc.QuerySelectorAll("[data-entry-point=standalone][type=module]")
+    |> Seq.iter (fun f -> f.Remove())
 
     if config.devServer.liveReload then
       let liveReload = doc.CreateElement "script"
@@ -466,6 +469,9 @@ document.head.appendChild(style).innerHTML=String.raw`{content}`;"""
     |> Seq.iter (fun f -> f.Remove())
 
     doc.QuerySelectorAll("[data-entry-point][rel=stylesheet]")
+    |> Seq.iter (fun f -> f.Remove())
+
+    doc.QuerySelectorAll("[data-entry-point=standalone][type=module]")
     |> Seq.iter (fun f -> f.Remove())
 
     for dependencyUrl in dependencies do
