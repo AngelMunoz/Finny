@@ -1,59 +1,42 @@
-﻿Imports System
+Imports System
 Imports System.CommandLine
+Imports System.IO
+Imports Perla.Commands
 
-Imports Flan.Types
-Imports Logger = Perla.Logger.Logger
+Module FlanCommands
 
-Module CliHandlers
-    Friend Async Function HandleAddCommand(package As String, Map As String, Output As String) As Task(Of Integer)
-        Dim _map As String = Nothing
-        Dim _output As String = Nothing
-
-        If Not Map.ToValueOption().TryGetValue(_map) Then
-            _map = "./map.importmap"
-        End If
-
-        If Not Output.ToValueOption().TryGetValue(_output) Then
-            _output = "./map.importmap"
-        End If
-
-        Dim options As New AddPackageOptions With {
-            .Package = package,
-            .Map = _map,
-            .Output = _output
-        }
-        Try
-            Await AddPackage(options)
-            Return 0
-        Catch ex As Exception
-            Logger.log("Unable to add Package", ex)
-            Return 1
-        End Try
+    Public Function GetInit() As Command
+        Dim command = New Command("init", $"Creates a '{Perla.Constants.PerlaConfigName}' File that will be used to handle your import map")
+        command.SetHandler(AddressOf Actions.CreatePerlaFile)
+        Return command
     End Function
+
+    Public Function GetInsertInFile() As Command
+        Dim command = New Command("set", "Adds or updates the cont")
+        Dim layoutFile = New Argument(Of FileInfo)("layout", "Path to the layout file where you'd like to add/update the import map") With {
+            .Arity = ArgumentArity.ExactlyOne
+        }
+        command.AddArgument(layoutFile)
+        command.SetHandler(New Action(Of FileInfo)(AddressOf Actions.AddToLayout), layoutFile)
+
+        Return command
+    End Function
+
 End Module
 
-Module CliOptions
-    Public ReadOnly Property Package As New [Option](Of String)("--package", "name of the package") With {
-        .IsRequired = True
-    }
-    Public ReadOnly Property Map As New [Option](Of String)("--map", "An optional path to an existing import map") With {
-        .IsRequired = False
-    }
-    Public ReadOnly Property Output As New [Option](Of String)("--output", "Path to where to output the new import map") With {
-        .IsRequired = False
-    }
-
-    Public ReadOnly Property AddCommand As New Command("add", "adds a new package to the import map") From {
-        Package, Map, Output
-    }
-End Module
 
 Module Program
     Sub Main(args As String())
-        AddCommand.SetHandler(AddressOf HandleAddCommand, Package, Map, Output)
-        Dim rootCommand As New RootCommand("This is a Package Manager") From {
-            AddCommand
-        }
+        Dim rootCommand As New RootCommand("Import Maps Manager")
+
+        rootCommand.AddCommand(Commands.AddPackage)
+        rootCommand.AddCommand(Commands.AddResolution)
+        rootCommand.AddCommand(Commands.RemovePackage)
+        rootCommand.AddCommand(Commands.RestoreImportMap)
+        rootCommand.AddCommand(Commands.ListPackages)
+        rootCommand.AddCommand(FlanCommands.GetInit())
+        rootCommand.AddCommand(FlanCommands.GetInsertInFile())
+
         Dim exitCode = rootCommand.InvokeAsync(args)
         Environment.Exit(exitCode.GetAwaiter().GetResult())
     End Sub

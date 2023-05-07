@@ -1,64 +1,72 @@
-﻿Imports System
+Imports System
 Imports System.IO
-Imports Flan.Types
+Imports AngleSharp
+Imports AngleSharp.Html
+Imports AngleSharp.Html.Parser
+Imports Perla
+Imports Perla.FileSystem
+Imports Spectre.Console
 
-Imports Microsoft.FSharp.Collections
+Public Enum FileKind As Integer
+    Html
+    Cshtml
 
-Imports Perla.Logger
-Imports Perla.PackageManager.Types
-Imports PackageManager = Perla.PackageManager.PackageManager.PackageManager
-
-Friend Module FileOperations
-    Public Function TryGetFileContents(path As String) As Task(Of String)
-        Try
-            Return File.ReadAllTextAsync(path)
-        Catch ex As FileNotFoundException
-            Const content As String = "{ ""imports"": {} }"
-            Using _file = File.CreateText(path)
-                _file.WriteLine(content)
-            End Using
-            Return Task.FromResult(content)
-        End Try
-    End Function
-
-    Public Function WriteMapToOutput(output As String, content As String)
-        Try
-            File.WriteAllText(output, content)
-            Return True
-        Catch ex As Exception
-            Logger.log("Failed to Write File", ex)
-            Return False
-        End Try
-    End Function
-End Module
+End Enum
 
 Module Actions
+    Public Sub CreatePerlaFile()
+        Dim fileContent = $"{{
+  ""$schema"": ""{Constants.JsonSchemaUrl}"",
+  ""dependencies"": []
+}}
+"
+        Dim filePath = Path.Combine(".", Constants.PerlaConfigName)
+        File.WriteAllText(filePath, fileContent)
+    End Sub
 
-    Public Async Function AddPackage(options As AddPackageOptions) As Task
-        Dim result = ImportMap.FromString(Await TryGetFileContents(options.Map))
-        Dim _importMap As ImportMap
-        If result.IsOk Then
-            _importMap = result.ResultValue
-        Else
-            _importMap = ImportMap.CreateMap(New Dictionary(Of String, String)())
+    Public Function GetImportMapContent(kind As FileKind)
+        Dim mapContent = FileSystem.GetImportMap().ToJson()
+
+        If kind = FileKind.Cshtml Then
+            mapContent = mapContent.Replace("@", "@@")
         End If
-        Dim envs = New GeneratorEnv() {GeneratorEnv.Module, GeneratorEnv.Browser}
-        Try
-            Dim __result =
-                Await Logger.spinner(
-                    $"Adding {options.Package}...",
-                    PackageManager.AddJspm(options.Package, environments:=envs, importMap:=_importMap)
-                )
-            If result.IsOk Then
-                _importMap = __result.ResultValue
-            Else
-                _importMap = ImportMap.CreateMap(New Dictionary(Of String, String)())
-            End If
-            WriteMapToOutput(options.Output, _importMap.ToJson())
-        Catch ex As Exception
-            Logger.log("Failed to Fetch dependency", ex)
-            WriteMapToOutput(options.Output, _importMap.ToJson())
-        End Try
+        Return mapContent
     End Function
 
+    Public Sub AddToLayout(file As FileInfo)
+        AnsiConsole.MarkupLineInterpolated($"Setting Import map to: [green]'{file.Name}'[/]")
+        Using browserCtx As New BrowsingContext()
+            Dim fileContents = file.OpenRead()
+
+            Dim doc = browserCtx.GetService(Of IHtmlParser).ParseDocument(fileContents)
+            fileContents.Dispose()
+
+            Dim fKind = If(file.Extension.ToLowerInvariant() = ".cshtml", FileKind.Cshtml, FileKind.Html)
+            Dim mapContent = GetImportMapContent(fKind)
+
+            Dim existing = doc.QuerySelector("script[type=importmap]")
+
+            Dim formatter = New PrettyMarkupFormatter() With {
+                .Indentation = "  "
+            }
+
+            If existing Is Nothing Then
+
+                AnsiConsole.MarkupLine("[yellow]Import map not found in the specified file[/], adding a new one!")
+                Dim map = doc.CreateElement("script")
+                map.SetAttribute("type", "importmap")
+                map.InnerHtml = mapContent
+                doc.Head.Append(map)
+                IO.File.WriteAllText(file.FullName, doc.ToHtml(formatter))
+
+                Return
+            End If
+
+            AnsiConsole.MarkupLineInterpolated($"[yellow]There is an existing import map[/], [orange1]replacing contents[/]")
+            existing.InnerHtml = mapContent
+            IO.File.WriteAllText(file.FullName, doc.ToHtml(formatter))
+        End Using
+    End Sub
+
 End Module
+

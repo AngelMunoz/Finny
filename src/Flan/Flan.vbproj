@@ -1,15 +1,14 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <OutputType>Exe</OutputType>
     <RootNamespace>Flan</RootNamespace>
-    <TargetFramework>net6.0</TargetFramework>
-    <IsPackable>false</IsPackable>
+    <OutputType>Exe</OutputType>
+    <TargetFrameworks>net6.0;net7.0</TargetFrameworks>
+    <IsPackable>true</IsPackable>
     <PackAsTool>true</PackAsTool>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Perla.Logger\Perla.Logger.fsproj" />
-    <ProjectReference Include="..\Perla.PackageManager\Perla.PackageManager.fsproj" />
+    <ProjectReference Include="..\Perla\Perla.fsproj" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>
