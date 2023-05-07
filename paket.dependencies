@@ -11,6 +11,7 @@ nuget FSharp.Control.Reactive 5.0.5
 nuget FsToolkit.ErrorHandling >= 4.4.0
 nuget FsToolkit.ErrorHandling.TaskResult >= 4.4.0
 nuget FSharp.SystemCommandLine >= 0.17.0-beta4 prerelease
+nuget Falco.Markup 1.0.2
 
 nuget AngleSharp 1.0.1
 nuget FsHttp 10.0.0
@@ -30,7 +31,7 @@ nuget Microsoft.Extensions.Logging 7.0.0
 nuget Yarp.ReverseProxy 2.0.0
 nuget Microsoft.Playwright 1.31.1
 
-# referenced by multple groups 
+# referenced by multple groups
 
 group Samples
     source https://api.nuget.org/v3/index.json

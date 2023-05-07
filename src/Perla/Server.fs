@@ -43,6 +43,7 @@ open Perla.Logger
 open Perla.Plugins
 open Perla.FileSystem
 open Perla.VirtualFs
+open Perla.WebDevTools
 
 open FSharp.UMX
 
@@ -103,16 +104,6 @@ module Extensions =
       | service -> service :?> 'T
 
     /// <summary>
-    /// Gets an instance of <see cref="Microsoft.Extensions.Logging.ILogger{T}" /> from the request's service container.
-    ///
-    /// The type `'T` should represent the class or module from where the logger gets instantiated.
-    /// </summary>
-    /// <returns> Returns an instance of <see cref="Microsoft.Extensions.Logging.ILogger{T}" />.</returns>
-    [<Extension>]
-    static member GetLogger<'T>(ctx: HttpContext) =
-      ctx.GetService<ILogger<'T>>()
-
-    /// <summary>
     /// Gets an instance of <see cref="Microsoft.Extensions.Logging.ILogger"/> from the request's service container.
     /// </summary>
     /// <param name="ctx">The current http context object.</param>
@@ -166,28 +157,6 @@ module Extensions =
 
       return Some ctx
     }
-
-    /// <summary>
-    /// Writes an UTF-8 encoded string to the body of the HTTP response and sets the HTTP Content-Length header accordingly.
-    /// </summary>
-    /// <param name="ctx">The current http context object.</param>
-    /// <param name="str">The string value to be send back to the client.</param>
-    /// <returns>Task of Some HttpContext after writing to the body of the response.</returns>
-    [<Extension>]
-    static member WriteStringAsync(ctx: HttpContext, str: string) =
-      ctx.WriteBytesAsync(Encoding.UTF8.GetBytes str)
-
-    /// <summary>
-    /// Writes an UTF-8 encoded string to the body of the HTTP response and sets the HTTP `Content-Length` header accordingly, as well as the `Content-Type` header to `text/plain`.
-    /// </summary>
-    /// <param name="ctx">The current http context object.</param>
-    /// <param name="str">The string value to be send back to the client.</param>
-    /// <returns>Task of Some HttpContext after writing to the body of the response.</returns>
-    [<Extension>]
-    static member WriteTextAsync(ctx: HttpContext, str: string) =
-      ctx.SetContentType "text/plain; charset=utf-8"
-      ctx.WriteStringAsync str
-
 
 module LiveReload =
 
@@ -702,6 +671,15 @@ module Server =
 
       app
 
+    let addServerDevToolsHandlers (app: WebApplication) =
+      app.MapGet(
+        "/@@perla/devtools",
+        Func<HttpContext, Task<IResult>>(WebDevTools.Index)
+      )
+      |> ignore
+
+      app
+
   module TestApp =
     let addIndexHandler config dependencies (app: WebApplication) =
       app.MapGet(
@@ -827,6 +805,7 @@ type Server =
     Server.addCommonMiddleware host port useSSL app
 
     Server.DevApp.addIndexHandler config app
+    |> Server.DevApp.addServerDevToolsHandlers
     |> Server.addProxy proxy
     |> Server.addLiveReload liveReload fileChangedEvents compileErrorEvents
     |> Server.addEnv enableEnv (UMX.untag envPath)

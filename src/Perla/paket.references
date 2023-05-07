@@ -17,3 +17,4 @@ Yarp.ReverseProxy
 Hellang.Middleware.SpaFallback
 Serilog.AspNetCore
 Microsoft.Playwright
+Falco.Markup
