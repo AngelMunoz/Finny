@@ -673,8 +673,38 @@ module Server =
 
     let addServerDevToolsHandlers (app: WebApplication) =
       app.MapGet(
-        "/@@perla/devtools",
+        "/~perla~/devtools/perla.html",
         Func<HttpContext, Task<IResult>>(WebDevTools.Index)
+      )
+      |> ignore
+
+      app.MapGet(
+        "/~perla~/devtools/file-system.html",
+        Func<HttpContext, Task<IResult>>(WebDevTools.FileSystem)
+      )
+      |> ignore
+
+      app.MapGet(
+        "/~perla~/devtools/configuration.html",
+        Func<HttpContext, Task<IResult>>(WebDevTools.Configuration)
+      )
+      |> ignore
+
+      app.MapGet(
+        "/~perla~/devtools/environment.html",
+        Func<HttpContext, Task<IResult>>(WebDevTools.Environment)
+      )
+      |> ignore
+
+      app.MapGet(
+        "/~perla~/devtools/dependencies.html",
+        Func<HttpContext, Task<IResult>>(WebDevTools.Dependencies)
+      )
+      |> ignore
+
+      app.MapGet(
+        "/~perla~/devtools/templating.html",
+        Func<HttpContext, Task<IResult>>(WebDevTools.Templating)
       )
       |> ignore
 
