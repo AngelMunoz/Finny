@@ -35,6 +35,11 @@ nuget System.Diagnostics.DiagnosticSource >= 8.0.0
 
 # referenced by multple groups
 
+group Flan
+    source https://api.nuget.org/v3/index.json
+
+    nuget FSharp.Core
+
 group Samples
     source https://api.nuget.org/v3/index.json
 

@@ -272,6 +272,11 @@ NUGET
       System.IO.Compression (>= 4.3) - restriction: || (== net6.0) (&& (== net8.0) (>= net462)) (&& (== net8.0) (< net7.0)) (&& (== net8.0) (< netstandard2.1))
       System.IO.Compression.ZipFile (>= 4.3) - restriction: || (== net6.0) (&& (== net8.0) (< net7.0)) (&& (== net8.0) (< netstandard2.1))
 
+GROUP Flan
+NUGET
+  remote: https://api.nuget.org/v3/index.json
+    FSharp.Core (8.0.100)
+
 GROUP Samples
 NUGET
   remote: https://api.nuget.org/v3/index.json
