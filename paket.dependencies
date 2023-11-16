@@ -3,46 +3,49 @@ storage: none
 
 source https://api.nuget.org/v3/index.json
 
-nuget FSharp.Core >= 7.0.0
-nuget FSharp.Compiler.Service >= 42.7.101
+nuget FSharp.Compiler.Service >= 43.8.100
 nuget FSharp.UMX 1.1.0
 nuget FSharp.Control.AsyncSeq 3.2.1
 nuget FSharp.Control.Reactive 5.0.5
-nuget FsToolkit.ErrorHandling >= 4.4.0
-nuget FsToolkit.ErrorHandling.TaskResult >= 4.4.0
+nuget FsToolkit.ErrorHandling >= 4.11.0
+nuget FsToolkit.ErrorHandling.TaskResult >= 4.11.0
 nuget FSharp.SystemCommandLine >= 0.17.0-beta4 prerelease
 
-nuget AngleSharp 1.0.1
-nuget FsHttp 10.0.0
-nuget CliWrap 3.6.0
-nuget Serilog.AspNetCore 6.1.0
-nuget Spectre.Console 0.46.0
-nuget LiteDB 5.0.16
-nuget Scriban 5.7.0
+nuget AngleSharp 1.0.6
+nuget FsHttp 12.0.0
+nuget CliWrap 3.6.4
+nuget Serilog.AspNetCore 8.0.0
+nuget Spectre.Console 0.47.0
+nuget LiteDB 5.0.17
+nuget Scriban 5.9.0
 nuget Thoth.Json.Net 11.0.0
-nuget Zio 0.16.2
+nuget Zio 0.17.0
 nuget SharpZipLib 1.4.2
 nuget Hellang.Middleware.SpaFallback 2.0.0
 nuget Fake.IO.FileSystem 6.0.0
 
 nuget System.CommandLine >= 2.0.0-beta4.22272.1 prerelease
-nuget Microsoft.Extensions.Logging 7.0.0
-nuget Yarp.ReverseProxy 2.0.0
-nuget Microsoft.Playwright 1.31.1
+nuget Microsoft.Extensions.Logging 8.0.0
+nuget Yarp.ReverseProxy 2.0.1
+nuget Microsoft.Playwright 1.39.0
 
-# referenced by multple groups 
+# Resolutions
+nuget System.Text.Json >= 8.0.0
+nuget System.Diagnostics.DiagnosticSource >= 8.0.0
+
+# referenced by multple groups
 
 group Samples
     source https://api.nuget.org/v3/index.json
 
-    nuget Sutil >= 1.0.0-0 prerelease
-    nuget Fable.Browser.Dom >= 2.0
-    nuget Fable.Browser.Event >= 1.0
+    nuget Sutil >= 2.0.11
+    nuget Fable.Browser.Dom >= 2.14.0
+    nuget Fable.Browser.Event >= 1.5.0
 
 group Tests
     source https://api.nuget.org/v3/index.json
 
-    nuget Microsoft.NET.Test.Sdk 17.5.0
-    nuget xunit 2.4.2
-    nuget xunit.runner.visualstudio 2.4.5
-    nuget coverlet.collector 3.2.0
+    nuget Microsoft.NET.Test.Sdk 17.8.0
+    nuget xunit 2.6.1
+    nuget xunit.runner.visualstudio 2.5.3
+    nuget coverlet.collector 6.0.0
