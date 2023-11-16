@@ -5,7 +5,7 @@ open Fable.Core
 open Types
 open Sutil
 
-let private translations = JsInterop.importDefault "./translations.json?module"
+let private translations = JsInterop.importDefault "./translations.json?js"
 
 let fetchTranslations () : TranslationCollection = translations
 

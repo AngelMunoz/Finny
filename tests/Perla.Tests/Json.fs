@@ -246,7 +246,7 @@ let ``PerlaDecoder Should Decode Esbuild options`` () =
     """
 { "esbuild": {
     "esBuildPath": "/mnt/c/esbuild",
-    "version": "0.17.15",
+    "version": "0.19.5",
     "ecmaVersion": "es2017",
     "minify": true,
     "injects": [],
@@ -268,7 +268,7 @@ let ``PerlaDecoder Should Decode Esbuild options`` () =
     )
 
     Assert.Equal(
-      "0.17.15",
+      "0.19.5",
       esbuild.version |> Option.map UMX.untag |> Option.defaultValue "bad-value"
     )
 

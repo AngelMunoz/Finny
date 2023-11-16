@@ -1,3 +1,5 @@
-FSharp.Core
 System.CommandLine
 AngleSharp
+
+group Flan
+    FSharp.Core
