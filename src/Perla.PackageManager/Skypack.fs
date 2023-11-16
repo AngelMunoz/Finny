@@ -102,7 +102,7 @@ type Skypack =
       let! res =
         http {
           GET $"{Constants.SKYPACK_API}/search"
-          query [ "name", name; "page", page ]
+          query [ "name", name; "page", $"%i{page}" ]
         }
         |> Request.sendTAsync
 
@@ -117,7 +117,7 @@ type Skypack =
       [<Optional>] ?typescriptTypes: bool
     ) =
     task {
-      let inline (=>) (name: string) object = name, object :> obj
+      let inline (=>) (name: string) (object: string) = name, object
 
       let minified = defaultArg minified false
 
