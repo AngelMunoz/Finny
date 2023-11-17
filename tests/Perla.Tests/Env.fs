@@ -4,55 +4,94 @@ open System
 open Xunit
 open Xunit.Sdk
 
+open FSharp.UMX
+open Perla.Units
+open Perla.Environment
 
-type Env() =
-  do
-    Environment.SetEnvironmentVariable("PERLA_currentEnv", "tests")
-    Environment.SetEnvironmentVariable("PERLA_IAmSet", "yes")
-    Environment.SetEnvironmentVariable("PERLA-NotAvailable", "not-available")
+module Env =
+  open System.Collections
 
-    Environment.SetEnvironmentVariable(
-      "OtherNotAvailable",
-      "other-not-available"
-    )
+  type EnvironmentFake =
+
+    static member GetEnvironmentVariables() =
+      let dict = new Collections.Generic.Dictionary<string, string>()
+      dict.Add("PERLA_Client", "Client")
+      dict.Add("PERLASRV_Server", "Server")
+      dict.Add("OtherNotAvailable", "other-not-available")
+      dict :> IDictionary
+
+  type FileFake =
+    static member ReadAllLines path =
+      match path with
+      | "mixed" -> [|
+          "PERLA_MixedClient=Client"
+          "PERLASRV_MixedServer=Server"
+          "OtherNotAvailable=other-not-available"
+        |]
+      | "client" -> [|
+          "PERLA_Client=Client"
+          "OtherNotAvailable=other-not-available"
+        |]
+      | "server" -> [|
+          "PERLASRV_Server=Server"
+          "OtherNotAvailable=other-not-available"
+        |]
+      | _ -> [||]
+
 
   [<Fact>]
-  member _.``GetEnvContent provides EnvVars with "PERLA_" prefix``() =
-    let actual = Perla.Env.GetEnvContent()
+  let ``LoadEnvFiles can load env vars from various files`` () =
+    let found =
+      EnvLoader.LoadEnvFiles<FileFake>(
+        [ UMX.tag "mixed"; UMX.tag "client"; UMX.tag "server" ]
+      )
 
-    match actual with
-    | Some actual ->
-      let expected = "export const IAmSet = \"yes\";"
-
-      Assert.True(actual.Contains(expected))
-
-      let expected = "export const currentEnv = \"tests\";"
-
-      Assert.True(actual.Contains(expected))
-    | None ->
-      raise (XunitException("Content is Empty when It should have data"))
+    Assert.Equal(4, found.Length)
 
   [<Fact>]
-  member _.``GetEnvContent doesn't provide EnvVars without "PERLA_" prefix``() =
-    let actual = Perla.Env.GetEnvContent()
+  let ``LoadEnvFiles categorizes the env vars correctly`` () =
+    let found = EnvLoader.LoadEnvFiles<FileFake>([ UMX.tag "mixed" ])
 
-    match actual with
-    | Some actual ->
-      let expected = "export const NotAvailable = \"not-available\";"
+    match found with
+    | [ mixedClient; mixedServer ] ->
+      Assert.Equal("MixedClient", mixedClient.Name)
+      Assert.Equal("Client", mixedClient.Value)
+      Assert.Equal(EnvVarTarget.Client, mixedClient.Target)
 
-      Assert.False(actual.Contains(expected))
+      Assert.Equal(
+        (EnvVarOrigin.File(UMX.tag<SystemPath> "")),
+        mixedClient.Origin
+      )
 
-      let expected = "export const OtherNotAvailable = \"not-available\";"
+      Assert.Equal("MixedServer", mixedServer.Name)
+      Assert.Equal("Server", mixedServer.Value)
+      Assert.Equal(EnvVarTarget.PerlaServer, mixedServer.Target)
 
-      Assert.False(actual.Contains(expected))
-    | None ->
-      raise (XunitException("Content is Empty when It should have data"))
+      Assert.Equal(
+        (EnvVarOrigin.File(UMX.tag<SystemPath> "")),
+        mixedServer.Origin
+      )
+
+    | _ -> Assert.Fail("Expected 2 env vars")
 
   [<Fact>]
-  member _.``getPerlaEnvVars provides a correct (varName, varValue) list``() =
-    let values = Perla.Env.getPerlaEnvVars ()
+  let ``LoadFromSystem can load env vars from the system`` () =
+    let found = EnvLoader.LoadFromSystem<EnvironmentFake>()
 
+    Assert.Equal(2, found.Length)
 
-    values |> List.contains ("IAmSet", "yes") |> Assert.True
+  [<Fact>]
+  let ``LoadFromSystem categorizes the env vars correctly`` () =
+    let found = EnvLoader.LoadFromSystem<EnvironmentFake>()
 
-    values |> List.contains ("currentEnv", "tests") |> Assert.True
+    match found with
+    | [ client; server ] ->
+      Assert.Equal("Client", client.Value)
+      Assert.Equal(EnvVarTarget.Client, client.Target)
+      Assert.Equal(EnvVarOrigin.System, client.Origin)
+
+      Assert.Equal("Server", server.Value)
+      Assert.Equal(EnvVarTarget.PerlaServer, server.Target)
+      Assert.Equal(EnvVarOrigin.System, server.Origin)
+
+    | _ -> Assert.Fail("Expected 2 env vars")
