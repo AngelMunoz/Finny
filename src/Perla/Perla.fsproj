@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -24,6 +24,8 @@
     <Compile Include="Constants.fs" />
     <Compile Include="Types.fsi" />
     <Compile Include="Types.fs" />
+    <Compile Include="Extensions.fsi" />
+    <Compile Include="Extensions.fs" />
     <Compile Include="Env.fsi" />
     <Compile Include="Env.fs" />
     <Compile Include="Json.fsi" />
