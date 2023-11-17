@@ -4,6 +4,7 @@ storage: none
 source https://api.nuget.org/v3/index.json
 
 nuget FSharp.Compiler.Service >= 43.8.100
+nuget FSharp.Data.Adaptive
 nuget FSharp.UMX 1.1.0
 nuget FSharp.Control.AsyncSeq 3.2.1
 nuget FSharp.Control.Reactive 5.0.5

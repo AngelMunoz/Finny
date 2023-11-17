@@ -2,13 +2,12 @@ System.CommandLine
 AngleSharp
 CliWrap
 LiteDB
-
 FSharp.UMX
 Thoth.Json.Net
 FsToolkit.ErrorHandling.TaskResult
 FsHttp
 FSharp.SystemCommandLine
-
+FSharp.Data.Adaptive
 group Tests
 Microsoft.NET.Test.Sdk
 xunit

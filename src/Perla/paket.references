@@ -1,6 +1,7 @@
 FSharp.Compiler.Service
 FSharp.Control.AsyncSeq
 FSharp.Control.Reactive
+Fsharp.Data.Adaptive
 FSharp.SystemCommandLine
 FsToolkit.ErrorHandling.TaskResult
 FSharp.UMX
