@@ -1,8 +1,7 @@
-module Perla.Json
+namespace Perla.Json
 
 open System
 open System.Text.Json
-open System.Text.Json.Serialization
 open System.Text.Json.Nodes
 open Perla.PackageManager.Types
 open Perla.Types
@@ -10,8 +9,6 @@ open Perla.Units
 open Thoth.Json.Net
 
 open FSharp.UMX
-
-
 
 module TemplateDecoders =
   type DecodedTemplateConfigItem = {
@@ -35,7 +32,6 @@ module TemplateDecoders =
   val TemplateConfigItemDecoder: Decoder<DecodedTemplateConfigItem>
 
   val TemplateConfigurationDecoder: Decoder<DecodedTemplateConfiguration>
-
 
 module ConfigDecoders =
 
@@ -136,15 +132,35 @@ type PerlaConfigSection =
   | Dependencies of dependencies: Dependency seq option
   | DevDependencies of devDependencies: Dependency seq option
 
-val DefaultJsonOptions: unit -> JsonSerializerOptions
-val DefaultJsonNodeOptions: unit -> JsonNodeOptions
-val DefaultJsonDocumentOptions: unit -> JsonDocumentOptions
+[<RequireQualifiedAccess>]
+module Json =
 
-[<Class>]
-type Json =
-  static member ToBytes: value: 'a -> byte array
-  static member FromBytes<'T> : value: byte array -> 'T
-  static member ToText: value: 'a * ?minify: bool -> string
-  static member ToNode: value: 'a -> JsonNode
-  static member FromConfigFile: string -> Result<DecodedPerlaConfig, string>
-  static member TestEventFromJson: string -> Result<TestEvent, string>
+  val inline ToBytes<'Value, 'Serializer
+    when 'Serializer: (static member SerializeToUtf8Bytes:
+      'Value * options: JsonSerializerOptions -> byte array)> :
+    'Value -> byte array
+
+  val inline FromBytes<'Value, 'Serializer
+    when 'Serializer: (static member Deserialize:
+      byte ReadOnlySpan * JsonSerializerOptions -> 'Value)> :
+    byte array -> 'Value
+
+  val inline ToText<'Value, 'Serializer
+    when 'Serializer: (static member Serialize:
+      'Value * JsonSerializerOptions -> string)> :
+
+    minify: bool -> value: 'Value -> string
+
+  val inline ToNode<'Value, 'Serializer
+    when 'Serializer: (static member SerializeToNode:
+      'Value * JsonSerializerOptions -> JsonNode)> : value: 'Value -> JsonNode
+
+  val inline GetConfigDocument<'JsonObject
+    when 'JsonObject: (static member Parse:
+      string * Nullable<JsonNodeOptions> * JsonDocumentOptions -> JsonNode)> :
+    jsonText: string -> JsonObject
+
+  val inline FromConfigFile:
+    jsonString: string -> Result<ConfigDecoders.DecodedPerlaConfig, string>
+
+  val TestEventFromJson: jsonString: string -> Result<TestEvent, string>

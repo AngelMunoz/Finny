@@ -1470,7 +1470,7 @@ module Handlers =
         dependencies = depsMap
         devDependencies = devDepsMap
       |}
-      |> Json.ToText
+      |> Json.ToText<_, Text.Json.JsonSerializer> false
       |> AnsiConsole.Write
 
     return 0

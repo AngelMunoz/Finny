@@ -113,7 +113,7 @@ module FileSystem =
   let DescriptionsFile =
     lazy
       (File.ReadAllBytes((UMX.untag AssemblyRoot) / "descriptions.json")
-       |> Json.FromBytes<Map<string, string>>)
+       |> Json.FromBytes<Map<string, string>, Json.JsonSerializer>)
 
   let ensureFileContent<'T> (path: string<SystemPath>) (content: 'T) =
     try

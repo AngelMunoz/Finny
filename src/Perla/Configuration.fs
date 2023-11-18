@@ -44,6 +44,7 @@ module Types =
 
 open Types
 open System.Text.Json.Nodes
+open Perla.Json
 
 [<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
 module Defaults =
@@ -124,18 +125,7 @@ module Defaults =
     devDependencies = Seq.empty
   }
 
-[<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
-module internal Json =
-  open Perla.Json
-
-  let getConfigDocument (perlaJsonText: string) : JsonObject =
-    JsonObject
-      .Parse(
-        perlaJsonText,
-        nodeOptions = DefaultJsonNodeOptions(),
-        documentOptions = DefaultJsonDocumentOptions()
-      )
-      .AsObject()
+module ConfigJson =
 
   let updateFileFields
     (jsonContents: byref<JsonObject option>)
@@ -208,42 +198,54 @@ module internal Json =
 
     let addConfig (content: JsonObject) =
       match configuration with
-      | Some config -> content["runConfiguration"] <- Json.ToNode(config)
+      | Some config ->
+        content["runConfiguration"] <-
+          Json.ToNode<_, System.Text.Json.JsonSerializer>(config)
       | None -> ()
 
       content
 
     let addProvider (content: JsonObject) =
       match provider with
-      | Some config -> content["provider"] <- Json.ToNode(config)
+      | Some config ->
+        content["provider"] <-
+          Json.ToNode<_, System.Text.Json.JsonSerializer>(config)
       | None -> ()
 
       content
 
     let addDeps (content: JsonObject) =
       match dependencies with
-      | Some deps -> content["dependencies"] <- Json.ToNode(deps)
+      | Some deps ->
+        content["dependencies"] <-
+          Json.ToNode<_, System.Text.Json.JsonSerializer>(deps)
       | None -> ()
 
       content
 
     let addDevDeps (content: JsonObject) =
       match devDependencies with
-      | Some deps -> content["devDependencies"] <- Json.ToNode(deps)
+      | Some deps ->
+        content["devDependencies"] <-
+          Json.ToNode<_, System.Text.Json.JsonSerializer>(deps)
       | None -> ()
 
       content
 
     let addFable (content: JsonObject) =
       match fable with
-      | Some fable -> content["fable"] <- Json.ToNode(fable)
+      | Some fable ->
+        content["fable"] <-
+          Json.ToNode<_, System.Text.Json.JsonSerializer>(fable)
       | None -> ()
 
       content
 
     let addPaths (content: JsonObject) =
       match paths with
-      | Some paths -> content["paths"] <- Json.ToNode(paths)
+      | Some paths ->
+        content["paths"] <-
+          Json.ToNode<_, System.Text.Json.JsonSerializer>(paths)
       | None -> ()
 
       content
@@ -263,7 +265,9 @@ module internal Json =
       |> Option.flatten
     with
     | Some _ -> ()
-    | None -> content["$schema"] <- Json.ToNode(Constants.JsonSchemaUrl)
+    | None ->
+      content["$schema"] <-
+        Json.ToNode<_, System.Text.Json.JsonSerializer>(Constants.JsonSchemaUrl)
 
     jsonContents <-
       content
@@ -490,7 +494,7 @@ module internal ConfigExtraction =
         let! fileContent =
           fileContent
           |> Option.map (fun fileContent ->
-            fileContent.ToJsonString() |> Json.Json.FromConfigFile)
+            fileContent.ToJsonString() |> Json.FromConfigFile)
 
         match fileContent with
         | Ok decoded -> return decoded
@@ -555,7 +559,7 @@ type ConfigurationManager
 
   let _getPerlaText () =
     match readPerlaJsonText () with
-    | Some text -> text |> Json.getConfigDocument |> Some
+    | Some text -> text |> Json.GetConfigDocument<JsonNode> |> Some
     | None -> None
 
   let mutable _runConfig = None
@@ -609,7 +613,7 @@ type ConfigurationManager
     runPipeline ()
 
   member _.WriteFieldsToFile(newValues: PerlaWritableField seq) =
-    Json.updateFileFields &_fileConfig newValues
+    ConfigJson.updateFileFields &_fileConfig newValues
     writePerlaJsonText _fileConfig
     runPipeline ()
 

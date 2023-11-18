@@ -193,13 +193,10 @@ module LiveReload =
 
   let WriteReloadChange (event: FileChangedEvent, response: HttpResponse) =
     let data =
-      Json.ToText(
-        {|
-          oldName = event.oldName
-          name = event.name
-        |},
-        false
-      )
+      Json.ToText false {|
+        oldName = event.oldName
+        name = event.name
+      |}
 
     Logger.log ($"LiveReload: File Changed: {event.name}", target = Serve)
     response.WriteAsync $"event:reload\ndata:{data}\n\n"
@@ -225,22 +222,22 @@ module LiveReload =
     let userPath = $"{event.userPath}/{replaced}"
 
     let data =
-      Json.ToText(
-        {|
+      Json.ToText
+        false
+        ({|
           oldName = event.oldName
           oldPath = oldPath
           name = replaced
           url = $"{event.serverPath}/{replaced}"
           localPath = userPath
           content = transform.content
-        |}
-      )
+        |})
 
     Logger.log ($"HMR: CSS File Changed: {userPath}", target = Serve)
     response.WriteAsync $"event:replace-css\ndata:{data}\n\n"
 
   let WriteCompileError (error: string option, response: HttpResponse) =
-    let err = Json.ToText({| error = error |}, true)
+    let err = Json.ToText true {| error = error |}
     Logger.log ($"Compilation Error: {err.Substring(0, 80)}...", target = Serve)
     response.WriteAsync(ReloadEvents.CompileError(err).AsString)
 
@@ -437,7 +434,7 @@ document.head.appendChild(style).innerHTML=String.raw`{content}`;"""
 
     let script = doc.CreateElement "script"
     script.SetAttribute("type", "importmap")
-    script.TextContent <- Json.ToText map
+    script.TextContent <- Json.ToText false map
     doc.Head.AppendChild script |> ignore
     // remove standalone entry points, we don't need them in the browser
     doc.QuerySelectorAll("[data-entry-point=standalone][type=module]")
@@ -488,7 +485,7 @@ document.head.appendChild(style).innerHTML=String.raw`{content}`;"""
 
     let script: Dom.IElement = doc.CreateElement "script"
     script.SetAttribute("type", "importmap")
-    script.TextContent <- Json.ToText map
+    script.TextContent <- Json.ToText false map
     doc.Head.AppendChild script |> ignore
 
     let mochaScript = doc.CreateElement "script"

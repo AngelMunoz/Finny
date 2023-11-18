@@ -97,11 +97,6 @@ module internal ConfigExtraction =
   val FromFile:
     fileContent: JsonObject option -> config: PerlaConfig -> PerlaConfig
 
-[<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
-module internal Json =
-
-  val getConfigDocument: perlaJsonText: string -> JsonObject
-
 /// <summary>
 /// Represents a store for the perla configuration for the current session
 /// This class ensures there's a central way to update perla's configuration

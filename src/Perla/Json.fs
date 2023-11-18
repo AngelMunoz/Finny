@@ -1,4 +1,4 @@
-module Perla.Json
+namespace Perla.Json
 
 open System
 open System.Text.Json
@@ -21,24 +21,6 @@ type PerlaConfigSection =
   | Build of build: BuildConfig option
   | Dependencies of dependencies: Dependency seq option
   | DevDependencies of devDependencies: Dependency seq option
-
-let DefaultJsonOptions () =
-  JsonSerializerOptions(
-    WriteIndented = true,
-    AllowTrailingCommas = true,
-    ReadCommentHandling = JsonCommentHandling.Skip,
-    UnknownTypeHandling = JsonUnknownTypeHandling.JsonElement,
-    DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
-  )
-
-let DefaultJsonNodeOptions () =
-  JsonNodeOptions(PropertyNameCaseInsensitive = true)
-
-let DefaultJsonDocumentOptions () =
-  JsonDocumentOptions(
-    AllowTrailingCommas = true,
-    CommentHandling = JsonCommentHandling.Skip
-  )
 
 module TemplateDecoders =
   type DecodedTemplateConfigItem = {
@@ -399,26 +381,77 @@ module internal ConfigEncoders =
         "browserMode", BrowserMode value.browserMode
       ]
 
-type Json =
-  static member ToBytes value =
-    JsonSerializer.SerializeToUtf8Bytes(value, DefaultJsonOptions())
 
-  static member FromBytes<'T>(value: byte array) =
-    JsonSerializer.Deserialize<'T>(ReadOnlySpan value, DefaultJsonOptions())
+[<RequireQualifiedAccess>]
+module Json =
 
-  static member ToText(value, ?minify) =
+  let DefaultJsonOptions () =
+    JsonSerializerOptions(
+      WriteIndented = true,
+      AllowTrailingCommas = true,
+      ReadCommentHandling = JsonCommentHandling.Skip,
+      UnknownTypeHandling = JsonUnknownTypeHandling.JsonElement,
+      DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+    )
+
+  let DefaultJsonNodeOptions () =
+    JsonNodeOptions(PropertyNameCaseInsensitive = true)
+
+  let DefaultJsonDocumentOptions () =
+    JsonDocumentOptions(
+      AllowTrailingCommas = true,
+      CommentHandling = JsonCommentHandling.Skip
+    )
+
+  let inline ToBytes<'Value, 'Serializer
+    when 'Serializer: (static member SerializeToUtf8Bytes:
+      'Value * options: JsonSerializerOptions -> byte array)>
+    value
+    =
+    'Serializer.SerializeToUtf8Bytes(value, DefaultJsonOptions())
+
+  let inline FromBytes<'Value, 'Serializer
+    when 'Serializer: (static member Deserialize:
+      byte ReadOnlySpan * JsonSerializerOptions -> 'Value)>
+    (value: byte array)
+    =
+    'Serializer.Deserialize(ReadOnlySpan value, DefaultJsonOptions())
+
+  let inline ToText<'Value, 'Serializer
+    when 'Serializer: (static member Serialize:
+      'Value * JsonSerializerOptions -> string)>
+    minify
+    value
+    =
     let opts = DefaultJsonOptions()
-    let minify = defaultArg minify false
-    opts.WriteIndented <- minify
-    JsonSerializer.Serialize(value, opts)
+    opts.WriteIndented <- not minify
+    'Serializer.Serialize(value, opts)
 
-  static member ToNode value =
-    JsonSerializer.SerializeToNode(value, DefaultJsonOptions())
+  let inline ToNode<'Value, 'Serializer
+    when 'Serializer: (static member SerializeToNode:
+      'Value * JsonSerializerOptions -> JsonNode)>
+    value
+    =
+    'Serializer.SerializeToNode(value, DefaultJsonOptions())
 
-  static member FromConfigFile(content: string) =
-    Decode.fromString ConfigDecoders.PerlaDecoder content
+  let inline GetConfigDocument<'JsonObject
+    when 'JsonObject: (static member Parse:
+      string * Nullable<JsonNodeOptions> * JsonDocumentOptions -> JsonNode)>
+    jsonText
+    =
 
-  static member TestEventFromJson(value: string) =
+    'JsonObject
+      .Parse(
+        jsonText,
+        Nullable(DefaultJsonNodeOptions()),
+        DefaultJsonDocumentOptions()
+      )
+      .AsObject()
+
+  let inline FromConfigFile (jsonString: string) =
+    Decode.fromString ConfigDecoders.PerlaDecoder jsonString
+
+  let TestEventFromJson (jsonString: string) =
     // test events
     // { event: string
     //   runId: Guid
@@ -429,35 +462,39 @@ type Json =
     //   message?: string
     //   stack?: string }
     result {
-      match! Decode.fromString (Decode.field "event" Decode.string) value with
+      match!
+        Decode.fromString (Decode.field "event" Decode.string) jsonString
+      with
       | "__perla-session-start" ->
         return!
-          Decode.fromString EventDecoders.SessionStart value
+          Decode.fromString EventDecoders.SessionStart jsonString
           |> Result.map SessionStart
       | "__perla-suite-start"
       | "__perla-suite-end" ->
         return!
-          Decode.fromString EventDecoders.SuiteEvent value
+          Decode.fromString EventDecoders.SuiteEvent jsonString
           |> Result.map SuiteStart
       | "__perla-test-pass" ->
         return!
-          Decode.fromString EventDecoders.TestPass value |> Result.map TestPass
+          Decode.fromString EventDecoders.TestPass jsonString
+          |> Result.map TestPass
       | "__perla-test-failed" ->
         return!
-          Decode.fromString EventDecoders.TestFailed value
+          Decode.fromString EventDecoders.TestFailed jsonString
           |> Result.map TestFailed
       | "__perla-session-end" ->
         return!
-          Decode.fromString EventDecoders.SessionEnd value
+          Decode.fromString EventDecoders.SessionEnd jsonString
           |> Result.map SessionEnd
       | "__perla-test-import-failed" ->
         return!
-          Decode.fromString EventDecoders.ImportFailed value
+          Decode.fromString EventDecoders.ImportFailed jsonString
           |> Result.map TestImportFailed
       | "__perla-test-run-finished" ->
         let decoder =
           Decode.object (fun get -> get.Required.Field "runId" Decode.guid)
 
-        return! Decode.fromString decoder value |> Result.map TestRunFinished
+        return!
+          Decode.fromString decoder jsonString |> Result.map TestRunFinished
       | unknown -> return! Error($"'{unknown}' is not a known event")
     }
