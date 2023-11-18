@@ -1,14 +1,10 @@
 # Perla Dev Server [![wakatime](https://wakatime.com/badge/user/4537232c-b581-465b-9604-b10a55ffa7b4/project/d46e17c5-054e-4249-a2ab-4294d0e5e026.svg)](https://wakatime.com/badge/user/4537232c-b581-465b-9604-b10a55ffa7b4/project/d46e17c5-054e-4249-a2ab-4294d0e5e026)
 
-[![Open in Gitpod](https://gitpod.io/button/open-in-gitpod.svg)](https://gitpod.io/#https://github.com/AngelMunoz/Perla)
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/AngelMunoz/Perla/tree/dev?quickstart=1) [![Open in Gitpod](https://gitpod.io/button/open-in-gitpod.svg)](https://gitpod.io/#https://github.com/AngelMunoz/Perla)
 
 Perla is a cross-platform single executable binary CLI Tool for a Development Server of Single Page Applications (like vite/webpack but no node required!).
 
 If that sounds like something nice, [Check The docs!](https://perla-docs.web.app/)
-
-## Status
-
-The current **_v1.0.0_** development is taking place in the `dev` branch, please check it out, also the releases tab contains the most recen betas to try out!
 
 ```
 Description:
