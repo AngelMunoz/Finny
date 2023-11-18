@@ -1,13 +1,6 @@
 image:
   file: .gitpod.Dockerfile
 
-github:
-  prebuilds:
-    master: true
-    pullRequests: true
-    pullRequestsFromForks: true
-    addBadge: true
-
 tasks:
   - name: Restore
     init: dotnet tool restore && dotnet paket restore && dotnet build
@@ -16,3 +9,4 @@ vscode:
   extensions:
     - muhammad-sammy.csharp
     - ionide.ionide-fsharp
+    - eamodio.gitlens
