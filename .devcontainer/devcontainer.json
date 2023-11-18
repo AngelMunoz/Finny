@@ -31,9 +31,5 @@
   // Use 'forwardPorts' to make a list of ports inside the container available locally.
   // "forwardPorts": [],
   // Use 'postCreateCommand' to run commands after the container is created.
-  "postCreateCommand": [
-    "dotnet tool restore && ",
-    "dotnet paket restore && ",
-    "dotnet build"
-  ]
+  "postStartCommand": "dotnet tool restore && dotnet paket restore && dotnet build"
 }
