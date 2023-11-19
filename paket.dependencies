@@ -14,6 +14,7 @@ nuget FSharp.SystemCommandLine >= 0.17.0-beta4 prerelease
 nuget AngleSharp 1.0.6
 nuget FsHttp 12.0.0
 nuget CliWrap 3.6.4
+nuget IcedTasks
 nuget Serilog.AspNetCore 8.0.0
 nuget Spectre.Console 0.47.0
 nuget LiteDB 5.0.17
