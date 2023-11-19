@@ -17,6 +17,8 @@
   <ItemGroup>
     <Compile Include="Library.fsi" />
     <Compile Include="Library.fs" />
+    <Compile Include="Registry.fsi" />
+    <Compile Include="Registry.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>
