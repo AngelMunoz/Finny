@@ -9,13 +9,13 @@ open FSharp.Compiler.Interactive.Shell
 open FSharp.Control
 open IcedTasks
 open FsToolkit.ErrorHandling
-
 open Perla.Plugins
 
 [<Struct>]
 type PluginLoadError =
   | SessionExists
   | BoundValueMissing
+  | AlreadyLoaded of string
   | EvaluationFailed of evalFailure: exn
   | NoPluginFound of pluginName: string
 
@@ -39,11 +39,11 @@ module ScriptReflection =
 
 type SessionCache<'Cache
   when 'Cache: (static member SessionCache:
-    Dictionary<string, FsiEvaluationSession>)> = 'Cache
+    Lazy<Dictionary<string, FsiEvaluationSession>>)> = 'Cache
 
 type PluginCache<'Cache
-  when 'Cache: (static member PluginCache: Dictionary<string, PluginInfo>)> =
-  'Cache
+  when 'Cache: (static member PluginCache: Lazy<Dictionary<string, PluginInfo>>)>
+  = 'Cache
 
 type StdoutStderr<'Writer
   when 'Writer: (static member Stdout: TextWriter)
@@ -55,7 +55,7 @@ module PluginRegistry =
 
   let inline GetRunnablePlugins<'Cache when PluginCache<'Cache>> order = [
     for name in order do
-      match 'Cache.PluginCache.TryGetValue(name) with
+      match 'Cache.PluginCache.Value.TryGetValue(name) with
       | true, plugin ->
         match plugin.shouldProcessFile, plugin.transform with
         | ValueSome st, ValueSome t -> {
@@ -68,7 +68,7 @@ module PluginRegistry =
   ]
 
   let inline GetPluginList<'Cache when PluginCache<'Cache>> () =
-    'Cache.PluginCache.Values |> Seq.toList
+    'Cache.PluginCache.Value.Values |> Seq.toList
 
   let inline RunPlugins<'Cache when PluginCache<'Cache>>
     (pluginOrder: string list)
@@ -89,12 +89,22 @@ module PluginRegistry =
     }
 
   let inline HasPluginsForExtension<'Cache when PluginCache<'Cache>> extension =
+    let list = GetPluginList<'Cache>()
 
-    GetPluginList<'Cache>()
+    list
     |> List.exists (fun plugin ->
+
       match plugin.shouldProcessFile with
       | ValueSome f -> f extension
       | _ -> false)
+
+  let inline LoadFromCode<'Cache when PluginCache<'Cache>>
+    (plugin: PluginInfo)
+    =
+    if 'Cache.PluginCache.Value.TryAdd(plugin.name, plugin) then
+      Ok()
+    else
+      Error(AlreadyLoaded plugin.name)
 
 [<Class; Sealed>]
 type PluginRegistry =
@@ -111,7 +121,7 @@ type PluginRegistry =
       let sessionCache = 'Cache.SessionCache
 
       do!
-        sessionCache.TryGetValue(id, &discard)
+        sessionCache.Value.TryGetValue(id, &discard)
         |> Result.requireFalse SessionExists
 
       let plugins = 'Cache.PluginCache
@@ -137,9 +147,9 @@ type PluginRegistry =
       }
 
       if foundValue.ReflectionType = typeof<PluginInfo> then
-        sessionCache.Add(id, session)
+        sessionCache.Value.Add(id, session)
         let plugin: PluginInfo = unbox foundValue.ReflectionValue
-        plugins.Add(id, plugin)
+        plugins.Value.Add(id, plugin)
         return plugin
       else
         return! Error(NoPluginFound id)

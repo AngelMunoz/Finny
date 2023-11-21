@@ -14,16 +14,18 @@ open Perla.Plugins
 type PluginLoadError =
   | SessionExists
   | BoundValueMissing
+  | AlreadyLoaded of string
   | EvaluationFailed of evalFailure: exn
   | NoPluginFound of pluginName: string
 
+
 type SessionCache<'Cache
   when 'Cache: (static member SessionCache:
-    Dictionary<string, FsiEvaluationSession>)> = 'Cache
+    Lazy<Dictionary<string, FsiEvaluationSession>>)> = 'Cache
 
 type PluginCache<'Cache
-  when 'Cache: (static member PluginCache: Dictionary<string, PluginInfo>)> =
-  'Cache
+  when 'Cache: (static member PluginCache: Lazy<Dictionary<string, PluginInfo>>)>
+  = 'Cache
 
 type StdoutStderr<'Writer
   when 'Writer: (static member Stdout: TextWriter)
@@ -43,6 +45,9 @@ module PluginRegistry =
 
   val inline HasPluginsForExtension<'Cache when PluginCache<'Cache>> :
     extension: string -> bool
+
+  val inline LoadFromCode<'Cache when PluginCache<'Cache>> :
+    PluginInfo -> Result<unit, PluginLoadError>
 
 [<Class; Sealed>]
 type PluginRegistry =
