@@ -1,26 +1,30 @@
 ﻿namespace Perla.Extensibility
 
+open System.IO
+open System.Collections.Generic
+open FSharp.Compiler.Interactive.Shell
+
 open Perla.Types
 open Perla.Plugins
-open System.IO
-open FSharp.Compiler.Interactive.Shell
-open System.Runtime.InteropServices
+open Perla.Plugins.Registry
 
-[<Class>]
-type Fsi =
-  static member GetSession:
-    [<Optional>] ?argv: string seq *
-    [<Optional>] ?stdout: TextWriter *
-    [<Optional>] ?stderr: TextWriter ->
-      FsiEvaluationSession
+[<Struct>]
+type ExtCache =
+  static member PluginCache: Dictionary<string, PluginInfo>
 
-[<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
-module PluginRegistry =
-  val PluginList: pluginOrder: string list -> seq<RunnablePlugin>
-  val AddPlugin: plugin: PluginInfo -> unit
-  val FromText: path: string * content: string -> PluginInfo option
-  val LoadPlugins: config: EsbuildConfig -> unit
-  val HasPluginsForExtension: plugins: string list -> extension: string -> bool
+  static member SessionCache: Dictionary<string, FsiEvaluationSession>
 
-  val ApplyPlugins:
-    plugins: string list -> fileInput: FileTransform -> Async<FileTransform>
+[<Struct>]
+type PluginStdio =
+
+  static member Stdout: TextWriter
+
+  static member Stderr: TextWriter
+
+[<RequireQualifiedAccess>]
+module PluginLoader =
+
+  val inline Load<'Fs, 'Esbuild
+    when 'Fs: (static member PluginFiles: unit -> (string * string) array)
+    and 'Esbuild: (static member GetPlugin: EsbuildConfig -> PluginInfo)> :
+    esbuildConfig: EsbuildConfig -> Result<PluginInfo list, PluginLoadError>
