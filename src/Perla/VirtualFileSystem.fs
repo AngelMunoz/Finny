@@ -9,6 +9,7 @@ open Perla.Types
 open Perla.Units
 open Perla.Logger
 open Perla.Plugins
+open Perla.Plugins.Registry
 open Perla.Extensibility
 open Perla.FileSystem
 
@@ -46,11 +47,9 @@ type internal PathInfo = {
 
 type internal ApplyPluginsFn = FileTransform -> Async<FileTransform>
 
-
-
-
 [<RequireQualifiedAccess>]
 module VirtualFileSystem =
+
   [<return: Struct>]
   let (|IsFSharpSource|_|) (value: string) =
     let isBin = value.Contains("/bin/")
@@ -192,7 +191,7 @@ module VirtualFileSystem =
       let isInFableMdules = globPath.FullName.Contains("fable_modules")
 
       let hasPluginForExtension =
-        PluginRegistry.HasPluginsForExtension plugins extension
+        PluginRegistry.HasPluginsForExtension<ExtCache> extension
 
       if not hasPluginForExtension || isInFableMdules then
         return
@@ -308,13 +307,15 @@ module VirtualFileSystem =
       event.path
       |> UMX.untag
       |> IO.Path.GetExtension
-      |> PluginRegistry.HasPluginsForExtension plugins
+      |> PluginRegistry.HasPluginsForExtension<ExtCache>
 
     stream
     |> Observable.filter withFilter
     |> Observable.map (tryReadFile withReadFile)
     |> Observable.switchTask
-    |> Observable.map (tryCompileFile (PluginRegistry.ApplyPlugins plugins))
+    |> Observable.map (
+      tryCompileFile (PluginRegistry.RunPlugins<ExtCache> plugins)
+    )
     |> Observable.switchAsync
     |> Observable.choose id
     |> Observable.map (updateInVirtualFs withFs)
@@ -323,7 +324,7 @@ module VirtualFileSystem =
     use fs = new PhysicalFileSystem()
 
     let cwd = FileSystem.CurrentWorkingDirectory()
-    let applyPlugins = PluginRegistry.ApplyPlugins config.plugins
+    let applyPlugins = PluginRegistry.RunPlugins<ExtCache> config.plugins
     let serverPaths = serverPaths.Value
 
     for KeyValue(url, path) in config.mountDirectories do

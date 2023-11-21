@@ -6,19 +6,19 @@ open System.IO
 open System.Threading
 open System.Threading.Tasks
 
+open AngleSharp
 open AngleSharp.Html.Parser
 open Microsoft.Playwright
 open Spectre.Console
+
+open Zio.FileSystems
+open Zio
 
 open FSharp.Control
 open FSharp.Control.Reactive
 
 open FSharp.UMX
 open FsToolkit.ErrorHandling
-
-open AngleSharp
-open Zio.FileSystems
-open Zio
 
 open Perla
 open Perla.Types
@@ -29,14 +29,15 @@ open Perla.Logger
 open Perla.FileSystem
 open Perla.VirtualFs
 open Perla.Esbuild
+open Perla.Extensibility
 open Perla.Fable
 open Perla.Json
 open Perla.Scaffolding
 open Perla.Configuration.Types
 open Perla.Configuration
-open Perla.Extensibility
 
 open Perla.Plugins
+open Perla.Plugins.Registry
 open Perla.PackageManager
 open Perla.PackageManager.Types
 
@@ -494,6 +495,7 @@ module Testing =
 [<RequireQualifiedAccess>]
 module Handlers =
   open Perla.Database
+  open Perla.Extensibility
 
   let runSetup (options: SetupOptions, cancellationToken: CancellationToken) = task {
     Logger.log "Perla will set up the following resources:"
@@ -824,7 +826,6 @@ module Handlers =
           return 1
     }
 
-
   let runBuild (options: BuildOptions, cancellationToken: CancellationToken) = task {
 
     ConfigurationManager.UpdateFromCliArgs(?runConfig = options.mode)
@@ -840,7 +841,15 @@ module Handlers =
     with _ ->
       ()
 
-    PluginRegistry.LoadPlugins(config.esbuild)
+    match PluginLoader.Load<FileSystem, Esbuild>(config.esbuild) with
+    | Ok plugins -> Logger.log $"Loaded {plugins.Length} plugins"
+    | Error err ->
+      match err with
+      | NoPluginFound name -> Logger.log ($"Plugin {name} not found")
+      | EvaluationFailed(ex) ->
+        Logger.log ($"Failed to evaluate plugin", ex = ex)
+      | SessionExists
+      | BoundValueMissing -> Logger.log "Failed to load plugins"
 
     do!
       Logger.spinner (
@@ -985,7 +994,15 @@ module Handlers =
 
     do! FsMonitor.FirstCompileDone true fableEvents
 
-    PluginRegistry.LoadPlugins config.esbuild
+    match PluginLoader.Load<FileSystem, Esbuild>(config.esbuild) with
+    | Ok plugins -> Logger.log $"Loaded {plugins.Length} plugins"
+    | Error err ->
+      match err with
+      | NoPluginFound name -> Logger.log ($"Plugin {name} not found")
+      | EvaluationFailed(ex) ->
+        Logger.log ($"Failed to evaluate plugin", ex = ex)
+      | SessionExists
+      | BoundValueMissing -> Logger.log "Failed to load plugins"
 
     do! VirtualFileSystem.Mount(config)
 
@@ -1084,7 +1101,15 @@ module Handlers =
 
       do! FsMonitor.FirstCompileDone isWatch fableEvents
 
-      PluginRegistry.LoadPlugins config.esbuild
+      match PluginLoader.Load<FileSystem, Esbuild>(config.esbuild) with
+      | Ok plugins -> Logger.log $"Loaded {plugins.Length} plugins"
+      | Error err ->
+        match err with
+        | NoPluginFound name -> Logger.log ($"Plugin {name} not found")
+        | EvaluationFailed(ex) ->
+          Logger.log ($"Failed to evaluate plugin", ex = ex)
+        | SessionExists
+        | BoundValueMissing -> Logger.log "Failed to load plugins"
 
       do! VirtualFileSystem.Mount config
 
