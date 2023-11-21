@@ -12,6 +12,13 @@ open FsToolkit.ErrorHandling
 
 open Perla.Plugins
 
+[<Struct>]
+type PluginLoadError =
+  | SessionExists
+  | BoundValueMissing
+  | EvaluationFailed of evalFailure: exn
+  | NoPluginFound of pluginName: string
+
 module SessionFactory =
   let inline create stdout stderr =
     FsiEvaluationSession.Create(
@@ -26,77 +33,32 @@ module SessionFactory =
 module ScriptReflection =
   let inline findPlugin (fsi: FsiEvaluationSession) =
     match fsi.TryFindBoundValue "Plugin", fsi.TryFindBoundValue "plugin" with
-    | Some bound, _ -> ValueSome bound.Value
-    | None, Some bound -> ValueSome bound.Value
-    | None, None -> ValueNone
+    | Some bound, _ -> Some bound.Value
+    | None, Some bound -> Some bound.Value
+    | None, None -> None
 
-type SessionManager private () =
-  let stdout = Unchecked.defaultof<_>
-  let stderr = Unchecked.defaultof<_>
+type SessionCache<'Cache
+  when 'Cache: (static member SessionCache:
+    Dictionary<string, FsiEvaluationSession>)> = 'Cache
 
-  let cache = Dictionary<string, FsiEvaluationSession>()
+type PluginCache<'Cache
+  when 'Cache: (static member PluginCache: Dictionary<string, PluginInfo>)> =
+  'Cache
 
-  private new(stdout, stderr: TextWriter) = new SessionManager(stdout, stderr)
+type StdoutStderr<'Writer
+  when 'Writer: (static member Stdout: TextWriter)
+  and 'Writer: (static member Stderr: TextWriter)> = 'Writer
 
 
-  static member Create() =
-    new SessionManager(Console.Out, Console.Error)
+[<RequireQualifiedAccess>]
+module PluginRegistry =
 
-  static member Create(stdout: StringWriter, stderr: StringWriter) =
-    new SessionManager(stdout, stderr)
-
-  static member Create(stdout, stderr) =
-    new SessionManager(
-      new StringWriter(stdout, Globalization.CultureInfo.InvariantCulture),
-      new StringWriter(stderr, Globalization.CultureInfo.InvariantCulture)
-    )
-
-  member _.LoadFromText(id, content, ?token) =
-    match cache.TryGetValue(id) with
-    | true, _ -> ValueNone
-    | false, _ ->
-      let session = SessionFactory.create stdout stderr
-
-      let evaluation, _ =
-        session.EvalInteractionNonThrowing(content, ?cancellationToken = token)
-
-      let evalResult =
-        evaluation
-        |> Result.ofChoice
-        |> Result.map (fun value -> ValueOption.ofOption value)
-        |> Result.teeError (fun err -> stdout.WriteLine(err))
-        |> Result.toValueOption
-        |> ValueOption.defaultWith (fun _ ->
-          ScriptReflection.findPlugin session)
-
-      match evalResult with
-      | ValueSome value when value.ReflectionType = typeof<PluginInfo> ->
-        cache.Add(id, session)
-
-        let plugin: PluginInfo = unbox value.ReflectionValue
-        cache.Add(id, session)
-
-        ValueSome plugin
-      | _ -> ValueNone
-
-  interface IDisposable with
-    member _.Dispose() =
-      for session in cache.Values do
-        (session :> IDisposable).Dispose()
-
-type PluginRegistry() =
-
-  let plugins = Dictionary<string, PluginInfo>()
-
-  member _.TryRegister plugin = plugins.TryAdd(plugin.name, plugin)
-
-  member _.GetRunnables order = [
+  let inline GetRunnablePlugins<'Cache when PluginCache<'Cache>> order = [
     for name in order do
-      match plugins.TryGetValue(name) with
+      match 'Cache.PluginCache.TryGetValue(name) with
       | true, plugin ->
         match plugin.shouldProcessFile, plugin.transform with
-        | ValueSome st, ValueSome t ->
-          yield {
+        | ValueSome st, ValueSome t -> {
             plugin = plugin
             shouldTransform = st
             transform = t
@@ -105,47 +67,15 @@ type PluginRegistry() =
       | false, _ -> ()
   ]
 
+  let inline GetPluginList<'Cache when PluginCache<'Cache>> () =
+    'Cache.PluginCache.Values |> Seq.toList
 
-[<RequireQualifiedAccess>]
-module PluginRegistry =
-
-  type GetRunnables<'Registry
-    when 'Registry: (member GetRunnables: string list -> RunnablePlugin list)> =
-    'Registry
-
-  type RegisterPlugin<'Registry
-    when 'Registry: (member TryRegister: PluginInfo -> bool)> = 'Registry
-
-  type FromText<'SessionManager
-    when 'SessionManager: (member LoadFromText:
-      string * string * CancellationToken option -> PluginInfo voption)> =
-    'SessionManager
-
-  let inline ofTextCancellable<'PluginRegistry, 'SessionManager
-    when RegisterPlugin<'PluginRegistry> and FromText<'SessionManager>>
-    (registry: 'PluginRegistry, sessionManager: 'SessionManager)
-    (id: string, content: string, token: CancellationToken option)
+  let inline RunPlugins<'Cache when PluginCache<'Cache>>
+    (pluginOrder: string list)
+    fileInput
     =
-    voption {
-      let! plugin = sessionManager.LoadFromText(id, content, token)
-
-      match registry.TryRegister(plugin) with
-      | true -> return plugin
-      | false -> return! ValueNone
-    }
-
-  let inline ofText
-    (registry: 'PluginRegistry, sessionManager: 'SessionManager)
-    (id, content)
-    =
-    ofTextCancellable (registry, sessionManager) (id, content, None)
-
-  let inline runPlugins<'PluginRegistry when GetRunnables<'PluginRegistry>>
-    (registry: 'PluginRegistry)
-    (pluginOrder, fileInput)
-    =
-    cancellableTask {
-      let plugins = registry.GetRunnables pluginOrder
+    async {
+      let plugins = GetRunnablePlugins<'Cache> pluginOrder
 
       let inline folder result next =
         cancellableValueTask {
@@ -156,4 +86,61 @@ module PluginRegistry =
         |> Async.AwaitCancellableValueTask
 
       return! plugins |> AsyncSeq.ofSeq |> AsyncSeq.foldAsync folder fileInput
+    }
+
+  let inline HasPluginsForExtension<'Cache when PluginCache<'Cache>> extension =
+
+    GetPluginList<'Cache>()
+    |> List.exists (fun plugin ->
+      match plugin.shouldProcessFile with
+      | ValueSome f -> f extension
+      | _ -> false)
+
+[<Class; Sealed>]
+type PluginRegistry =
+
+  static member inline LoadFromText<'Cache, 'Writer
+    when PluginCache<'Cache> and SessionCache<'Cache> and StdoutStderr<'Writer>>
+    (
+      id,
+      content,
+      cancellationToken
+    ) =
+    result {
+      let mutable discard: FsiEvaluationSession = Unchecked.defaultof<_>
+      let sessionCache = 'Cache.SessionCache
+
+      do!
+        sessionCache.TryGetValue(id, &discard)
+        |> Result.requireFalse SessionExists
+
+      let plugins = 'Cache.PluginCache
+
+      let session = SessionFactory.create 'Writer.Stdout 'Writer.Stderr
+
+      let evaluation, _ =
+        session.EvalInteractionNonThrowing(
+          content,
+          ?cancellationToken = cancellationToken
+        )
+
+      let! foundValue = result {
+        let! result =
+          evaluation |> Result.ofChoice |> Result.mapError EvaluationFailed
+
+        match result with
+        | Some result -> return result
+        | None ->
+          return!
+            ScriptReflection.findPlugin session
+            |> Result.requireSome BoundValueMissing
+      }
+
+      if foundValue.ReflectionType = typeof<PluginInfo> then
+        sessionCache.Add(id, session)
+        let plugin: PluginInfo = unbox foundValue.ReflectionValue
+        plugins.Add(id, plugin)
+        return plugin
+      else
+        return! Error(NoPluginFound id)
     }

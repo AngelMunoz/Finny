@@ -1,70 +1,53 @@
 namespace Perla.Plugins.Registry
 
-open System
+open System.Collections.Generic
 open System.IO
-open System.Text
 open System.Threading
+
+open FSharp.Compiler.Interactive.Shell
 
 open IcedTasks
 
 open Perla.Plugins
 
-type SessionManager =
+[<Struct>]
+type PluginLoadError =
+  | SessionExists
+  | BoundValueMissing
+  | EvaluationFailed of evalFailure: exn
+  | NoPluginFound of pluginName: string
 
-  interface IDisposable
+type SessionCache<'Cache
+  when 'Cache: (static member SessionCache:
+    Dictionary<string, FsiEvaluationSession>)> = 'Cache
 
-  private new: unit -> SessionManager
-  private new: stdout: TextWriter * stderr: TextWriter -> SessionManager
+type PluginCache<'Cache
+  when 'Cache: (static member PluginCache: Dictionary<string, PluginInfo>)> =
+  'Cache
 
-  static member Create: unit -> SessionManager
-
-  static member Create:
-    stdout: StringWriter * stderr: StringWriter -> SessionManager
-
-  static member Create:
-    stdout: StringBuilder * stderr: StringBuilder -> SessionManager
-
-  member LoadFromText:
-    id: string * content: string * ?token: CancellationToken ->
-      PluginInfo voption
-
-
-type PluginRegistry =
-
-  private new: unit -> PluginRegistry
-
-  member TryRegister: PluginInfo -> bool
-
-  member GetRunnables: order: string seq -> RunnablePlugin list
+type StdoutStderr<'Writer
+  when 'Writer: (static member Stdout: TextWriter)
+  and 'Writer: (static member Stderr: TextWriter)> = 'Writer
 
 
 [<RequireQualifiedAccess>]
 module PluginRegistry =
-  type GetRunnables<'Registry
-    when 'Registry: (member GetRunnables: string list -> RunnablePlugin list)> =
-    'Registry
+  val inline GetRunnablePlugins<'Cache when PluginCache<'Cache>> :
+    string seq -> RunnablePlugin list
 
-  type RegisterPlugin<'Registry
-    when 'Registry: (member TryRegister: PluginInfo -> bool)> = 'Registry
+  val inline GetPluginList<'Cache when PluginCache<'Cache>> :
+    unit -> PluginInfo list
 
-  type FromText<'SessionManager
-    when 'SessionManager: (member LoadFromText:
-      string * string * CancellationToken option -> PluginInfo voption)> =
-    'SessionManager
+  val inline RunPlugins<'Cache when PluginCache<'Cache>> :
+    pluginOrder: string list -> fileInput: FileTransform -> Async<FileTransform>
 
-  val inline ofTextCancellable<'PluginRegistry, 'SessionManager
-    when RegisterPlugin<'PluginRegistry> and FromText<'SessionManager>> :
-    registry: 'PluginRegistry * sessionManager: 'SessionManager ->
-      id: string * content: string * token: CancellationToken option ->
-        PluginInfo voption
+  val inline HasPluginsForExtension<'Cache when PluginCache<'Cache>> :
+    extension: string -> bool
 
-  val inline ofText<'PluginRegistry, 'SessionManager
-    when RegisterPlugin<'PluginRegistry> and FromText<'SessionManager>> :
-    registry: 'PluginRegistry * sessionManager: 'SessionManager ->
-      id: string * content: string ->
-        PluginInfo voption
+[<Class; Sealed>]
+type PluginRegistry =
 
-  val inline runPlugins<'PluginRegistry when GetRunnables<'PluginRegistry>> :
-    registry: 'PluginRegistry ->
-    pluginOrder: string list * fileInput: FileTransform ->
-      CancellableTask<FileTransform>
+  static member inline LoadFromText<'Cache, 'Writer
+    when PluginCache<'Cache> and SessionCache<'Cache> and StdoutStderr<'Writer>> :
+    id: string * content: string * ?cancellationToken: CancellationToken ->
+      Result<PluginInfo, PluginLoadError>
