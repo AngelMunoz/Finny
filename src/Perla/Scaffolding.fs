@@ -14,6 +14,51 @@ open Perla.Json.TemplateDecoders
 open Perla.Units
 
 open Perla.Database
+open FSharp.Compiler.Interactive.Shell
+open System.IO
+
+type Fsi =
+  static member GetSession(?argv: string seq, ?stdout, ?stderr) =
+    let defaultArgv = [|
+      "fsi.exe"
+      "--optimize+"
+      "--nologo"
+      "--gui-"
+      "--readline-"
+    |]
+
+    let argv =
+      match argv with
+      | Some argv -> [| yield! defaultArgv; yield! argv |]
+      | None -> defaultArgv
+
+    let stdout = defaultArg stdout Console.Out
+    let stderr = defaultArg stderr Console.Error
+
+    let config = FsiEvaluationSession.GetDefaultConfiguration()
+
+    FsiEvaluationSession.Create(
+      config,
+      argv,
+      new StringReader(""),
+      stdout,
+      stderr,
+      true
+    )
+
+
+module ScaffoldingEval =
+  [<Literal>]
+  let ScaffoldConfiguration = "TemplateConfiguration"
+
+  let getConfigurationFromScript content =
+    use session = Fsi.GetSession()
+
+    session.EvalInteractionNonThrowing(content) |> ignore
+
+    match session.TryFindBoundValue ScaffoldConfiguration with
+    | Some bound -> Some bound.Value.ReflectionValue
+    | None -> None
 
 
 module Scaffolding =
