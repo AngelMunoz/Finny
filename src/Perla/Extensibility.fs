@@ -14,9 +14,13 @@ open Perla.Plugins.Registry
 
 [<Struct>]
 type ExtCache =
-  static member PluginCache = new Dictionary<string, PluginInfo>()
+  static let _pluginCache = lazy (Dictionary<string, PluginInfo>())
 
-  static member SessionCache = new Dictionary<string, FsiEvaluationSession>()
+  static let _sessionCache = lazy (Dictionary<string, FsiEvaluationSession>())
+
+  static member PluginCache = _pluginCache
+
+  static member SessionCache = _sessionCache
 
 [<Struct>]
 type PluginStdio =
@@ -31,13 +35,26 @@ module PluginLoader =
     and 'Esbuild: (static member GetPlugin: EsbuildConfig -> PluginInfo)>
     (esbuildConfig: EsbuildConfig)
     =
-    result {
-      let! plugins =
+    validation {
+      let esbuild = 'Esbuild.GetPlugin esbuildConfig
+      do! PluginRegistry.LoadFromCode<ExtCache> esbuild
+
+      do!
         'Fs.PluginFiles()
         |> Array.Parallel.map (fun (path, content) ->
           PluginRegistry.LoadFromText<ExtCache, PluginStdio>(path, content))
         |> List.ofArray
-        |> List.traverseResultM id
+        |> List.traverseResultA (fun plugin -> result {
+          let! plugin = plugin
+          Console.WriteLine $"Loaded plugin: {plugin.name}"
 
-      return 'Esbuild.GetPlugin esbuildConfig :: plugins
+          do!
+            ExtCache.PluginCache.Value.TryAdd(plugin.name, plugin)
+            |> Result.requireTrue (AlreadyLoaded plugin.name)
+
+          return plugin
+        })
+        |> Result.ignore
+
+      return PluginRegistry.GetPluginList<ExtCache>()
     }
