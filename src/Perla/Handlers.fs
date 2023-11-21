@@ -844,12 +844,14 @@ module Handlers =
     match PluginLoader.Load<FileSystem, Esbuild>(config.esbuild) with
     | Ok plugins -> Logger.log $"Loaded {plugins.Length} plugins"
     | Error err ->
-      match err with
-      | NoPluginFound name -> Logger.log ($"Plugin {name} not found")
-      | EvaluationFailed(ex) ->
-        Logger.log ($"Failed to evaluate plugin", ex = ex)
-      | SessionExists
-      | BoundValueMissing -> Logger.log "Failed to load plugins"
+      for err in err do
+        match err with
+        | NoPluginFound name -> Logger.log ($"Plugin {name} not found")
+        | EvaluationFailed(ex) ->
+          Logger.log ($"Failed to evaluate plugin", ex = ex)
+        | SessionExists
+        | BoundValueMissing -> Logger.log "Failed to load plugins"
+        | AlreadyLoaded name -> Logger.log ($"Plugin {name} already loaded")
 
     do!
       Logger.spinner (
@@ -997,12 +999,14 @@ module Handlers =
     match PluginLoader.Load<FileSystem, Esbuild>(config.esbuild) with
     | Ok plugins -> Logger.log $"Loaded {plugins.Length} plugins"
     | Error err ->
-      match err with
-      | NoPluginFound name -> Logger.log ($"Plugin {name} not found")
-      | EvaluationFailed(ex) ->
-        Logger.log ($"Failed to evaluate plugin", ex = ex)
-      | SessionExists
-      | BoundValueMissing -> Logger.log "Failed to load plugins"
+      for err in err do
+        match err with
+        | NoPluginFound name -> Logger.log ($"Plugin {name} not found")
+        | EvaluationFailed(ex) ->
+          Logger.log ($"Failed to evaluate plugin", ex = ex)
+        | SessionExists
+        | BoundValueMissing -> Logger.log "Failed to load plugins"
+        | AlreadyLoaded name -> Logger.log ($"Plugin {name} already loaded")
 
     do! VirtualFileSystem.Mount(config)
 
@@ -1104,12 +1108,14 @@ module Handlers =
       match PluginLoader.Load<FileSystem, Esbuild>(config.esbuild) with
       | Ok plugins -> Logger.log $"Loaded {plugins.Length} plugins"
       | Error err ->
-        match err with
-        | NoPluginFound name -> Logger.log ($"Plugin {name} not found")
-        | EvaluationFailed(ex) ->
-          Logger.log ($"Failed to evaluate plugin", ex = ex)
-        | SessionExists
-        | BoundValueMissing -> Logger.log "Failed to load plugins"
+        for err in err do
+          match err with
+          | NoPluginFound name -> Logger.log ($"Plugin {name} not found")
+          | EvaluationFailed(ex) ->
+            Logger.log ($"Failed to evaluate plugin", ex = ex)
+          | SessionExists
+          | BoundValueMissing -> Logger.log "Failed to load plugins"
+          | AlreadyLoaded name -> Logger.log ($"Plugin {name} already loaded")
 
       do! VirtualFileSystem.Mount config
 
