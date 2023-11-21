@@ -48,6 +48,14 @@ group Samples
     nuget Fable.Browser.Dom >= 2.14.0
     nuget Fable.Browser.Event >= 1.5.0
 
+group Plugins
+    source https://api.nuget.org/v3/index.json
+
+    nuget FSharp.Compiler.Service
+    nuget FSharp.Control.AsyncSeq
+    nuget FsToolkit.ErrorHandling
+    nuget IcedTasks
+
 group Tests
     source https://api.nuget.org/v3/index.json
 

@@ -279,6 +279,52 @@ NUGET
   remote: https://api.nuget.org/v3/index.json
     FSharp.Core (8.0.100)
 
+GROUP Plugins
+NUGET
+  remote: https://api.nuget.org/v3/index.json
+    FSharp.Compiler.Service (43.8.100)
+      FSharp.Core (8.0.100) - restriction: >= netstandard2.0
+      System.Buffers (>= 4.5.1) - restriction: >= netstandard2.0
+      System.Collections.Immutable (>= 7.0) - restriction: >= netstandard2.0
+      System.Diagnostics.DiagnosticSource (>= 7.0.2) - restriction: >= netstandard2.0
+      System.Memory (>= 4.5.5) - restriction: >= netstandard2.0
+      System.Reflection.Emit (>= 4.7) - restriction: >= netstandard2.0
+      System.Reflection.Metadata (>= 7.0) - restriction: >= netstandard2.0
+      System.Runtime.CompilerServices.Unsafe (>= 6.0) - restriction: >= netstandard2.0
+    FSharp.Control.AsyncSeq (3.2.1)
+      FSharp.Core (>= 4.7.2) - restriction: >= netstandard2.0
+      Microsoft.Bcl.AsyncInterfaces (>= 5.0) - restriction: >= netstandard2.0
+    FSharp.Core (8.0.100) - restriction: >= netstandard2.0
+    FsToolkit.ErrorHandling (4.11)
+      FSharp.Core (>= 7.0.300) - restriction: >= netstandard2.1
+      FSharp.Core (>= 7.0.400) - restriction: && (>= netstandard2.0) (< netstandard2.1)
+    IcedTasks (0.9.2)
+      FSharp.Core (>= 6.0.1) - restriction: >= netstandard2.0
+    Microsoft.Bcl.AsyncInterfaces (8.0) - restriction: >= netstandard2.0
+      System.Threading.Tasks.Extensions (>= 4.5.4) - restriction: || (>= net462) (&& (>= netstandard2.0) (< netstandard2.1))
+    System.Buffers (4.5.1) - restriction: >= netstandard2.0
+    System.Collections.Immutable (8.0) - restriction: >= netstandard2.0
+      System.Memory (>= 4.5.5) - restriction: || (>= net462) (&& (< net6.0) (>= netstandard2.0))
+      System.Runtime.CompilerServices.Unsafe (>= 6.0) - restriction: || (>= net462) (&& (>= net6.0) (< net7.0)) (&& (< net6.0) (>= netstandard2.0))
+    System.Diagnostics.DiagnosticSource (8.0) - restriction: >= netstandard2.0
+      System.Memory (>= 4.5.5) - restriction: || (>= net462) (&& (< net6.0) (>= netstandard2.0))
+      System.Runtime.CompilerServices.Unsafe (>= 6.0) - restriction: || (>= net462) (&& (>= net6.0) (< net7.0)) (&& (< net6.0) (>= netstandard2.0))
+    System.Memory (4.5.5) - restriction: >= netstandard2.0
+      System.Buffers (>= 4.5.1) - restriction: || (&& (>= monoandroid) (< netstandard1.1)) (&& (< monoandroid) (< net45) (>= netstandard1.1) (< netstandard2.0) (< win8) (< wpa81)) (&& (< monoandroid) (< netstandard1.1) (>= portable-net45+win8+wpa81) (< win8)) (>= monotouch) (&& (>= net45) (< netstandard2.0)) (&& (< net45) (< netcoreapp2.0) (>= netstandard2.0)) (>= net461) (&& (< netstandard1.1) (>= win8)) (&& (< netstandard2.0) (< uap10.1) (>= wpa81)) (>= xamarinios) (>= xamarinmac) (>= xamarintvos) (>= xamarinwatchos)
+      System.Numerics.Vectors (>= 4.4) - restriction: && (< net45) (< netcoreapp2.0) (>= netstandard2.0) (< xamarinios) (< xamarinmac) (< xamarintvos) (< xamarinwatchos)
+      System.Numerics.Vectors (>= 4.5) - restriction: >= net461
+      System.Runtime.CompilerServices.Unsafe (>= 4.5.3) - restriction: || (&& (>= monoandroid) (< netstandard1.1)) (&& (< monoandroid) (< net45) (>= netstandard1.1) (< netstandard2.0) (< win8) (< wpa81)) (&& (< monoandroid) (>= netcoreapp2.0) (< netcoreapp2.1)) (&& (< monoandroid) (< netstandard1.1) (>= portable-net45+win8+wpa81) (< win8)) (>= monotouch) (&& (>= net45) (< netstandard2.0)) (&& (< net45) (< netcoreapp2.0) (>= netstandard2.0)) (>= net461) (&& (< netstandard1.1) (>= win8)) (&& (< netstandard2.0) (>= wpa81)) (>= uap10.1) (>= xamarinios) (>= xamarinmac) (>= xamarintvos) (>= xamarinwatchos)
+    System.Numerics.Vectors (4.5) - restriction: || (&& (< net45) (< netcoreapp2.0) (>= netstandard2.0) (< xamarinios) (< xamarinmac) (< xamarintvos) (< xamarinwatchos)) (&& (>= net461) (>= netstandard2.0))
+    System.Reflection.Emit (4.7) - restriction: >= netstandard2.0
+      System.Reflection.Emit.ILGeneration (>= 4.7) - restriction: || (&& (< monoandroid) (< monotouch) (< net45) (>= netstandard1.1) (< netstandard2.0) (< win8) (< wpa81) (< xamarintvos) (< xamarinwatchos)) (&& (< monoandroid) (< net45) (< netcoreapp2.0) (>= netstandard2.0) (< netstandard2.1) (< xamarintvos) (< xamarinwatchos)) (&& (< monoandroid) (< netstandard1.1) (>= portable-net45+win8+wpa81) (< win8)) (&& (< netstandard1.1) (>= win8)) (&& (< netstandard2.0) (>= wpa81)) (>= uap10.1)
+    System.Reflection.Emit.ILGeneration (4.7) - restriction: || (&& (< monoandroid) (< net45) (< netcoreapp2.0) (>= netstandard2.0) (< netstandard2.1) (< xamarintvos) (< xamarinwatchos)) (&& (< monoandroid) (< netstandard1.1) (>= netstandard2.0) (< win8)) (&& (< netstandard1.1) (>= netstandard2.0) (>= win8)) (&& (>= netstandard2.0) (>= uap10.1))
+    System.Reflection.Metadata (8.0) - restriction: >= netstandard2.0
+      System.Collections.Immutable (>= 8.0) - restriction: || (>= net462) (>= netstandard2.0)
+      System.Memory (>= 4.5.5) - restriction: || (>= net462) (&& (< net6.0) (>= netstandard2.0))
+    System.Runtime.CompilerServices.Unsafe (6.0) - restriction: || (&& (< monoandroid) (>= netcoreapp2.0) (< netcoreapp2.1)) (&& (>= net6.0) (< net7.0)) (>= netstandard2.0)
+    System.Threading.Tasks.Extensions (4.5.4) - restriction: || (&& (>= net462) (>= netstandard2.0)) (&& (>= netstandard2.0) (< netstandard2.1))
+      System.Runtime.CompilerServices.Unsafe (>= 4.5.3) - restriction: || (&& (< monoandroid) (< monotouch) (< net45) (>= netstandard1.0) (< netstandard2.0) (< win8) (< wpa81) (< xamarintvos) (< xamarinwatchos)) (&& (< monoandroid) (< netstandard1.0) (>= portable-net45+win8+wp8+wpa81) (< win8)) (&& (>= net45) (< netstandard2.0)) (&& (< net45) (< netcoreapp2.1) (>= netstandard2.0) (< xamarinios) (< xamarinmac) (< xamarintvos) (< xamarinwatchos)) (>= net461) (&& (< netstandard1.0) (>= win8)) (&& (< netstandard2.0) (>= wpa81)) (>= wp8)
+
 GROUP Samples
 NUGET
   remote: https://api.nuget.org/v3/index.json
