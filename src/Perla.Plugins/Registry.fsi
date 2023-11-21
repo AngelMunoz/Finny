@@ -6,8 +6,6 @@ open System.Threading
 
 open FSharp.Compiler.Interactive.Shell
 
-open IcedTasks
-
 open Perla.Plugins
 
 [<Struct>]
